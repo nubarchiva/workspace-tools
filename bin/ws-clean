@@ -146,7 +146,7 @@ if [ -d "$WORKSPACE_DIR" ]; then
     find "$WORKSPACE_DIR" -type d -empty -delete 2>/dev/null || true
 
     # Verificar qué archivos quedan
-    local remaining_files=$(ls -A "$WORKSPACE_DIR" 2>/dev/null)
+    remaining_files=$(ls -A "$WORKSPACE_DIR" 2>/dev/null)
 
     # Si está vacío o solo queda README.md (que creamos nosotros), eliminar todo
     if [ -z "$remaining_files" ]; then
