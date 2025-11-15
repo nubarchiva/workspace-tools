@@ -1,0 +1,165 @@
+#!/bin/bash
+# Helper para wscd: encuentra la ruta de un repo en el workspace actual
+
+# Detectar directorio del script (compatible bash/zsh)
+if [ -n "$BASH_SOURCE" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+else
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+fi
+
+# Cargar funciones compartidas
+source "$SCRIPT_DIR/ws-common.sh"
+source "$SCRIPT_DIR/ws-colors.sh"
+
+# Detectar WORKSPACE_ROOT
+if [ -n "$WS_TOOLS" ]; then
+    WORKSPACE_ROOT="${WS_TOOLS%/tools/workspace-tools}"
+else
+    WORKSPACE_ROOT=~/wrkspc.nubarchiva
+fi
+WORKSPACES_DIR=$WORKSPACE_ROOT/workspaces
+
+# Detectar workspace actual
+WORKSPACE_NAME=$(detect_current_workspace 2>/dev/null || true)
+if [ -z "$WORKSPACE_NAME" ]; then
+    echo "❌ No estás dentro de un workspace" >&2
+    exit 1
+fi
+
+WORKSPACE_DIR=$WORKSPACES_DIR/$WORKSPACE_NAME
+PATTERN=$1
+
+# Casos especiales: . y ..
+if [ "$PATTERN" = "." ]; then
+    # Ir a raíz del workspace
+    echo "$WORKSPACE_DIR"
+    exit 0
+elif [ "$PATTERN" = ".." ]; then
+    # Navegar un nivel arriba (relativo al workspace)
+    echo "$(dirname "$WORKSPACE_DIR")"
+    exit 0
+fi
+
+# Encontrar todos los repos en el workspace
+repos=$(find_repos_in_workspace "$WORKSPACE_DIR")
+
+if [ -z "$repos" ]; then
+    echo "❌ No hay repos en el workspace $WORKSPACE_NAME" >&2
+    exit 1
+fi
+
+# Si no hay patrón, mostrar menú con todos los repos
+if [ -z "$PATTERN" ]; then
+    echo "" >&2
+    echo "${COLOR_CYAN}Repos en workspace ${COLOR_BOLD}$WORKSPACE_NAME${COLOR_RESET}:" >&2
+    echo "" >&2
+
+    # Convertir repos a array
+    repos_array=()
+    while IFS= read -r repo; do
+        if [ -n "$repo" ]; then
+            repos_array+=("$repo")
+        fi
+    done <<< "$repos"
+
+    # Mostrar menú numerado
+    i=1
+    for repo in "${repos_array[@]}"; do
+        echo "  $i) ${COLOR_CYAN}$repo${COLOR_RESET}" >&2
+        ((i++))
+    done
+
+    echo "" >&2
+    echo -n "Selecciona un repo [1-${#repos_array[@]}] (o 0 para cancelar): " >&2
+    read -r selection
+
+    if [ -z "$selection" ] || [ "$selection" = "0" ]; then
+        echo "❌ Cancelado" >&2
+        exit 1
+    fi
+
+    if ! [[ "$selection" =~ ^[0-9]+$ ]] || [ "$selection" -lt 1 ] || [ "$selection" -gt ${#repos_array[@]} ]; then
+        echo "❌ Selección inválida: $selection" >&2
+        exit 1
+    fi
+
+    # Obtener repo seleccionado (ajustar para bash 0-indexed)
+    if [ -n "$ZSH_VERSION" ]; then
+        selected_repo="${repos_array[$selection]}"
+    else
+        selected_repo="${repos_array[$((selection-1))]}"
+    fi
+
+    echo "$WORKSPACE_DIR/$selected_repo"
+    exit 0
+fi
+
+# Buscar repos que coincidan con el patrón
+pattern_lower=$(echo "$PATTERN" | tr '[:upper:]' '[:lower:]')
+matches=()
+
+while IFS= read -r repo; do
+    if [ -n "$repo" ]; then
+        repo_lower=$(echo "$repo" | tr '[:upper:]' '[:lower:]')
+        if [[ "$repo_lower" == *"$pattern_lower"* ]]; then
+            matches+=("$repo")
+        fi
+    fi
+done <<< "$repos"
+
+# Analizar resultados
+num_matches=${#matches[@]}
+
+if [ $num_matches -eq 0 ]; then
+    echo "❌ No se encontró ningún repo que coincida con: '$PATTERN'" >&2
+    echo "" >&2
+    echo "Repos disponibles en $WORKSPACE_NAME:" >&2
+    echo "$repos" | while read -r repo; do
+        if [ -n "$repo" ]; then
+            echo "  • ${COLOR_CYAN}$repo${COLOR_RESET}" >&2
+        fi
+    done
+    exit 1
+elif [ $num_matches -eq 1 ]; then
+    # Una sola coincidencia, usarla automáticamente
+    if [ -n "$ZSH_VERSION" ]; then
+        echo "$WORKSPACE_DIR/${matches[1]}"
+    else
+        echo "$WORKSPACE_DIR/${matches[0]}"
+    fi
+    exit 0
+else
+    # Múltiples coincidencias, mostrar menú
+    echo "" >&2
+    echo "Se encontraron $num_matches repos que coinciden con '$PATTERN':" >&2
+    echo "" >&2
+
+    i=1
+    for match in "${matches[@]}"; do
+        echo "  $i) ${COLOR_CYAN}$match${COLOR_RESET}" >&2
+        ((i++))
+    done
+
+    echo "" >&2
+    echo -n "Selecciona una opción [1-$num_matches] (o 0 para cancelar): " >&2
+    read -r selection
+
+    if [ -z "$selection" ] || [ "$selection" = "0" ]; then
+        echo "❌ Cancelado" >&2
+        exit 1
+    fi
+
+    if ! [[ "$selection" =~ ^[0-9]+$ ]] || [ "$selection" -lt 1 ] || [ "$selection" -gt $num_matches ]; then
+        echo "❌ Selección inválida: $selection" >&2
+        exit 1
+    fi
+
+    # Retornar el repo seleccionado
+    if [ -n "$ZSH_VERSION" ]; then
+        echo "$WORKSPACE_DIR/${matches[$selection]}"
+    else
+        echo "$WORKSPACE_DIR/${matches[$((selection-1))]}"
+    fi
+    exit 0
+fi

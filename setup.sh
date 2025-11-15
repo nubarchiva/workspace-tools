@@ -66,3 +66,21 @@ wmcl() { ws mvn "$1" -T 1C clean; }
 # Git shortcuts para workspaces
 wgt() { ws git "$1" status; }
 wgpa() { ws git "$1" pull --all; }
+
+# Navigation shortcuts para workspaces
+# wscd: Navega a un repo dentro del workspace actual con matching parcial
+wscd() {
+    local repo_path
+    repo_path=$("$WS_TOOLS/bin/ws-repo-path" "$@" 2>&1)
+    local exit_code=$?
+
+    if [ $exit_code -eq 0 ] && [ -n "$repo_path" ]; then
+        cd "$repo_path" || return 1
+        # Mostrar dónde estamos
+        echo "${COLOR_CYAN}$(pwd)${COLOR_RESET}"
+    else
+        # Mostrar error del helper (ya viene formateado)
+        echo "$repo_path"
+        return 1
+    fi
+}

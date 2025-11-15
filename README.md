@@ -135,6 +135,20 @@ ws clean feature-123
 | `wgt <workspace>` | `ws git <workspace> status` | Status en todos los repos |
 | `wgpa <workspace>` | `ws git <workspace> pull --all` | Pull all en todos los repos |
 
+### Shortcuts de Navegación
+
+| Shortcut | Descripción | Ejemplo |
+|----------|-------------|---------|
+| `wscd [pattern]` | Navega a un repo del workspace actual con matching parcial | `wscd ks` → navega a ks-nuba |
+| `wscd` | Sin argumentos: muestra menú de repos y navega al seleccionado | `wscd` → selecciona de lista |
+| `wscd .` | Navega a la raíz del workspace | `wscd .` |
+
+**Características:**
+- Matching parcial case-insensitive: `wscd nuba` encuentra `ks-nuba`
+- Menú de selección si hay múltiples coincidencias
+- Auto-detecta el workspace actual
+- Solo funciona desde dentro de un workspace
+
 ## Ejemplos de Uso
 
 ### Crear feature con múltiples repos
