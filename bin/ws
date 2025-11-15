@@ -1,0 +1,112 @@
+#!/bin/bash
+# Workspace Tools - Comando principal
+# Dispatcher para los subcomandos de workspace management
+
+# Detectar directorio del script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Subcomando (primer argumento)
+SUBCOMMAND=$1
+
+# Función de ayuda
+show_help() {
+    cat <<'EOF'
+╔════════════════════════════════════════════════════╗
+║  Workspace Tools                                   ║
+║  Sistema de gestión de workspaces con Git         ║
+╚════════════════════════════════════════════════════╝
+
+Uso: ws <comando> [argumentos...]
+
+Comandos disponibles:
+
+  new <tipo> <nombre> [repos...]
+      Crea un nuevo workspace
+      Ejemplos:
+        ws new feature mi-feature ks-nuba libs/marc4j
+        ws new master ks-nuba
+        ws new develop
+
+  add <tipo> <nombre|patrón> <repo>
+      Añade un repo a un workspace existente
+      Ejemplos:
+        ws add feature mi-feature libs/marc4j
+        ws add feature fac modules/docs    # coincidencia parcial
+
+  switch <tipo> [nombre|patrón]
+      Cambia a un workspace y muestra su información
+      Ejemplos:
+        ws switch feature mi-feature
+        ws switch feature fac              # coincidencia parcial
+        ws switch master
+
+  list
+      Lista todos los workspaces activos
+      Ejemplo:
+        ws list
+
+  clean <tipo> [nombre|patrón]
+      Limpia un workspace (elimina worktrees, mantiene branches)
+      Ejemplos:
+        ws clean feature mi-feature
+        ws clean feature fac               # coincidencia parcial
+        ws clean master
+
+Tipos de workspace:
+  • feature <nombre>  - Para desarrollo de features
+  • master            - Para trabajo en master
+  • develop           - Para trabajo en develop
+
+💡 Búsqueda parcial:
+  Puedes usar partes del nombre en lugar del nombre completo.
+  Si hay múltiples coincidencias, se mostrará un menú interactivo.
+
+Alias antiguos (compatibles):
+  ws-new, ws-add, ws-switch, ws-list, ws-clean
+
+Documentación:
+  README.md       - Guía completa
+  EJEMPLOS.md     - Casos de uso prácticos
+  CHEATSHEET.md   - Referencia rápida
+  QUICKSTART.md   - Inicio rápido
+
+EOF
+}
+
+# Si no hay argumentos, mostrar ayuda
+if [ -z "$SUBCOMMAND" ]; then
+    show_help
+    exit 0
+fi
+
+# Mapear subcomandos a scripts
+case $SUBCOMMAND in
+    new|add|switch|list|clean)
+        SCRIPT_NAME="ws-$SUBCOMMAND"
+        SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_NAME"
+        
+        # Verificar que el script existe
+        if [ ! -f "$SCRIPT_PATH" ]; then
+            echo "❌ Error: comando '$SUBCOMMAND' no encontrado"
+            echo ""
+            show_help
+            exit 1
+        fi
+        
+        # Ejecutar el script correspondiente, pasando todos los argumentos excepto el primero
+        shift
+        exec "$SCRIPT_PATH" "$@"
+        ;;
+    
+    help|--help|-h)
+        show_help
+        exit 0
+        ;;
+    
+    *)
+        echo "❌ Comando desconocido: $SUBCOMMAND"
+        echo ""
+        show_help
+        exit 1
+        ;;
+esac

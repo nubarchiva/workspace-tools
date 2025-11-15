@@ -1,62 +1,68 @@
-# Workspace Tools - Cheatsheet v2.0
+# Workspace Tools - Cheatsheet v2.1
 
 ## Comandos Rápidos
 
 ### Crear Workspaces
 ```bash
 # Feature con repos en raíz
-./tools/new-workspace.sh feature <nombre> ks-nuba dga-commons
+ws new feature <nombre> ks-nuba dga-commons
 
 # Feature con repos en subdirectorios
-./tools/new-workspace.sh feature <nombre> libs/marc4j modules/docs
+ws new feature <nombre> libs/marc4j modules/docs
 
 # Feature mezclando niveles
-./tools/new-workspace.sh feature <nombre> ks-nuba libs/marc4j modules/docs
+ws new feature <nombre> ks-nuba libs/marc4j modules/docs
 
 # Master/Develop
-./tools/new-workspace.sh master ks-nuba libs/dspace
-./tools/new-workspace.sh develop ks-nuba libs/marc4j modules/docs
+ws new master ks-nuba libs/dspace
+ws new develop ks-nuba libs/marc4j modules/docs
 
 # Workspace vacío (añadir repos después)
-./tools/new-workspace.sh feature <nombre>
+ws new feature <nombre>
 ```
 
 ### Añadir Repos
 ```bash
 # Añadir repo en raíz
-./tools/add-repo.sh feature <nombre> ks-nuba
+ws add feature <nombre> ks-nuba
+
+# Con búsqueda parcial
+ws add feature fac libs/marc4j          # encuentra "faceted-search"
 
 # Añadir repo en subdirectorio
-./tools/add-repo.sh feature <nombre> libs/marc4j
-./tools/add-repo.sh feature <nombre> modules/docs
+ws add feature <nombre> modules/docs
 
 # Añadir a master/develop
-./tools/add-repo.sh master libs/dspace
-./tools/add-repo.sh develop modules/metadata-entities
+ws add master libs/dspace
+ws add develop modules/metadata-entities
 ```
 
 ### Listar y Ver
 ```bash
 # Listar todos los workspaces
-./tools/list-workspaces.sh
+ws list
 
 # Ver workspaces disponibles
-./tools/switch-workspace.sh
+ws switch
 
 # Ver detalle de workspace
-./tools/switch-workspace.sh feature <nombre>
-./tools/switch-workspace.sh master
+ws switch feature <nombre>
+ws switch feature fac                    # búsqueda parcial
+ws switch master
 ```
 
 ### Limpiar
 ```bash
-# Limpiar feature
-./tools/cleanup-workspace.sh feature <nombre>
+# Limpiar feature (con búsqueda parcial)
+ws clean feature <nombre>
+ws clean feature fac                     # búsqueda parcial
 
 # Limpiar master/develop
-./tools/cleanup-workspace.sh master
-./tools/cleanup-workspace.sh develop
+ws clean master
+ws clean develop
 ```
+
+💡 **Búsqueda Parcial**: Todos los comandos soportan coincidencia parcial. Si hay múltiples coincidencias, se muestra un menú interactivo.
 
 ## Estructura de Directorios
 
@@ -103,7 +109,7 @@
 ### Feature con Múltiples Niveles
 ```bash
 # 1. Crear
-./tools/new-workspace.sh feature full ks-nuba libs/marc4j modules/docs
+ws new feature full ks-nuba libs/marc4j modules/docs
 
 # 2. Trabajar
 cd workspaces/features/full
@@ -116,48 +122,48 @@ cd ../../modules/docs && git commit -am "docs: update"
 
 # 4. Limpiar
 cd ~/wrkspc.nubarchiva
-./tools/cleanup-workspace.sh feature full
+ws clean feature full
 ```
 
 ### Añadir Repos Dinámicamente
 ```bash
 # Empezar con uno
-./tools/new-workspace.sh feature dynamic ks-nuba
+ws new feature dynamic ks-nuba
 
 # Añadir según necesites
-./tools/add-repo.sh feature dynamic libs/marc4j
-./tools/add-repo.sh feature dynamic modules/docs
+ws add feature dyn libs/marc4j           # búsqueda parcial "dyn" → "dynamic"
+ws add feature dynamic modules/docs
 
 # Ver qué tienes
-./tools/switch-workspace.sh feature dynamic
+ws switch feature dyn
 ```
 
 ### Hotfix en Librería
 ```bash
 # Solo la librería
-./tools/new-workspace.sh master libs/marc4j
+ws new master libs/marc4j
 
 cd workspaces/master/libs/marc4j
 # fix, commit, push
 
 cd ~/wrkspc.nubarchiva
-./tools/cleanup-workspace.sh master ""
+ws clean master
 ```
 
 ## Patrones Comunes
 
 ```bash
 # Código principal + una lib
-./tools/new-workspace.sh feature name ks-nuba libs/marc4j
+ws new feature name ks-nuba libs/marc4j
 
 # Solo librerías
-./tools/new-workspace.sh feature libs-only libs/lib1 libs/lib2
+ws new feature libs-only libs/lib1 libs/lib2
 
 # Solo módulos
-./tools/new-workspace.sh feature mods-only modules/mod1 modules/mod2
+ws new feature mods-only modules/mod1 modules/mod2
 
 # Todo mezclado
-./tools/new-workspace.sh feature full ks-nuba libs/lib1 modules/mod1
+ws new feature full ks-nuba libs/lib1 modules/mod1
 ```
 
 ## Navegación
@@ -255,20 +261,26 @@ find . -maxdepth 3 -name ".git" -type d | \
 
 ```bash
 # Añade a ~/.bashrc o ~/.zshrc
-export WS_ROOT=~/wrkspc.nubarchiva
+export WS_TOOLS=~/wrkspc.nubarchiva/tools/workspace-tools
 
-alias ws-new='$WS_ROOT/tools/new-workspace.sh'
-alias ws-add='$WS_ROOT/tools/add-repo.sh'
-alias ws-list='$WS_ROOT/tools/list-workspaces.sh'
-alias ws-switch='$WS_ROOT/tools/switch-workspace.sh'
-alias ws-clean='$WS_ROOT/tools/cleanup-workspace.sh'
-alias ws='cd $WS_ROOT'
-alias wsf='cd $WS_ROOT/workspaces/features'
+# Comando principal (recomendado)
+alias ws='$WS_TOOLS/bin/ws'
+
+# Navegación rápida
+alias wscd='cd ~/wrkspc.nubarchiva'
+alias wsf='cd ~/wrkspc.nubarchiva/workspaces/features'
+
+# Comandos individuales (opcional, para compatibilidad)
+alias ws-new='$WS_TOOLS/bin/ws-new'
+alias ws-add='$WS_TOOLS/bin/ws-add'
+alias ws-list='$WS_TOOLS/bin/ws-list'
+alias ws-switch='$WS_TOOLS/bin/ws-switch'
+alias ws-clean='$WS_TOOLS/bin/ws-clean'
 
 # Función helper para status
 ws-status() {
     local feature=$1
-    cd $WS_ROOT/workspaces/features/$feature
+    cd ~/wrkspc.nubarchiva/workspaces/features/$feature
     for d in */; do
         [ -d "$d/.git" ] || [ -f "$d/.git" ] && (
             cd $d
@@ -281,20 +293,17 @@ ws-status() {
 
 ### Uso con Alias
 ```bash
-# Crear
+# Comando unificado (recomendado)
+ws new feature test ks-nuba libs/marc4j
+ws list
+ws switch feature test
+ws add feature test modules/docs
+ws clean feature test
+
+# O comandos individuales (compatibilidad)
 ws-new feature test ks-nuba libs/marc4j
-
-# Listar
 ws-list
-
-# Ver detalle
 ws-switch feature test
-
-# Añadir repo
-ws-add feature test modules/docs
-
-# Limpiar
-ws-clean feature test
 
 # Status de una feature
 ws-status test
@@ -374,27 +383,27 @@ idea .
 
 ```bash
 # Simple: código + lib
-ws-new feature quick ks-nuba libs/marc4j
+ws new feature quick ks-nuba libs/marc4j
 
 # Solo libs
-ws-new feature libs-work libs/marc4j libs/dspace
+ws new feature libs-work libs/marc4j libs/dspace
 
 # Solo modules
-ws-new feature docs-update modules/docs modules/diffusion-portal
+ws new feature docs-update modules/docs modules/diffusion-portal
 
 # Full stack
-ws-new feature big-change ks-nuba dga-commons libs/marc4j modules/docs
+ws new feature big-change ks-nuba dga-commons libs/marc4j modules/docs
 
 # Incremental
-ws-new feature explore ks-nuba
-ws-add feature explore libs/marc4j
-ws-add feature explore modules/docs
+ws new feature explore ks-nuba
+ws add feature exp libs/marc4j          # búsqueda parcial "exp"
+ws add feature explore modules/docs
 
 # Master hotfix
-ws-new master libs/marc4j
+ws new master libs/marc4j
 cd workspaces/master/libs/marc4j
 # fix...
-ws-clean master ""
+ws clean master
 ```
 
 ## Ver También

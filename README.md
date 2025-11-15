@@ -56,24 +56,23 @@ cd workspace-tools
 
 ## Uso Rápido
 
-Los scripts están en `bin/` y tienen nombres cortos:
+Puedes usar el comando unificado `ws` o los scripts individuales:
 
 ```bash
 cd ~/wrkspc.nubarchiva/tools/workspace-tools
 
-# Crear workspace
+# Comando unificado (recomendado)
+./bin/ws new feature mi-feature ks-nuba libs/marc4j
+./bin/ws list
+./bin/ws switch feature mi-feature
+./bin/ws add feature mi-feature modules/docs
+./bin/ws clean feature mi-feature
+
+# O scripts individuales (compatibilidad)
 ./bin/ws-new feature mi-feature ks-nuba libs/marc4j
-
-# Listar workspaces
 ./bin/ws-list
-
-# Ver detalle
 ./bin/ws-switch feature mi-feature
-
-# Añadir repo
 ./bin/ws-add feature mi-feature modules/docs
-
-# Limpiar
 ./bin/ws-clean feature mi-feature
 ```
 
@@ -85,13 +84,19 @@ Añade a tu `~/.bashrc` o `~/.zshrc`:
 # Workspace Tools
 export WS_TOOLS=~/wrkspc.nubarchiva/tools/workspace-tools
 
+# Comando principal (recomendado)
+alias ws='$WS_TOOLS/bin/ws'
+
+# Navegación rápida
+alias wscd='cd ~/wrkspc.nubarchiva'
+alias wsf='cd ~/wrkspc.nubarchiva/workspaces/features'
+
+# Comandos individuales (opcional, para compatibilidad)
 alias ws-new='$WS_TOOLS/bin/ws-new'
 alias ws-add='$WS_TOOLS/bin/ws-add'
 alias ws-list='$WS_TOOLS/bin/ws-list'
 alias ws-switch='$WS_TOOLS/bin/ws-switch'
 alias ws-clean='$WS_TOOLS/bin/ws-clean'
-alias ws='cd ~/wrkspc.nubarchiva'
-alias wsf='cd ~/wrkspc.nubarchiva/workspaces/features'
 ```
 
 Después de configurar:
@@ -99,7 +104,14 @@ Después de configurar:
 ```bash
 source ~/.bashrc  # o source ~/.zshrc
 
-# Usar desde cualquier lugar
+# Usar desde cualquier lugar con el comando unificado
+ws new feature test ks-nuba libs/marc4j
+ws list
+ws switch feature test
+ws add feature test modules/docs
+ws clean feature test
+
+# O con los comandos individuales (compatibilidad)
 ws-new feature test ks-nuba libs/marc4j
 ws-list
 ws-switch feature test
@@ -149,62 +161,76 @@ ws-clean master ""
 
 ## Comandos
 
-### ws-new
+Puedes usar el comando unificado `ws` (recomendado) o los comandos individuales para compatibilidad.
+
+### ws new (o ws-new)
 Crea un nuevo workspace.
 
 ```bash
 # Sintaxis
+ws new <tipo> <nombre> [repo1] [repo2] ...
+# o
 ws-new <tipo> <nombre> [repo1] [repo2] ...
 
 # Tipos: feature, master, develop
 
 # Ejemplos
-ws-new feature mi-feature ks-nuba
-ws-new feature full ks-nuba libs/marc4j modules/docs
-ws-new master ks-nuba libs/dspace
-ws-new develop
+ws new feature mi-feature ks-nuba
+ws new feature full ks-nuba libs/marc4j modules/docs
+ws new master ks-nuba libs/dspace
+ws new develop
 ```
 
-### ws-add
+### ws add (o ws-add)
 Añade un repo a un workspace existente.
 
 ```bash
 # Sintaxis
-ws-add <tipo> <nombre> <repo>
+ws add <tipo> <nombre|patrón> <repo>
+# o
+ws-add <tipo> <nombre|patrón> <repo>
 
 # Ejemplos
-ws-add feature mi-feature libs/marc4j
-ws-add feature mi-feature modules/docs
-ws-add master tools/workspace-tools
+ws add feature mi-feature libs/marc4j
+ws add feature fac modules/docs          # coincidencia parcial
+ws add master tools/workspace-tools
 ```
 
-### ws-list
+### ws list (o ws-list)
 Lista todos los workspaces activos con su estado.
 
 ```bash
+ws list
+# o
 ws-list
 ```
 
-### ws-switch
+### ws switch (o ws-switch)
 Muestra información detallada de un workspace.
 
 ```bash
 # Ver workspaces disponibles
+ws switch
+# o sin argumentos
 ws-switch
 
 # Ver detalle de uno específico
-ws-switch feature mi-feature
-ws-switch master
+ws switch feature mi-feature
+ws switch feature fac                    # coincidencia parcial
+ws switch master
 ```
 
-### ws-clean
+### ws clean (o ws-clean)
 Limpia un workspace (elimina worktrees, mantiene branches).
 
 ```bash
-ws-clean feature mi-feature
-ws-clean master ""
-ws-clean develop ""
+ws clean feature mi-feature
+ws clean feature fac                     # coincidencia parcial
+ws clean master
+ws clean develop
 ```
+
+💡 **Búsqueda parcial**: Todos los comandos que aceptan nombre de workspace soportan coincidencia parcial. Si hay múltiples coincidencias, se mostrará un menú interactivo.
 
 ## Especificar Repos
 

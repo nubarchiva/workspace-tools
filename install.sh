@@ -134,18 +134,29 @@ cat <<'EOF'
    # Workspace Tools
    export WS_TOOLS=~/wrkspc.nubarchiva/tools/workspace-tools
    
+   # Comando principal (recomendado)
+   alias ws='$WS_TOOLS/bin/ws'
+
+   # Navegación rápida
+   alias wscd='cd ~/wrkspc.nubarchiva'
+   alias wsf='cd ~/wrkspc.nubarchiva/workspaces/features'
+
+   # Comandos individuales (opcional, para compatibilidad)
    alias ws-new='$WS_TOOLS/bin/ws-new'
    alias ws-add='$WS_TOOLS/bin/ws-add'
    alias ws-list='$WS_TOOLS/bin/ws-list'
    alias ws-switch='$WS_TOOLS/bin/ws-switch'
    alias ws-clean='$WS_TOOLS/bin/ws-clean'
-   alias ws='cd ~/wrkspc.nubarchiva'
-   alias wsf='cd ~/wrkspc.nubarchiva/workspaces/features'
 EOF
 echo ""
 echo "   Después ejecuta: source ~/.bashrc"
 echo ""
 echo "   Con los alias configurados podrás usar desde cualquier lugar:"
+echo "     ws new feature test ks-nuba libs/marc4j"
+echo "     ws list"
+echo "     ws switch feature test"
+echo ""
+echo "   O con los comandos individuales:"
 echo "     ws-new feature test ks-nuba libs/marc4j"
 echo "     ws-list"
 echo "     ws-switch feature test"
@@ -159,5 +170,7 @@ echo "════════════════════════�
 echo ""
 echo "¡Listo para empezar! 🚀"
 echo ""
-echo "Primer comando de prueba:"
-echo "  ./bin/ws-new feature test ks-nuba"
+echo "Primeros comandos de prueba:"
+echo "  ./bin/ws new feature test ks-nuba    # comando unificado"
+echo "  ./bin/ws list                        # listar workspaces"
+echo "  ./bin/ws help                        # ver ayuda"
