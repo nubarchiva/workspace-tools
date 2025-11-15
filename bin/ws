@@ -13,31 +13,34 @@ show_help() {
     cat <<'EOF'
 ╔════════════════════════════════════════════════════╗
 ║  Workspace Tools                                   ║
-║  Sistema de gestión de workspaces con Git         ║
+║  Sistema de gestión de workspaces nubarchiva       ║
 ╚════════════════════════════════════════════════════╝
 
 Uso: ws <comando> [argumentos...]
 
 Comandos disponibles:
 
-  new <tipo> <nombre> [repos...]
+  new <nombre> [repos...]
       Crea un nuevo workspace
       Ejemplos:
-        ws new feature mi-feature ks-nuba libs/marc4j
+        ws new nuba-8400 ks-nuba libs/marc4j
+        ws new faceted-search ks-nuba
         ws new master ks-nuba
         ws new develop
 
-  add <tipo> <nombre|patrón> <repo>
+  add <nombre|patrón> <repo>
       Añade un repo a un workspace existente
       Ejemplos:
-        ws add feature mi-feature libs/marc4j
-        ws add feature fac modules/docs    # coincidencia parcial
+        ws add nuba-8400 libs/marc4j
+        ws add fac modules/docs            # coincidencia parcial
+        ws add master ks-nuba
 
-  switch <tipo> [nombre|patrón]
+  switch [nombre|patrón]
       Cambia a un workspace y muestra su información
       Ejemplos:
-        ws switch feature mi-feature
-        ws switch feature fac              # coincidencia parcial
+        ws switch                          # lista todos
+        ws switch nuba-8400
+        ws switch fac                      # coincidencia parcial
         ws switch master
 
   list
@@ -45,24 +48,24 @@ Comandos disponibles:
       Ejemplo:
         ws list
 
-  clean <tipo> [nombre|patrón]
+  clean <nombre|patrón>
       Limpia un workspace (elimina worktrees, mantiene branches)
       Ejemplos:
-        ws clean feature mi-feature
-        ws clean feature fac               # coincidencia parcial
+        ws clean nuba-8400
+        ws clean fac                       # coincidencia parcial
         ws clean master
 
-Tipos de workspace:
-  • feature <nombre>  - Para desarrollo de features
-  • master            - Para trabajo en master
-  • develop           - Para trabajo en develop
+Nombres especiales:
+  • master   - Workspace en branch master
+  • develop  - Workspace en branch develop
+  • otros    - Workspace en branch feature/<nombre>
 
 💡 Búsqueda parcial:
   Puedes usar partes del nombre en lugar del nombre completo.
   Si hay múltiples coincidencias, se mostrará un menú interactivo.
 
-Alias antiguos (compatibles):
-  ws-new, ws-add, ws-switch, ws-list, ws-clean
+Compatibilidad:
+  Los comandos individuales (ws-new, ws-add, etc.) siguen disponibles
 
 Documentación:
   README.md       - Guía completa

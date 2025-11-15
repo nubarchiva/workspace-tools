@@ -4,8 +4,7 @@
 
 set -e
 
-WORKSPACE_TYPE=$1
-WORKSPACE_NAME=$2
+WORKSPACE_PATTERN=$1
 
 # Detectar WORKSPACE_ROOT automáticamente (2 niveles arriba del script)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -17,17 +16,17 @@ source "$SCRIPT_DIR/ws-common.sh"
 
 # Función de ayuda
 show_help() {
-    echo "Uso: ws-clean <tipo> [nombre|patrón]"
+    echo "Uso: ws clean [nombre|patrón]"
     echo ""
     echo "Elimina los worktrees de un workspace pero mantiene las branches."
     echo ""
     echo "💡 Puedes usar coincidencia parcial para el nombre del workspace"
     echo ""
     echo "Ejemplos:"
-    echo "  ws-clean master"
-    echo "  ws-clean develop"
-    echo "  ws-clean feature faceted-search"
-    echo "  ws-clean feature fac              # busca 'fac' en features"
+    echo "  ws clean master"
+    echo "  ws clean develop"
+    echo "  ws clean nuba-8400"
+    echo "  ws clean fac                     # búsqueda parcial"
     echo ""
     echo "⚠️  Este comando:"
     echo "  • Elimina los directorios de worktree"
@@ -35,54 +34,28 @@ show_help() {
     echo "  • NO elimina commits ni cambios commiteados"
 }
 
-if [ -z "$WORKSPACE_TYPE" ]; then
-    show_help
-    exit 1
-fi
-
-# Validar tipo de workspace
-if [ "$WORKSPACE_TYPE" != "feature" ] && [ "$WORKSPACE_TYPE" != "master" ] && [ "$WORKSPACE_TYPE" != "develop" ]; then
-    echo "❌ Tipo inválido: $WORKSPACE_TYPE"
-    show_help
-    exit 1
-fi
-
-# Para features, validar que se proporcione un patrón de búsqueda
-if [ "$WORKSPACE_TYPE" = "feature" ] && [ -z "$WORKSPACE_NAME" ]; then
-    echo "❌ Las features requieren un nombre o patrón de búsqueda"
+if [ -z "$WORKSPACE_PATTERN" ]; then
     show_help
     exit 1
 fi
 
 # Buscar workspace que coincida con el patrón
-MATCHED_NAME=$(find_matching_workspace "$WORKSPACE_TYPE" "$WORKSPACE_NAME" "$WORKSPACES_DIR")
+WORKSPACE_NAME=$(find_matching_workspace "$WORKSPACE_PATTERN" "$WORKSPACES_DIR")
 if [ $? -ne 0 ]; then
     exit 1
 fi
 
 # Determinar directorio del workspace
-case $WORKSPACE_TYPE in
-    feature)
-        WORKSPACE_DIR=$WORKSPACES_DIR/features/$MATCHED_NAME
-        DISPLAY_NAME="feature/$MATCHED_NAME"
-        ;;
-    master)
-        WORKSPACE_DIR=$WORKSPACES_DIR/master
-        DISPLAY_NAME="master"
-        ;;
-    develop)
-        WORKSPACE_DIR=$WORKSPACES_DIR/develop
-        DISPLAY_NAME="develop"
-        ;;
-esac
+WORKSPACE_DIR=$WORKSPACES_DIR/$WORKSPACE_NAME
+BRANCH_NAME=$(get_branch_name "$WORKSPACE_NAME")
 
 if [ ! -d "$WORKSPACE_DIR" ]; then
-    echo "❌ Workspace no existe: $DISPLAY_NAME"
+    echo "❌ Workspace no existe: $WORKSPACE_NAME"
     exit 1
 fi
 
 # Mostrar qué se va a eliminar
-echo "⚠️  Vas a limpiar el workspace: $DISPLAY_NAME"
+echo "⚠️  Vas a limpiar el workspace: $WORKSPACE_NAME (branch: $BRANCH_NAME)"
 echo ""
 echo "Repos afectados:"
 
@@ -95,7 +68,7 @@ echo "$repos" | while read -r repo_rel_path; do
         has_repos=true
         worktree_path="$WORKSPACE_DIR/$repo_rel_path"
         echo "  • $repo_rel_path"
-        
+
         # Verificar si hay cambios sin commitear
         if [ -d "$worktree_path" ]; then
             cd "$worktree_path"
@@ -129,12 +102,12 @@ echo "Limpiando worktrees..."
 echo "$repos" | while read -r repo_rel_path; do
     if [ -n "$repo_rel_path" ]; then
         worktree_path="$WORKSPACE_DIR/$repo_rel_path"
-        
+
         if [ -d "$worktree_path" ]; then
             echo "  🗑️  Eliminando worktree: $repo_rel_path"
-            
+
             cd "$worktree_path"
-            
+
             # Obtener el directorio del repo principal
             # Para git worktrees, .git puede ser un archivo o directorio
             if [ -f "$worktree_path/.git" ]; then
@@ -144,7 +117,7 @@ echo "$repos" | while read -r repo_rel_path; do
                 # Es el repo principal o un caso especial
                 MAIN_REPO=$(git rev-parse --git-common-dir 2>/dev/null | sed 's|/\.git.*||')
             fi
-            
+
             # Volver al repo principal y eliminar worktree
             if [ -d "$MAIN_REPO" ]; then
                 cd "$MAIN_REPO"
@@ -166,7 +139,7 @@ done
 if [ -d "$WORKSPACE_DIR" ]; then
     # Eliminar directorios vacíos recursivamente
     find "$WORKSPACE_DIR" -type d -empty -delete 2>/dev/null || true
-    
+
     # Si el workspace quedó vacío, eliminarlo
     if [ -z "$(ls -A $WORKSPACE_DIR 2>/dev/null)" ]; then
         rm -rf "$WORKSPACE_DIR"
@@ -178,17 +151,10 @@ if [ -d "$WORKSPACE_DIR" ]; then
 fi
 
 echo ""
-echo "✅ Workspace limpiado: $DISPLAY_NAME"
+echo "✅ Workspace limpiado: $WORKSPACE_NAME"
 echo ""
-echo "💡 Las branches se mantienen en los repos principales:"
-if [ "$WORKSPACE_TYPE" = "feature" ]; then
-    echo "   Branch: feature/$MATCHED_NAME"
-fi
+echo "💡 La branch se mantiene en los repos principales:"
+echo "   Branch: $BRANCH_NAME"
 echo ""
 echo "Para ver branches en un repo:"
 echo "  cd $WORKSPACE_ROOT/<repo> && git branch -a"
-echo ""
-echo "Ejemplos:"
-echo "  cd $WORKSPACE_ROOT/ks-nuba && git branch -a"
-echo "  cd $WORKSPACE_ROOT/libs/marc4j && git branch -a"
-echo "  cd $WORKSPACE_ROOT/tools/workspace-tools && git branch -a"

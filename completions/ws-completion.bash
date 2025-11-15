@@ -14,9 +14,6 @@ _ws_completion() {
 
     # Subcomandos disponibles
     local subcommands="new add switch list clean help"
-    
-    # Tipos de workspace
-    local workspace_types="feature master develop"
 
     # Posición actual en el comando
     case $cword in
@@ -27,31 +24,21 @@ _ws_completion() {
         2)
             # Después del subcomando
             case ${words[1]} in
-                new|add|switch|clean)
-                    # Completar tipo de workspace
-                    COMPREPLY=($(compgen -W "$workspace_types" -- "$cur"))
+                new)
+                    # Para 'new', el usuario proporciona el nombre
+                    # Podríamos sugerir master/develop
+                    COMPREPLY=($(compgen -W "master develop" -- "$cur"))
+                    ;;
+                add|switch|clean)
+                    # Completar nombre de workspace existente
+                    local workspaces=""
+                    if [ -d "$workspaces_dir" ]; then
+                        workspaces=$(cd "$workspaces_dir" && ls -d */ 2>/dev/null | sed 's|/||')
+                    fi
+                    COMPREPLY=($(compgen -W "$workspaces" -- "$cur"))
                     ;;
                 list|help)
                     # No hay más argumentos
-                    ;;
-            esac
-            ;;
-        3)
-            # Después del tipo de workspace
-            case ${words[1]} in
-                new)
-                    # Para 'new', el usuario proporciona el nombre
-                    # No autocompletar, pero podríamos sugerir repos
-                    ;;
-                add|switch|clean)
-                    # Completar nombre de feature existente (para feature)
-                    if [ "${words[2]}" = "feature" ]; then
-                        local features=""
-                        if [ -d "$workspaces_dir/features" ]; then
-                            features=$(cd "$workspaces_dir/features" && ls -d */ 2>/dev/null | sed 's|/||')
-                        fi
-                        COMPREPLY=($(compgen -W "$features" -- "$cur"))
-                    fi
                     ;;
             esac
             ;;
@@ -61,7 +48,7 @@ _ws_completion() {
                 new|add)
                     # Completar nombres de repos disponibles
                     local repos=""
-                    
+
                     # Repos en raíz
                     if [ -d "$workspace_root" ]; then
                         for dir in "$workspace_root"/*/.git; do
@@ -72,7 +59,7 @@ _ws_completion() {
                                 fi
                             fi
                         done
-                        
+
                         # Repos en subdirectorios (libs/*, modules/*, tools/*)
                         for dir in "$workspace_root"/*/*/.git; do
                             if [ -d "$dir" ]; then
@@ -82,7 +69,7 @@ _ws_completion() {
                             fi
                         done
                     fi
-                    
+
                     COMPREPLY=($(compgen -W "$repos" -- "$cur"))
                     ;;
             esac

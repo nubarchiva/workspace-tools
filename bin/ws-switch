@@ -1,8 +1,7 @@
 #!/bin/bash
 # Cambia al workspace especificado y muestra su información
 
-WORKSPACE_TYPE=$1
-WORKSPACE_NAME=$2
+WORKSPACE_PATTERN=$1
 
 # Detectar WORKSPACE_ROOT automáticamente (2 niveles arriba del script)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -14,85 +13,49 @@ source "$SCRIPT_DIR/ws-common.sh"
 
 # Función de ayuda
 show_help() {
-    echo "Uso: ws-switch <tipo> [nombre]"
+    echo "Uso: ws switch [nombre|patrón]"
     echo ""
-    echo "Tipos:"
-    echo "  master                       - Cambia a workspace master"
-    echo "  develop                      - Cambia a workspace develop"
-    echo "  feature <nombre>             - Cambia a una feature específica"
-    echo ""
-    echo "Sin argumentos: lista workspaces disponibles"
+    echo "💡 Puedes usar coincidencia parcial para el nombre del workspace"
     echo ""
     echo "Ejemplos:"
-    echo "  ws-switch master"
-    echo "  ws-switch feature faceted-search"
+    echo "  ws switch                    # lista workspaces disponibles"
+    echo "  ws switch master"
+    echo "  ws switch nuba-8400"
+    echo "  ws switch fac                # busca 'fac' en workspaces"
 }
 
 # Si no hay argumentos, listar workspaces
-if [ -z "$WORKSPACE_TYPE" ]; then
+if [ -z "$WORKSPACE_PATTERN" ]; then
     echo "Workspaces disponibles:"
     echo ""
-    
-    if [ -d "$WORKSPACES_DIR/master" ]; then
-        echo "  • master"
-    fi
-    
-    if [ -d "$WORKSPACES_DIR/develop" ]; then
-        echo "  • develop"
-    fi
-    
-    if [ -d "$WORKSPACES_DIR/features" ]; then
-        for feature_dir in $WORKSPACES_DIR/features/*/; do
-            if [ -d "$feature_dir" ]; then
-                feature_name=$(basename $feature_dir)
-                echo "  • feature/$feature_name"
+
+    if [ -d "$WORKSPACES_DIR" ]; then
+        for workspace_dir in "$WORKSPACES_DIR"/*; do
+            if [ -d "$workspace_dir" ]; then
+                workspace_name=$(basename "$workspace_dir")
+                branch_name=$(get_branch_name "$workspace_name")
+                echo "  • $workspace_name (branch: $branch_name)"
             fi
         done
     fi
-    
+
     echo ""
     show_help
     exit 0
 fi
 
-# Validar tipo de workspace
-if [ "$WORKSPACE_TYPE" != "feature" ] && [ "$WORKSPACE_TYPE" != "master" ] && [ "$WORKSPACE_TYPE" != "develop" ]; then
-    echo "❌ Tipo inválido: $WORKSPACE_TYPE"
-    show_help
-    exit 1
-fi
-
-# Para features, validar que se proporcione un patrón de búsqueda
-if [ "$WORKSPACE_TYPE" = "feature" ] && [ -z "$WORKSPACE_NAME" ]; then
-    echo "❌ Las features requieren un nombre o patrón de búsqueda"
-    show_help
-    exit 1
-fi
-
 # Buscar workspace que coincida con el patrón
-MATCHED_NAME=$(find_matching_workspace "$WORKSPACE_TYPE" "$WORKSPACE_NAME" "$WORKSPACES_DIR")
+WORKSPACE_NAME=$(find_matching_workspace "$WORKSPACE_PATTERN" "$WORKSPACES_DIR")
 if [ $? -ne 0 ]; then
     exit 1
 fi
 
 # Determinar directorio del workspace
-case $WORKSPACE_TYPE in
-    feature)
-        WORKSPACE_DIR=$WORKSPACES_DIR/features/$MATCHED_NAME
-        DISPLAY_NAME="feature/$MATCHED_NAME"
-        ;;
-    master)
-        WORKSPACE_DIR=$WORKSPACES_DIR/master
-        DISPLAY_NAME="master"
-        ;;
-    develop)
-        WORKSPACE_DIR=$WORKSPACES_DIR/develop
-        DISPLAY_NAME="develop"
-        ;;
-esac
+WORKSPACE_DIR=$WORKSPACES_DIR/$WORKSPACE_NAME
+BRANCH_NAME=$(get_branch_name "$WORKSPACE_NAME")
 
 if [ ! -d "$WORKSPACE_DIR" ]; then
-    echo "❌ Workspace no existe: $DISPLAY_NAME"
+    echo "❌ Workspace no existe: $WORKSPACE_NAME"
     echo ""
     echo "Workspaces disponibles:"
     $0
@@ -101,7 +64,7 @@ fi
 
 # Mostrar información del workspace
 echo "╔════════════════════════════════════════════════════╗"
-echo "║  Workspace: $DISPLAY_NAME"
+echo "║  Workspace: $WORKSPACE_NAME"
 echo "╚════════════════════════════════════════════════════╝"
 echo ""
 
@@ -124,15 +87,15 @@ echo "$repos" | while read -r repo_rel_path; do
     if [ -n "$repo_rel_path" ]; then
         has_repos=true
         worktree_path="$WORKSPACE_DIR/$repo_rel_path"
-        
+
         if [ -d "$worktree_path" ]; then
             echo "📦 $repo_rel_path:"
             cd "$worktree_path"
-            
+
             # Branch actual
             current_branch=$(git branch --show-current)
             echo "   Branch: $current_branch"
-            
+
             # Estado
             status=$(git status -s)
             if [ -z "$status" ]; then
@@ -148,7 +111,7 @@ done
 
 if [ -z "$repos" ] || [ "$repos" = "" ]; then
     echo "  (No hay repos en este workspace)"
-    echo "  💡 Usa 'ws-add $WORKSPACE_TYPE $WORKSPACE_NAME <repo>' para añadir"
+    echo "  💡 Usa 'ws add $WORKSPACE_NAME <repo>' para añadir"
     echo ""
 fi
 

@@ -1,12 +1,11 @@
 #!/bin/bash
-# Crea un nuevo workspace (feature, master, develop, etc.)
+# Crea un nuevo workspace
 # Soporta repos en subdirectorios (ej: libs/marc4j, modules/docs, tools/workspace-tools)
 
 set -e
 
-WORKSPACE_TYPE=$1  # feature, master, develop
-WORKSPACE_NAME=$2
-shift 2 2>/dev/null || true
+WORKSPACE_NAME=$1
+shift 2>/dev/null || true
 REPOS=("$@")
 
 # Detectar WORKSPACE_ROOT automáticamente (2 niveles arriba del script)
@@ -14,62 +13,40 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 WORKSPACES_DIR=$WORKSPACE_ROOT/workspaces
 
+# Cargar funciones compartidas
+source "$SCRIPT_DIR/ws-common.sh"
+
 # Función de ayuda
 show_help() {
-    echo "Uso: ws-new <tipo> <nombre> [repo1 repo2 ...]"
+    echo "Uso: ws new <nombre> [repo1 repo2 ...]"
     echo ""
-    echo "Tipos de workspace:"
-    echo "  feature <nombre> [repos...]  - Crea workspace para una feature"
-    echo "  master [repos...]            - Crea workspace de master"
-    echo "  develop [repos...]           - Crea workspace de develop"
+    echo "Nombres especiales:"
+    echo "  master               - Crea workspace de master (branch: master)"
+    echo "  develop              - Crea workspace de develop (branch: develop)"
+    echo "  <cualquier-otro>     - Crea workspace para feature (branch: feature/<nombre>)"
     echo ""
     echo "Repos:"
     echo "  Especifica repos con su ruta relativa desde $WORKSPACE_ROOT"
     echo "  Ejemplos: ks-nuba, libs/marc4j, modules/docs, tools/workspace-tools"
     echo ""
     echo "Ejemplos:"
-    echo "  ws-new feature faceted-search ks-nuba dga-commons"
-    echo "  ws-new feature marc-upgrade ks-nuba libs/marc4j"
-    echo "  ws-new feature full ks-nuba libs/marc4j modules/docs"
-    echo "  ws-new master ks-nuba libs/dspace"
-    echo "  ws-new develop"
+    echo "  ws new nuba-8400 ks-nuba dga-commons"
+    echo "  ws new faceted-search ks-nuba libs/marc4j"
+    echo "  ws new master ks-nuba libs/dspace"
+    echo "  ws new develop ks-nuba"
     echo ""
     echo "💡 Si no especificas repos, se crea el directorio vacío"
-    echo "   Luego puedes añadir repos con: ws-add"
+    echo "   Luego puedes añadir repos con: ws add <nombre> <repo>"
 }
 
-if [ -z "$WORKSPACE_TYPE" ]; then
+if [ -z "$WORKSPACE_NAME" ]; then
     show_help
     exit 1
 fi
 
-# Determinar directorio y branch según tipo
-case $WORKSPACE_TYPE in
-    feature)
-        if [ -z "$WORKSPACE_NAME" ]; then
-            echo "❌ Las features requieren un nombre"
-            show_help
-            exit 1
-        fi
-        WORKSPACE_DIR=$WORKSPACES_DIR/features/$WORKSPACE_NAME
-        BRANCH_PREFIX="feature/$WORKSPACE_NAME"
-        ;;
-    master)
-        WORKSPACE_DIR=$WORKSPACES_DIR/master
-        BRANCH_PREFIX="master"
-        WORKSPACE_NAME="master"
-        ;;
-    develop)
-        WORKSPACE_DIR=$WORKSPACES_DIR/develop
-        BRANCH_PREFIX="develop"
-        WORKSPACE_NAME="develop"
-        ;;
-    *)
-        echo "❌ Tipo de workspace inválido: $WORKSPACE_TYPE"
-        show_help
-        exit 1
-        ;;
-esac
+# Determinar directorio y branch
+WORKSPACE_DIR=$WORKSPACES_DIR/$WORKSPACE_NAME
+BRANCH_NAME=$(get_branch_name "$WORKSPACE_NAME")
 
 # Verificar si el workspace ya existe
 if [ -d "$WORKSPACE_DIR" ]; then
@@ -84,23 +61,23 @@ fi
 # Crear directorio del workspace
 mkdir -p $WORKSPACE_DIR
 
-echo "🔨 Creando workspace: $WORKSPACE_TYPE/$WORKSPACE_NAME"
+echo "🔨 Creando workspace: $WORKSPACE_NAME (branch: $BRANCH_NAME)"
 
 # Si no hay repos especificados, solo crear el directorio
 if [ ${#REPOS[@]} -eq 0 ]; then
     echo "📁 Directorio creado: $WORKSPACE_DIR"
-    echo "💡 Añade repos con: ws-add $WORKSPACE_TYPE $WORKSPACE_NAME <repo>"
-    
+    echo "💡 Añade repos con: ws add $WORKSPACE_NAME <repo>"
+
     # Crear README si no existe
     if [ ! -f "$WORKSPACE_DIR/README.md" ]; then
         cat > $WORKSPACE_DIR/README.md <<EOF
 # Workspace: $WORKSPACE_NAME
 
-## Tipo
-$WORKSPACE_TYPE
+## Branch
+$BRANCH_NAME
 
 ## Repos
-(Ninguno todavía - usa ws-add para añadir)
+(Ninguno todavía - usa ws add para añadir)
 
 ## Notas
 [Añade información de contexto aquí]
@@ -117,33 +94,30 @@ for repo in "${REPOS[@]}"; do
     # El repo puede estar en subdirectorio (ej: libs/marc4j, tools/workspace-tools)
     REPO_PATH=$WORKSPACE_ROOT/$repo
     WORKTREE_PATH=$WORKSPACE_DIR/$repo
-    
+
     if [ ! -d "$REPO_PATH/.git" ]; then
         echo "⚠️  Repo $repo no encontrado en $REPO_PATH (saltando)"
         continue
     fi
-    
+
     echo "📁 Procesando $repo..."
-    
+
     # Crear estructura de subdirectorios si es necesario
     WORKTREE_PARENT=$(dirname "$WORKTREE_PATH")
     mkdir -p "$WORKTREE_PARENT"
-    
+
     cd $REPO_PATH
-    
-    # Determinar nombre de branch
-    BRANCH_NAME=$BRANCH_PREFIX
-    
+
     # Para master/develop, usar la branch existente
     # Para features, crear branch nueva si no existe
-    if [ "$WORKSPACE_TYPE" = "feature" ]; then
+    if [ "$WORKSPACE_NAME" != "master" ] && [ "$WORKSPACE_NAME" != "develop" ]; then
         git rev-parse --verify $BRANCH_NAME >/dev/null 2>&1
         if [ $? -ne 0 ]; then
             echo "  ➕ Creando branch: $BRANCH_NAME"
             git branch $BRANCH_NAME
         fi
     fi
-    
+
     # Crear worktree
     if [ -d "$WORKTREE_PATH" ]; then
         echo "  ⚠️  Worktree ya existe, saltando"
@@ -157,23 +131,23 @@ done
 cat > $WORKSPACE_DIR/README.md <<EOF
 # Workspace: $WORKSPACE_NAME
 
-## Tipo
-$WORKSPACE_TYPE
+## Branch
+$BRANCH_NAME
 
 ## Repos involucrados
-$(for repo in "${REPOS[@]}"; do echo "- \`$repo\` → branch: $BRANCH_PREFIX"; done)
+$(for repo in "${REPOS[@]}"; do echo "- \`$repo\` → branch: $BRANCH_NAME"; done)
 
 ## Descripción
-$(if [ "$WORKSPACE_TYPE" = "feature" ]; then
-    echo "[Describe aquí el objetivo de esta feature]"
+$(if [ "$WORKSPACE_NAME" != "master" ] && [ "$WORKSPACE_NAME" != "develop" ]; then
+    echo "[Describe aquí el objetivo de esta feature/tarea]"
 else
-    echo "Workspace para trabajo en $WORKSPACE_TYPE"
+    echo "Workspace para trabajo en $WORKSPACE_NAME"
 fi)
 
 ## Notas para AI
 [Contexto relevante para herramientas de AI]
 
-$(if [ "$WORKSPACE_TYPE" = "feature" ]; then
+$(if [ "$WORKSPACE_NAME" != "master" ] && [ "$WORKSPACE_NAME" != "develop" ]; then
 cat <<CHECKLIST
 ## Checklist
 - [ ] Cambios implementados

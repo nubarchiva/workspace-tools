@@ -4,9 +4,8 @@
 
 set -e
 
-WORKSPACE_TYPE=$1
-WORKSPACE_NAME=$2
-REPO=$3
+WORKSPACE_PATTERN=$1
+REPO=$2
 
 # Detectar WORKSPACE_ROOT automáticamente (2 niveles arriba del script)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -17,7 +16,7 @@ WORKSPACES_DIR=$WORKSPACE_ROOT/workspaces
 source "$SCRIPT_DIR/ws-common.sh"
 
 if [ -z "$REPO" ]; then
-    echo "Uso: ws-add <tipo> <nombre|patrón> <repo>"
+    echo "Uso: ws add <nombre|patrón> <repo>"
     echo ""
     echo "Repos:"
     echo "  Especifica repos con su ruta relativa desde $WORKSPACE_ROOT"
@@ -26,51 +25,26 @@ if [ -z "$REPO" ]; then
     echo "💡 Puedes usar coincidencia parcial para el nombre del workspace"
     echo ""
     echo "Ejemplos:"
-    echo "  ws-add feature faceted-search ks-nuba"
-    echo "  ws-add feature faceted libs/marc4j      # busca 'faceted' en features"
-    echo "  ws-add feature fac modules/docs         # busca 'fac' en features"
-    echo "  ws-add master libs/dspace"
-    echo "  ws-add develop modules/metadata-entities"
-    exit 1
-fi
-
-# Validar tipo de workspace
-if [ "$WORKSPACE_TYPE" != "feature" ] && [ "$WORKSPACE_TYPE" != "master" ] && [ "$WORKSPACE_TYPE" != "develop" ]; then
-    echo "❌ Tipo inválido: $WORKSPACE_TYPE"
-    exit 1
-fi
-
-# Para features, validar que se proporcione un patrón de búsqueda
-if [ "$WORKSPACE_TYPE" = "feature" ] && [ -z "$WORKSPACE_NAME" ]; then
-    echo "❌ Las features requieren un nombre o patrón de búsqueda"
+    echo "  ws add nuba-8400 ks-nuba"
+    echo "  ws add fac libs/marc4j              # busca 'fac' en workspaces"
+    echo "  ws add master libs/dspace"
+    echo "  ws add develop modules/metadata-entities"
     exit 1
 fi
 
 # Buscar workspace que coincida con el patrón
-MATCHED_NAME=$(find_matching_workspace "$WORKSPACE_TYPE" "$WORKSPACE_NAME" "$WORKSPACES_DIR")
+WORKSPACE_NAME=$(find_matching_workspace "$WORKSPACE_PATTERN" "$WORKSPACES_DIR")
 if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Determinar directorio del workspace
-case $WORKSPACE_TYPE in
-    feature)
-        WORKSPACE_DIR=$WORKSPACES_DIR/features/$MATCHED_NAME
-        BRANCH_NAME="feature/$MATCHED_NAME"
-        ;;
-    master)
-        WORKSPACE_DIR=$WORKSPACES_DIR/master
-        BRANCH_NAME="master"
-        ;;
-    develop)
-        WORKSPACE_DIR=$WORKSPACES_DIR/develop
-        BRANCH_NAME="develop"
-        ;;
-esac
+# Determinar directorio y branch del workspace
+WORKSPACE_DIR=$WORKSPACES_DIR/$WORKSPACE_NAME
+BRANCH_NAME=$(get_branch_name "$WORKSPACE_NAME")
 
 if [ ! -d "$WORKSPACE_DIR" ]; then
-    echo "❌ Workspace no existe: $WORKSPACE_DIR"
-    echo "💡 Créalo primero con: ws-new $WORKSPACE_TYPE $WORKSPACE_NAME"
+    echo "❌ Workspace no existe: $WORKSPACE_NAME"
+    echo "💡 Créalo primero con: ws new $WORKSPACE_NAME"
     exit 1
 fi
 
@@ -89,13 +63,7 @@ if [ -d "$WORKTREE_PATH" ]; then
     exit 1
 fi
 
-# Mostrar el workspace real al que se añade
-DISPLAY_NAME="$WORKSPACE_TYPE"
-if [ "$WORKSPACE_TYPE" = "feature" ]; then
-    DISPLAY_NAME="feature/$MATCHED_NAME"
-fi
-
-echo "➕ Añadiendo $REPO a workspace $DISPLAY_NAME"
+echo "➕ Añadiendo $REPO a workspace $WORKSPACE_NAME (branch: $BRANCH_NAME)"
 
 # Crear estructura de subdirectorios si es necesario
 WORKTREE_PARENT=$(dirname "$WORKTREE_PATH")
@@ -104,7 +72,7 @@ mkdir -p "$WORKTREE_PARENT"
 cd $REPO_PATH
 
 # Para features, crear branch si no existe
-if [ "$WORKSPACE_TYPE" = "feature" ]; then
+if [ "$WORKSPACE_NAME" != "master" ] && [ "$WORKSPACE_NAME" != "develop" ]; then
     git rev-parse --verify $BRANCH_NAME >/dev/null 2>&1
     if [ $? -ne 0 ]; then
         echo "  ➕ Creando branch: $BRANCH_NAME"
