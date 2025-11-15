@@ -26,8 +26,10 @@ find_matching_workspace() {
     while IFS= read -r workspace_dir; do
         if [ -d "$workspace_dir" ]; then
             local workspace_name=$(basename "$workspace_dir")
-            # Búsqueda case-insensitive
-            if [[ "$workspace_name" == *"$pattern"* ]] || [[ "${workspace_name,,}" == *"${pattern,,}"* ]]; then
+            # Búsqueda case-insensitive (compatible con bash y zsh)
+            local workspace_lower=$(echo "$workspace_name" | tr '[:upper:]' '[:lower:]')
+            local pattern_lower=$(echo "$pattern" | tr '[:upper:]' '[:lower:]')
+            if [[ "$workspace_lower" == *"$pattern_lower"* ]]; then
                 matches+=("$workspace_name")
             fi
         fi

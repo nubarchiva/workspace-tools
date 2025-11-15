@@ -9,7 +9,13 @@ else
     WORKSPACE_ROOT=~/wrkspc.nubarchiva
 fi
 WORKSPACES_DIR=$WORKSPACE_ROOT/workspaces
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Detectar directorio del script (compatible bash/zsh)
+if [ -n "$BASH_SOURCE" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+else
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+fi
 
 # Cargar funciones compartidas
 source "$SCRIPT_DIR/ws-common.sh"

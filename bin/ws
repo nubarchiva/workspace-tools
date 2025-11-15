@@ -2,8 +2,12 @@
 # Workspace Tools - Comando principal
 # Dispatcher para los subcomandos de workspace management
 
-# Detectar directorio del script
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Detectar directorio del script (compatible bash/zsh)
+if [ -n "$BASH_SOURCE" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+else
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+fi
 
 # Subcomando (primer argumento)
 SUBCOMMAND=$1
