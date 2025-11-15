@@ -1,0 +1,94 @@
+#!/bin/bash
+# Añade un repo a un workspace existente
+# Soporta repos en subdirectorios (ej: libs/marc4j, modules/docs, tools/*)
+
+set -e
+
+WORKSPACE_TYPE=$1
+WORKSPACE_NAME=$2
+REPO=$3
+
+# Detectar WORKSPACE_ROOT automáticamente (2 niveles arriba del script)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+WORKSPACES_DIR=$WORKSPACE_ROOT/workspaces
+
+if [ -z "$REPO" ]; then
+    echo "Uso: ws-add <tipo> <nombre> <repo>"
+    echo ""
+    echo "Repos:"
+    echo "  Especifica repos con su ruta relativa desde $WORKSPACE_ROOT"
+    echo "  Ejemplos: ks-nuba, libs/marc4j, modules/docs, tools/otro-tool"
+    echo ""
+    echo "Ejemplos:"
+    echo "  ws-add feature faceted-search ks-nuba"
+    echo "  ws-add feature faceted-search libs/marc4j"
+    echo "  ws-add feature faceted-search modules/docs"
+    echo "  ws-add master libs/dspace"
+    echo "  ws-add develop modules/metadata-entities"
+    exit 1
+fi
+
+# Determinar directorio del workspace
+case $WORKSPACE_TYPE in
+    feature)
+        WORKSPACE_DIR=$WORKSPACES_DIR/features/$WORKSPACE_NAME
+        BRANCH_NAME="feature/$WORKSPACE_NAME"
+        ;;
+    master)
+        WORKSPACE_DIR=$WORKSPACES_DIR/master
+        BRANCH_NAME="master"
+        ;;
+    develop)
+        WORKSPACE_DIR=$WORKSPACES_DIR/develop
+        BRANCH_NAME="develop"
+        ;;
+    *)
+        echo "❌ Tipo inválido: $WORKSPACE_TYPE"
+        exit 1
+        ;;
+esac
+
+if [ ! -d "$WORKSPACE_DIR" ]; then
+    echo "❌ Workspace no existe: $WORKSPACE_DIR"
+    echo "💡 Créalo primero con: ws-new $WORKSPACE_TYPE $WORKSPACE_NAME"
+    exit 1
+fi
+
+# El repo puede estar en subdirectorio (ej: libs/marc4j, tools/workspace-tools)
+REPO_PATH=$WORKSPACE_ROOT/$REPO
+WORKTREE_PATH=$WORKSPACE_DIR/$REPO
+
+if [ ! -d "$REPO_PATH/.git" ]; then
+    echo "❌ Repo no encontrado: $REPO_PATH"
+    echo "💡 Asegúrate de usar la ruta correcta (ej: libs/marc4j, tools/mi-tool)"
+    exit 1
+fi
+
+if [ -d "$WORKTREE_PATH" ]; then
+    echo "❌ El repo ya existe en este workspace: $WORKTREE_PATH"
+    exit 1
+fi
+
+echo "➕ Añadiendo $REPO a workspace $WORKSPACE_TYPE/$WORKSPACE_NAME"
+
+# Crear estructura de subdirectorios si es necesario
+WORKTREE_PARENT=$(dirname "$WORKTREE_PATH")
+mkdir -p "$WORKTREE_PARENT"
+
+cd $REPO_PATH
+
+# Para features, crear branch si no existe
+if [ "$WORKSPACE_TYPE" = "feature" ]; then
+    git rev-parse --verify $BRANCH_NAME >/dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        echo "  ➕ Creando branch: $BRANCH_NAME"
+        git branch $BRANCH_NAME
+    fi
+fi
+
+# Crear worktree
+git worktree add $WORKTREE_PATH $BRANCH_NAME
+
+echo "✅ Repo añadido: $WORKTREE_PATH"
+echo "   Branch: $BRANCH_NAME"

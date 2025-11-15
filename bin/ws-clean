@@ -1,0 +1,188 @@
+#!/bin/bash
+# Limpia un workspace terminado (elimina worktrees pero mantiene branches)
+# Soporta repos en subdirectorios
+
+set -e
+
+WORKSPACE_TYPE=$1
+WORKSPACE_NAME=$2
+
+# Detectar WORKSPACE_ROOT automáticamente (2 niveles arriba del script)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+WORKSPACES_DIR=$WORKSPACE_ROOT/workspaces
+
+# Función para encontrar todos los repos en un workspace (incluyendo subdirectorios)
+find_repos_in_workspace() {
+    local workspace_dir=$1
+    # Buscar directorios .git hasta 3 niveles de profundidad
+    find "$workspace_dir" -maxdepth 3 -name ".git" -type d -o -name ".git" -type f 2>/dev/null | \
+        sed "s|$workspace_dir/||" | \
+        sed 's|/.git||' | \
+        sort
+}
+
+# Función de ayuda
+show_help() {
+    echo "Uso: ws-clean <tipo> [nombre]"
+    echo ""
+    echo "Elimina los worktrees de un workspace pero mantiene las branches."
+    echo ""
+    echo "Ejemplos:"
+    echo "  ws-clean master"
+    echo "  ws-clean develop"
+    echo "  ws-clean feature faceted-search"
+    echo ""
+    echo "⚠️  Este comando:"
+    echo "  • Elimina los directorios de worktree"
+    echo "  • Mantiene las branches en los repos principales"
+    echo "  • NO elimina commits ni cambios commiteados"
+}
+
+if [ -z "$WORKSPACE_TYPE" ]; then
+    show_help
+    exit 1
+fi
+
+# Determinar directorio del workspace
+case $WORKSPACE_TYPE in
+    feature)
+        if [ -z "$WORKSPACE_NAME" ]; then
+            echo "❌ Las features requieren un nombre"
+            show_help
+            exit 1
+        fi
+        WORKSPACE_DIR=$WORKSPACES_DIR/features/$WORKSPACE_NAME
+        DISPLAY_NAME="feature/$WORKSPACE_NAME"
+        ;;
+    master)
+        WORKSPACE_DIR=$WORKSPACES_DIR/master
+        DISPLAY_NAME="master"
+        ;;
+    develop)
+        WORKSPACE_DIR=$WORKSPACES_DIR/develop
+        DISPLAY_NAME="develop"
+        ;;
+    *)
+        echo "❌ Tipo inválido: $WORKSPACE_TYPE"
+        show_help
+        exit 1
+        ;;
+esac
+
+if [ ! -d "$WORKSPACE_DIR" ]; then
+    echo "❌ Workspace no existe: $DISPLAY_NAME"
+    exit 1
+fi
+
+# Mostrar qué se va a eliminar
+echo "⚠️  Vas a limpiar el workspace: $DISPLAY_NAME"
+echo ""
+echo "Repos afectados:"
+
+repos=$(find_repos_in_workspace "$WORKSPACE_DIR")
+has_repos=false
+has_uncommitted_changes=false
+
+echo "$repos" | while read -r repo_rel_path; do
+    if [ -n "$repo_rel_path" ]; then
+        has_repos=true
+        worktree_path="$WORKSPACE_DIR/$repo_rel_path"
+        echo "  • $repo_rel_path"
+        
+        # Verificar si hay cambios sin commitear
+        if [ -d "$worktree_path" ]; then
+            cd "$worktree_path"
+            if [ -n "$(git status -s 2>/dev/null)" ]; then
+                echo "    ⚠️  TIENE CAMBIOS SIN COMMITEAR"
+                has_uncommitted_changes=true
+            fi
+        fi
+    fi
+done
+
+if [ -z "$repos" ] || [ "$repos" = "" ]; then
+    echo "  (No hay repos en este workspace)"
+fi
+
+echo ""
+echo "Esto eliminará los worktrees pero mantendrá las branches en los repos principales."
+echo ""
+read -p "¿Continuar? (s/n) " -n 1 -r
+echo
+
+if [[ ! $REPLY =~ ^[Ss]$ ]]; then
+    echo "❌ Cancelado"
+    exit 1
+fi
+
+# Eliminar cada worktree
+echo ""
+echo "Limpiando worktrees..."
+
+echo "$repos" | while read -r repo_rel_path; do
+    if [ -n "$repo_rel_path" ]; then
+        worktree_path="$WORKSPACE_DIR/$repo_rel_path"
+        
+        if [ -d "$worktree_path" ]; then
+            echo "  🗑️  Eliminando worktree: $repo_rel_path"
+            
+            cd "$worktree_path"
+            
+            # Obtener el directorio del repo principal
+            # Para git worktrees, .git puede ser un archivo o directorio
+            if [ -f "$worktree_path/.git" ]; then
+                # Es un worktree (archivo .git apunta al repo principal)
+                MAIN_REPO=$(grep "gitdir:" "$worktree_path/.git" | cut -d' ' -f2 | sed 's|/\.git/worktrees/.*||')
+            else
+                # Es el repo principal o un caso especial
+                MAIN_REPO=$(git rev-parse --git-common-dir 2>/dev/null | sed 's|/\.git.*||')
+            fi
+            
+            # Volver al repo principal y eliminar worktree
+            if [ -d "$MAIN_REPO" ]; then
+                cd "$MAIN_REPO"
+                git worktree remove "$worktree_path" --force 2>/dev/null || {
+                    # Si falla, intentar eliminar manualmente
+                    rm -rf "$worktree_path"
+                    git worktree prune
+                }
+                echo "     ✅ Eliminado"
+            else
+                echo "     ⚠️  No se pudo encontrar repo principal, eliminando directorio"
+                rm -rf "$worktree_path"
+            fi
+        fi
+    fi
+done
+
+# Eliminar directorio del workspace (y sus subdirectorios vacíos)
+if [ -d "$WORKSPACE_DIR" ]; then
+    # Eliminar directorios vacíos recursivamente
+    find "$WORKSPACE_DIR" -type d -empty -delete 2>/dev/null || true
+    
+    # Si el workspace quedó vacío, eliminarlo
+    if [ -z "$(ls -A $WORKSPACE_DIR 2>/dev/null)" ]; then
+        rm -rf "$WORKSPACE_DIR"
+    else
+        echo ""
+        echo "⚠️  El workspace tiene archivos adicionales. No se eliminó el directorio."
+        echo "   Revisa: $WORKSPACE_DIR"
+    fi
+fi
+
+echo ""
+echo "✅ Workspace limpiado: $DISPLAY_NAME"
+echo ""
+echo "💡 Las branches se mantienen en los repos principales:"
+if [ "$WORKSPACE_TYPE" = "feature" ]; then
+    echo "   Branch: feature/$WORKSPACE_NAME"
+fi
+echo ""
+echo "Para ver branches en un repo:"
+echo "  cd $WORKSPACE_ROOT/<repo> && git branch -a"
+echo ""
+echo "Ejemplos:"
+echo "  cd $WORKSPACE_ROOT/ks-nuba && git branch -a"
+echo "  cd $WORKSPACE_ROOT/libs/marc4j && git branch -a"
+echo "  cd $WORKSPACE_ROOT/tools/workspace-tools && git branch -a"

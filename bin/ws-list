@@ -1,0 +1,122 @@
+#!/bin/bash
+# Lista todos los workspaces activos
+
+# Detectar WORKSPACE_ROOT automáticamente (2 niveles arriba del script)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+WORKSPACES_DIR=$WORKSPACE_ROOT/workspaces
+
+echo "╔════════════════════════════════════════════════════╗"
+echo "║           WORKSPACES ACTIVOS                       ║"
+echo "╚════════════════════════════════════════════════════╝"
+echo ""
+
+# Función para encontrar todos los repos en un workspace (incluyendo subdirectorios)
+find_repos_in_workspace() {
+    local workspace_dir=$1
+    # Buscar directorios .git hasta 3 niveles de profundidad
+    find "$workspace_dir" -maxdepth 3 -name ".git" -type d -o -name ".git" -type f 2>/dev/null | \
+        sed "s|$workspace_dir/||" | \
+        sed 's|/.git||' | \
+        sort
+}
+
+# Función para mostrar workspace
+show_workspace() {
+    local type=$1
+    local name=$2
+    local path=$3
+    
+    if [ "$type" = "master" ] || [ "$type" = "develop" ]; then
+        echo "🔹 $type"
+    else
+        echo "🔹 $type/$name"
+    fi
+    
+    # Encontrar repos (incluyendo subdirectorios)
+    local repos=$(find_repos_in_workspace "$path")
+    local repo_count=$(echo "$repos" | grep -v '^$' | wc -l)
+    
+    if [ $repo_count -eq 0 ]; then
+        echo "   📦 Repos: 0"
+        echo ""
+        return
+    fi
+    
+    echo "   📦 Repos: $repo_count"
+    
+    # Listar repos
+    echo "   📂 Contenido:"
+    echo "$repos" | while read -r repo_rel_path; do
+        if [ -n "$repo_rel_path" ]; then
+            echo "      • $repo_rel_path"
+        fi
+    done
+    
+    # Mostrar repos con cambios
+    has_changes=false
+    echo "$repos" | while read -r repo_rel_path; do
+        if [ -n "$repo_rel_path" ]; then
+            worktree_path="$path/$repo_rel_path"
+            if [ -d "$worktree_path" ]; then
+                cd "$worktree_path"
+                if [ -n "$(git status -s 2>/dev/null)" ]; then
+                    if [ "$has_changes" = false ]; then
+                        echo "   ⚠️  Cambios sin commitear:"
+                        has_changes=true
+                    fi
+                    change_count=$(git status -s | wc -l)
+                    echo "      • $repo_rel_path ($change_count archivos)"
+                fi
+            fi
+        fi
+    done
+    
+    echo ""
+}
+
+# Master
+if [ -d "$WORKSPACES_DIR/master" ]; then
+    show_workspace "master" "" "$WORKSPACES_DIR/master"
+fi
+
+# Develop
+if [ -d "$WORKSPACES_DIR/develop" ]; then
+    show_workspace "develop" "" "$WORKSPACES_DIR/develop"
+fi
+
+# Features
+if [ -d "$WORKSPACES_DIR/features" ]; then
+    feature_count=0
+    
+    # Contar features primero
+    for feature_dir in $WORKSPACES_DIR/features/*/; do
+        if [ -d "$feature_dir" ]; then
+            ((feature_count++))
+        fi
+    done
+    
+    if [ $feature_count -gt 0 ]; then
+        echo "═══════════════════════════════════════════════════"
+        echo "FEATURES ($feature_count)"
+        echo "═══════════════════════════════════════════════════"
+        echo ""
+        
+        for feature_dir in $WORKSPACES_DIR/features/*/; do
+            if [ -d "$feature_dir" ]; then
+                feature_name=$(basename $feature_dir)
+                show_workspace "feature" "$feature_name" "$feature_dir"
+            fi
+        done
+    else
+        echo "═══════════════════════════════════════════════════"
+        echo "FEATURES"
+        echo "═══════════════════════════════════════════════════"
+        echo ""
+        echo "  (No hay features activas)"
+        echo ""
+    fi
+fi
+
+echo "💡 Usa 'ws-switch' para ver detalle de un workspace"
+echo "💡 Usa 'ws-new' para crear uno nuevo"
