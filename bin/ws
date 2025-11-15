@@ -60,9 +60,21 @@ Nombres especiales:
   • develop  - Workspace en branch develop
   • otros    - Workspace en branch feature/<nombre>
 
-💡 Búsqueda parcial:
+💡 Abreviaturas de comandos:
+  Puedes usar abreviaturas de comandos:
+  • Automáticas: n, a, l, sw, c, cl, etc. (cualquier prefijo único)
+  • Predefinidas: ls→list, rm→clean, del→clean, mk→new, create→new, h→help
+
+💡 Búsqueda parcial de workspaces:
   Puedes usar partes del nombre en lugar del nombre completo.
   Si hay múltiples coincidencias, se mostrará un menú interactivo.
+
+Ejemplos con abreviaturas:
+  ws n nuba-8400 ks-nuba         # ws new
+  ws a master libs/marc4j        # ws add
+  ws ls                          # ws list
+  ws sw nuba-8400                # ws switch
+  ws rm nuba-8400                # ws clean
 
 Compatibilidad:
   Los comandos individuales (ws-new, ws-add, etc.) siguen disponibles
@@ -80,6 +92,50 @@ EOF
 if [ -z "$SUBCOMMAND" ]; then
     show_help
     exit 0
+fi
+
+# Función para expandir abreviaturas
+expand_abbreviation() {
+    local abbrev=$1
+    local commands="new add switch list clean help"
+
+    # Aliases predefinidos
+    case $abbrev in
+        ls) echo "list"; return 0 ;;
+        rm|del) echo "clean"; return 0 ;;
+        sw) echo "switch"; return 0 ;;
+        mk|create) echo "new"; return 0 ;;
+        h) echo "help"; return 0 ;;
+    esac
+
+    # Expansión automática por coincidencia parcial
+    local matches=()
+    for cmd in $commands; do
+        if [[ "$cmd" == "$abbrev"* ]]; then
+            matches+=("$cmd")
+        fi
+    done
+
+    # Analizar resultados
+    if [ ${#matches[@]} -eq 0 ]; then
+        # No hay coincidencias, devolver el original
+        echo "$abbrev"
+        return 1
+    elif [ ${#matches[@]} -eq 1 ]; then
+        # Una sola coincidencia, expandir
+        echo "${matches[0]}"
+        return 0
+    else
+        # Múltiples coincidencias, error ambiguo
+        echo "❌ Comando ambiguo: '$abbrev' coincide con: ${matches[*]}" >&2
+        return 1
+    fi
+}
+
+# Expandir abreviatura
+EXPANDED=$(expand_abbreviation "$SUBCOMMAND")
+if [ $? -eq 0 ]; then
+    SUBCOMMAND="$EXPANDED"
 fi
 
 # Mapear subcomandos a scripts
