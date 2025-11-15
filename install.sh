@@ -9,7 +9,7 @@ echo ""
 
 # Detectar directorio de instalación (2 niveles arriba)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 echo "📍 Detectando ubicación..."
 echo "   Workspace root: $WORKSPACE_ROOT"
