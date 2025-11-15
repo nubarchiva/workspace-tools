@@ -13,27 +13,50 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 WORKSPACES_DIR=$WORKSPACE_ROOT/workspaces
 
+# Cargar funciones compartidas
+source "$SCRIPT_DIR/ws-common.sh"
+
 if [ -z "$REPO" ]; then
-    echo "Uso: ws-add <tipo> <nombre> <repo>"
+    echo "Uso: ws-add <tipo> <nombre|patrón> <repo>"
     echo ""
     echo "Repos:"
     echo "  Especifica repos con su ruta relativa desde $WORKSPACE_ROOT"
     echo "  Ejemplos: ks-nuba, libs/marc4j, modules/docs, tools/otro-tool"
     echo ""
+    echo "💡 Puedes usar coincidencia parcial para el nombre del workspace"
+    echo ""
     echo "Ejemplos:"
     echo "  ws-add feature faceted-search ks-nuba"
-    echo "  ws-add feature faceted-search libs/marc4j"
-    echo "  ws-add feature faceted-search modules/docs"
+    echo "  ws-add feature faceted libs/marc4j      # busca 'faceted' en features"
+    echo "  ws-add feature fac modules/docs         # busca 'fac' en features"
     echo "  ws-add master libs/dspace"
     echo "  ws-add develop modules/metadata-entities"
+    exit 1
+fi
+
+# Validar tipo de workspace
+if [ "$WORKSPACE_TYPE" != "feature" ] && [ "$WORKSPACE_TYPE" != "master" ] && [ "$WORKSPACE_TYPE" != "develop" ]; then
+    echo "❌ Tipo inválido: $WORKSPACE_TYPE"
+    exit 1
+fi
+
+# Para features, validar que se proporcione un patrón de búsqueda
+if [ "$WORKSPACE_TYPE" = "feature" ] && [ -z "$WORKSPACE_NAME" ]; then
+    echo "❌ Las features requieren un nombre o patrón de búsqueda"
+    exit 1
+fi
+
+# Buscar workspace que coincida con el patrón
+MATCHED_NAME=$(find_matching_workspace "$WORKSPACE_TYPE" "$WORKSPACE_NAME" "$WORKSPACES_DIR")
+if [ $? -ne 0 ]; then
     exit 1
 fi
 
 # Determinar directorio del workspace
 case $WORKSPACE_TYPE in
     feature)
-        WORKSPACE_DIR=$WORKSPACES_DIR/features/$WORKSPACE_NAME
-        BRANCH_NAME="feature/$WORKSPACE_NAME"
+        WORKSPACE_DIR=$WORKSPACES_DIR/features/$MATCHED_NAME
+        BRANCH_NAME="feature/$MATCHED_NAME"
         ;;
     master)
         WORKSPACE_DIR=$WORKSPACES_DIR/master
@@ -42,10 +65,6 @@ case $WORKSPACE_TYPE in
     develop)
         WORKSPACE_DIR=$WORKSPACES_DIR/develop
         BRANCH_NAME="develop"
-        ;;
-    *)
-        echo "❌ Tipo inválido: $WORKSPACE_TYPE"
-        exit 1
         ;;
 esac
 
@@ -70,7 +89,13 @@ if [ -d "$WORKTREE_PATH" ]; then
     exit 1
 fi
 
-echo "➕ Añadiendo $REPO a workspace $WORKSPACE_TYPE/$WORKSPACE_NAME"
+# Mostrar el workspace real al que se añade
+DISPLAY_NAME="$WORKSPACE_TYPE"
+if [ "$WORKSPACE_TYPE" = "feature" ]; then
+    DISPLAY_NAME="feature/$MATCHED_NAME"
+fi
+
+echo "➕ Añadiendo $REPO a workspace $DISPLAY_NAME"
 
 # Crear estructura de subdirectorios si es necesario
 WORKTREE_PARENT=$(dirname "$WORKTREE_PATH")

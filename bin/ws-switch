@@ -9,15 +9,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 WORKSPACES_DIR=$WORKSPACE_ROOT/workspaces
 
-# Función para encontrar todos los repos en un workspace (incluyendo subdirectorios)
-find_repos_in_workspace() {
-    local workspace_dir=$1
-    # Buscar directorios .git hasta 3 niveles de profundidad
-    find "$workspace_dir" -maxdepth 3 -name ".git" -type d -o -name ".git" -type f 2>/dev/null | \
-        sed "s|$workspace_dir/||" | \
-        sed 's|/.git||' | \
-        sort
-}
+# Cargar funciones compartidas
+source "$SCRIPT_DIR/ws-common.sh"
 
 # Función de ayuda
 show_help() {
@@ -62,16 +55,31 @@ if [ -z "$WORKSPACE_TYPE" ]; then
     exit 0
 fi
 
+# Validar tipo de workspace
+if [ "$WORKSPACE_TYPE" != "feature" ] && [ "$WORKSPACE_TYPE" != "master" ] && [ "$WORKSPACE_TYPE" != "develop" ]; then
+    echo "❌ Tipo inválido: $WORKSPACE_TYPE"
+    show_help
+    exit 1
+fi
+
+# Para features, validar que se proporcione un patrón de búsqueda
+if [ "$WORKSPACE_TYPE" = "feature" ] && [ -z "$WORKSPACE_NAME" ]; then
+    echo "❌ Las features requieren un nombre o patrón de búsqueda"
+    show_help
+    exit 1
+fi
+
+# Buscar workspace que coincida con el patrón
+MATCHED_NAME=$(find_matching_workspace "$WORKSPACE_TYPE" "$WORKSPACE_NAME" "$WORKSPACES_DIR")
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+
 # Determinar directorio del workspace
 case $WORKSPACE_TYPE in
     feature)
-        if [ -z "$WORKSPACE_NAME" ]; then
-            echo "❌ Las features requieren un nombre"
-            show_help
-            exit 1
-        fi
-        WORKSPACE_DIR=$WORKSPACES_DIR/features/$WORKSPACE_NAME
-        DISPLAY_NAME="feature/$WORKSPACE_NAME"
+        WORKSPACE_DIR=$WORKSPACES_DIR/features/$MATCHED_NAME
+        DISPLAY_NAME="feature/$MATCHED_NAME"
         ;;
     master)
         WORKSPACE_DIR=$WORKSPACES_DIR/master
@@ -80,11 +88,6 @@ case $WORKSPACE_TYPE in
     develop)
         WORKSPACE_DIR=$WORKSPACES_DIR/develop
         DISPLAY_NAME="develop"
-        ;;
-    *)
-        echo "❌ Tipo inválido: $WORKSPACE_TYPE"
-        show_help
-        exit 1
         ;;
 esac
 
