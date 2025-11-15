@@ -69,6 +69,35 @@ ws status feature-456    # muestra estado de feature-456
 
 ---
 
+### Navegación rápida entre repos (wscd)
+**Estado:** ✅ Implementado en v3.2
+
+Navega entre repos del workspace actual usando matching parcial, sin necesidad de conocer rutas exactas.
+
+**Beneficios:**
+- Navegación ultra-rápida: `wscd ks` en lugar de `cd ../../../ks-nuba`
+- Matching parcial inteligente con menú de selección
+- Context-aware: funciona desde cualquier directorio del workspace
+- Consistente con otros comandos (mismo patrón de búsqueda)
+
+**Uso:**
+```bash
+# Desde cualquier lugar del workspace
+wscd ks              # busca "ks" → navega a ks-nuba
+wscd libs/marc       # busca parcial → navega a libs/marc4j
+wscd                 # muestra menú con todos los repos
+wscd .               # navega a raíz del workspace
+wscd ..              # navega un nivel arriba
+```
+
+**Implementación:**
+- `bin/ws-repo-path`: Helper script que encuentra repos con matching parcial
+- `setup.sh`: Función `wscd()` que hace `cd` a la ruta devuelta
+- Menús interactivos con `/dev/tty` para interacción directa
+- Auto-detecta workspace con `detect_current_workspace()`
+
+---
+
 ## 🔥 Alto impacto / Alta prioridad
 
 ### 1. Sincronización de repos (ws sync)
