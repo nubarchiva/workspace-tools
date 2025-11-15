@@ -145,13 +145,20 @@ if [ -d "$WORKSPACE_DIR" ]; then
     # Eliminar directorios vacíos recursivamente
     find "$WORKSPACE_DIR" -type d -empty -delete 2>/dev/null || true
 
-    # Si el workspace quedó vacío, eliminarlo
-    if [ -z "$(ls -A $WORKSPACE_DIR 2>/dev/null)" ]; then
+    # Verificar qué archivos quedan
+    local remaining_files=$(ls -A "$WORKSPACE_DIR" 2>/dev/null)
+
+    # Si está vacío o solo queda README.md (que creamos nosotros), eliminar todo
+    if [ -z "$remaining_files" ]; then
+        rm -rf "$WORKSPACE_DIR"
+    elif [ "$remaining_files" = "README.md" ]; then
+        # Solo queda el README que creamos, eliminar todo
         rm -rf "$WORKSPACE_DIR"
     else
         echo ""
         echo "⚠️  El workspace tiene archivos adicionales. No se eliminó el directorio."
         echo "   Revisa: $WORKSPACE_DIR"
+        echo "   Archivos restantes: $remaining_files"
     fi
 fi
 
