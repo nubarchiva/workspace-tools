@@ -51,9 +51,10 @@ fi
 
 # Si no hay patrón, mostrar menú con todos los repos
 if [ -z "$PATTERN" ]; then
-    echo "" >&2
-    echo "${COLOR_CYAN}Repos en workspace ${COLOR_BOLD}$WORKSPACE_NAME${COLOR_RESET}:" >&2
-    echo "" >&2
+    # Usar /dev/tty para interacción directa con el usuario
+    echo "" > /dev/tty
+    echo "${COLOR_CYAN}Repos en workspace ${COLOR_BOLD}$WORKSPACE_NAME${COLOR_RESET}:" > /dev/tty
+    echo "" > /dev/tty
 
     # Convertir repos a array
     repos_array=()
@@ -66,13 +67,13 @@ if [ -z "$PATTERN" ]; then
     # Mostrar menú numerado
     i=1
     for repo in "${repos_array[@]}"; do
-        echo "  $i) ${COLOR_CYAN}$repo${COLOR_RESET}" >&2
+        echo "  $i) ${COLOR_CYAN}$repo${COLOR_RESET}" > /dev/tty
         ((i++))
     done
 
-    echo "" >&2
-    echo -n "Selecciona un repo [1-${#repos_array[@]}] (o 0 para cancelar): " >&2
-    read -r selection
+    echo "" > /dev/tty
+    echo -n "Selecciona un repo [1-${#repos_array[@]}] (o 0 para cancelar): " > /dev/tty
+    read -r selection < /dev/tty
 
     if [ -z "$selection" ] || [ "$selection" = "0" ]; then
         echo "❌ Cancelado" >&2
@@ -131,19 +132,20 @@ elif [ $num_matches -eq 1 ]; then
     exit 0
 else
     # Múltiples coincidencias, mostrar menú
-    echo "" >&2
-    echo "Se encontraron $num_matches repos que coinciden con '$PATTERN':" >&2
-    echo "" >&2
+    # Usar /dev/tty para interacción directa con el usuario
+    echo "" > /dev/tty
+    echo "Se encontraron $num_matches repos que coinciden con '$PATTERN':" > /dev/tty
+    echo "" > /dev/tty
 
     i=1
     for match in "${matches[@]}"; do
-        echo "  $i) ${COLOR_CYAN}$match${COLOR_RESET}" >&2
+        echo "  $i) ${COLOR_CYAN}$match${COLOR_RESET}" > /dev/tty
         ((i++))
     done
 
-    echo "" >&2
-    echo -n "Selecciona una opción [1-$num_matches] (o 0 para cancelar): " >&2
-    read -r selection
+    echo "" > /dev/tty
+    echo -n "Selecciona una opción [1-$num_matches] (o 0 para cancelar): " > /dev/tty
+    read -r selection < /dev/tty
 
     if [ -z "$selection" ] || [ "$selection" = "0" ]; then
         echo "❌ Cancelado" >&2
