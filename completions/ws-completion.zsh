@@ -100,4 +100,5 @@ _ws() {
     esac
 }
 
-_ws "$@"
+# Registrar la función de completado
+compdef _ws ws
