@@ -62,8 +62,9 @@ Nombres especiales:
 
 💡 Abreviaturas de comandos:
   Puedes usar abreviaturas de comandos:
-  • Automáticas: n, a, l, sw, c, cl, etc. (cualquier prefijo único)
-  • Predefinidas: ls→list, rm→clean, del→clean, mk→new, create→new, h→help
+  • Automáticas: n, a, l, c, cl, etc. (cualquier prefijo único)
+  • Predefinidas: ls→list, cd→switch, sw→switch, rm→clean, del→clean,
+                  mk→new, create→new, h→help
 
 💡 Búsqueda parcial de workspaces:
   Puedes usar partes del nombre en lugar del nombre completo.
@@ -73,7 +74,7 @@ Ejemplos con abreviaturas:
   ws n nuba-8400 ks-nuba         # ws new
   ws a master libs/marc4j        # ws add
   ws ls                          # ws list
-  ws sw nuba-8400                # ws switch
+  ws cd nuba-8400                # ws switch
   ws rm nuba-8400                # ws clean
 
 Compatibilidad:
@@ -103,7 +104,7 @@ expand_abbreviation() {
     case $abbrev in
         ls) echo "list"; return 0 ;;
         rm|del) echo "clean"; return 0 ;;
-        sw) echo "switch"; return 0 ;;
+        cd|sw) echo "switch"; return 0 ;;
         mk|create) echo "new"; return 0 ;;
         h) echo "help"; return 0 ;;
     esac
