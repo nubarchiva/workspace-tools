@@ -117,6 +117,35 @@ ws-list
 ws-switch feature test
 ```
 
+## Autocompletado (Opcional)
+
+Para habilitar autocompletado de comandos, subcomandos, tipos de workspace, features y repos:
+
+### Bash
+
+Añade a tu `~/.bashrc`:
+
+```bash
+source $WS_TOOLS/completions/ws-completion.bash
+```
+
+### Zsh
+
+Añade a tu `~/.zshrc`:
+
+```bash
+source $WS_TOOLS/completions/ws-completion.zsh
+```
+
+Después ejecuta `source ~/.bashrc` (o `source ~/.zshrc`) para activarlo.
+
+**Características del autocompletado:**
+- ✅ Completa subcomandos: `ws <TAB>` → new, add, switch, list, clean, help
+- ✅ Completa tipos: `ws new <TAB>` → feature, master, develop
+- ✅ Completa features: `ws switch feature <TAB>` → lista features disponibles
+- ✅ Completa repos: `ws new feature test <TAB>` → lista repos disponibles
+- ✅ Soporta repos en subdirectorios: `libs/marc4j`, `modules/docs`
+
 ## Características
 
 - ✅ Workspaces aislados para master, develop y features

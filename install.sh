@@ -149,7 +149,15 @@ cat <<'EOF'
    alias ws-clean='$WS_TOOLS/bin/ws-clean'
 EOF
 echo ""
-echo "   Después ejecuta: source ~/.bashrc"
+echo "   OPCIONAL - Habilitar autocompletado (recomendado):"
+echo ""
+echo "   Para Bash, añade:"
+echo "     source \$WS_TOOLS/completions/ws-completion.bash"
+echo ""
+echo "   Para Zsh, añade:"
+echo "     source \$WS_TOOLS/completions/ws-completion.zsh"
+echo ""
+echo "   Después ejecuta: source ~/.bashrc (o ~/.zshrc)"
 echo ""
 echo "   Con los alias configurados podrás usar desde cualquier lugar:"
 echo "     ws new feature test ks-nuba libs/marc4j"
