@@ -1,10 +1,15 @@
 #!/bin/bash
 # Lista todos los workspaces activos
 
-# Detectar WORKSPACE_ROOT automáticamente (2 niveles arriba del script)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# Detectar WORKSPACE_ROOT desde WS_TOOLS o por defecto
+if [ -n "$WS_TOOLS" ]; then
+    WORKSPACE_ROOT="${WS_TOOLS%/tools/workspace-tools}"
+else
+    # Fallback: asumir ubicación estándar
+    WORKSPACE_ROOT=~/wrkspc.nubarchiva
+fi
 WORKSPACES_DIR=$WORKSPACE_ROOT/workspaces
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Cargar funciones compartidas
 source "$SCRIPT_DIR/ws-common.sh"
