@@ -1,0 +1,482 @@
+#!/bin/bash
+# Renombra un workspace (directorio + branches + worktrees)
+
+# Detectar WORKSPACE_ROOT desde WS_TOOLS o por defecto
+if [ -n "$WS_TOOLS" ]; then
+    WORKSPACE_ROOT="${WS_TOOLS%/tools/workspace-tools}"
+else
+    WORKSPACE_ROOT=~/wrkspc.nubarchiva
+fi
+WORKSPACES_DIR=$WORKSPACE_ROOT/workspaces
+REPOS_DIR=$WORKSPACE_ROOT/repos
+
+# Detectar directorio del script (compatible bash/zsh)
+if [ -n "$BASH_SOURCE" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+else
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+fi
+
+# Cargar funciones compartidas
+source "$SCRIPT_DIR/ws-common.sh"
+source "$SCRIPT_DIR/ws-colors.sh"
+
+OLD_NAME=$1
+NEW_NAME=$2
+
+# Función de ayuda
+show_help() {
+    echo "Uso: ws rename <nombre-actual> <nombre-nuevo>"
+    echo ""
+    echo "Renombra un workspace (directorio, branches locales, referencias de worktrees)."
+    echo ""
+    echo "Verificaciones de seguridad:"
+    echo "  • BLOQUEA si hay cambios sin commitear"
+    echo "  • ADVIERTE si hay commits sin pushear"
+    echo "  • ADVIERTE si hay branches con tracking remoto"
+    echo ""
+    echo "Ejemplos:"
+    echo "  ws rename feature-123 feature-456"
+    echo "  ws rename old-name new-name"
+    echo ""
+    echo "IMPORTANTE:"
+    echo "  • Tus commits locales NO se perderán"
+    echo "  • Necesitarás reconfigurar branches remotas después"
+    echo "  • Si trabajas en equipo, coordina el cambio"
+}
+
+# Validar argumentos
+if [ -z "$OLD_NAME" ] || [ -z "$NEW_NAME" ]; then
+    error "❌ Error: debes especificar nombre actual y nombre nuevo"
+    echo ""
+    show_help
+    exit 1
+fi
+
+# Verificar que el workspace actual existe
+OLD_DIR="$WORKSPACES_DIR/$OLD_NAME"
+if [ ! -d "$OLD_DIR" ]; then
+    error "❌ Error: workspace '$OLD_NAME' no existe"
+    echo ""
+    echo "Workspaces disponibles:"
+    if [ -d "$WORKSPACES_DIR" ]; then
+        for ws_dir in "$WORKSPACES_DIR"/*; do
+            if [ -d "$ws_dir" ]; then
+                ws_name=$(basename "$ws_dir")
+                echo "  • ${COLOR_CYAN}$ws_name${COLOR_RESET}"
+            fi
+        done
+    fi
+    exit 1
+fi
+
+# Verificar que el nuevo nombre no existe
+NEW_DIR="$WORKSPACES_DIR/$NEW_NAME"
+if [ -d "$NEW_DIR" ]; then
+    error "❌ Error: workspace '$NEW_NAME' ya existe"
+    exit 1
+fi
+
+# Encontrar repos en el workspace
+repos=$(find_repos_in_workspace "$OLD_DIR")
+if [ -z "$repos" ]; then
+    warning "⚠️  Workspace '$OLD_NAME' no tiene repos"
+    echo ""
+    echo "¿Renombrar workspace vacío de todas formas? [y/N]: "
+    read -r response
+    if [[ ! "$response" =~ ^[Yy]$ ]]; then
+        echo "Renombrado cancelado"
+        exit 0
+    fi
+    # Continuar con renombrado simple
+    mv "$OLD_DIR" "$NEW_DIR"
+    success "✅ Workspace renombrado: $OLD_NAME → $NEW_NAME"
+    exit 0
+fi
+
+# Contadores para verificaciones
+has_uncommitted=0
+has_unpushed=0
+has_upstream=0
+uncommitted_repos=()
+unpushed_repos=()
+upstream_repos=()
+
+echo ""
+info "🔍 Verificando estado de repos..."
+echo ""
+
+# Verificar cada repo
+echo "$repos" | while IFS= read -r repo_rel_path; do
+    if [ -z "$repo_rel_path" ]; then
+        continue
+    fi
+
+    repo_path="$OLD_DIR/$repo_rel_path"
+    cd "$repo_path"
+
+    # 1. Verificar cambios sin commitear
+    if [ -n "$(git status --porcelain)" ]; then
+        uncommitted_repos+=("$repo_rel_path")
+        has_uncommitted=1
+    fi
+
+    # 2. Verificar commits sin pushear
+    current_branch=$(git branch --show-current)
+    if [ -n "$current_branch" ]; then
+        # Verificar si tiene upstream
+        if git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then
+            upstream_repos+=("$repo_rel_path")
+            has_upstream=1
+
+            # Contar commits sin pushear
+            unpushed_count=$(git rev-list @{u}..HEAD 2>/dev/null | wc -l | tr -d ' ')
+            if [ "$unpushed_count" -gt 0 ]; then
+                unpushed_repos+=("$repo_rel_path:$unpushed_count")
+                has_unpushed=1
+            fi
+        else
+            # Sin upstream, contar commits totales en la branch
+            commit_count=$(git rev-list HEAD 2>/dev/null | wc -l | tr -d ' ')
+            if [ "$commit_count" -gt 0 ]; then
+                unpushed_repos+=("$repo_rel_path:$commit_count")
+                has_unpushed=1
+            fi
+        fi
+    fi
+done
+
+# Capturar los resultados del subshell
+has_uncommitted=0
+has_unpushed=0
+has_upstream=0
+declare -a uncommitted_repos
+declare -a unpushed_repos
+declare -a upstream_repos
+
+echo "$repos" | while IFS= read -r repo_rel_path; do
+    if [ -z "$repo_rel_path" ]; then
+        continue
+    fi
+
+    repo_path="$OLD_DIR/$repo_rel_path"
+    cd "$repo_path"
+
+    # 1. Verificar cambios sin commitear
+    status_output=$(git status --porcelain)
+    if [ -n "$status_output" ]; then
+        echo "UNCOMMITTED:$repo_rel_path:$(echo "$status_output" | wc -l | tr -d ' ')"
+    fi
+
+    # 2. Verificar commits sin pushear y upstream
+    current_branch=$(git branch --show-current)
+    if [ -n "$current_branch" ]; then
+        if git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then
+            upstream_branch=$(git rev-parse --abbrev-ref @{u})
+            echo "UPSTREAM:$repo_rel_path:$upstream_branch"
+
+            unpushed_count=$(git rev-list @{u}..HEAD 2>/dev/null | wc -l | tr -d ' ')
+            if [ "$unpushed_count" -gt 0 ]; then
+                echo "UNPUSHED:$repo_rel_path:$unpushed_count"
+            fi
+        else
+            commit_count=$(git rev-list HEAD 2>/dev/null | wc -l | tr -d ' ')
+            if [ "$commit_count" -gt 0 ]; then
+                echo "UNPUSHED:$repo_rel_path:$commit_count"
+            fi
+        fi
+    fi
+done > /tmp/ws-rename-check.$$
+
+# Procesar resultados
+while IFS=: read -r type repo_path data; do
+    case "$type" in
+        UNCOMMITTED)
+            has_uncommitted=1
+            uncommitted_repos+=("$repo_path ($data archivos)")
+            ;;
+        UPSTREAM)
+            has_upstream=1
+            upstream_repos+=("$repo_path → $data")
+            ;;
+        UNPUSHED)
+            has_unpushed=1
+            unpushed_repos+=("$repo_path ($data commits)")
+            ;;
+    esac
+done < /tmp/ws-rename-check.$$
+rm -f /tmp/ws-rename-check.$$
+
+# VERIFICACIÓN 1: Cambios sin commitear (BLOQUEANTE)
+if [ $has_uncommitted -eq 1 ]; then
+    echo ""
+    error "❌ ERROR: No se puede renombrar el workspace"
+    echo ""
+    echo "Hay cambios sin commitear en:"
+    for repo_info in "${uncommitted_repos[@]}"; do
+        echo "  • ${COLOR_YELLOW}$repo_info${COLOR_RESET}"
+    done
+    echo ""
+    warning "⚠️  CONSECUENCIA: Renombrar rompería las referencias de Git."
+    echo "   Aunque NO perderías los cambios, quedarían en un estado inconsistente."
+    echo ""
+    success "✅ SOLUCIÓN antes de renombrar:"
+    echo ""
+    echo "   ${COLOR_BOLD}Opción 1 - Commitear cambios:${COLOR_RESET}"
+    echo "     cd $OLD_DIR/<repo>"
+    echo "     git add ."
+    echo "     git commit -m \"tu mensaje\""
+    echo ""
+    echo "   ${COLOR_BOLD}Opción 2 - Guardar temporalmente:${COLOR_RESET}"
+    echo "     cd $OLD_DIR/<repo>"
+    echo "     git stash save \"cambios antes de renombrar workspace\""
+    echo ""
+    error "Renombrado CANCELADO por seguridad."
+    exit 1
+fi
+
+success "✅ No hay cambios sin commitear"
+
+# VERIFICACIÓN 2: Commits sin pushear (WARNING)
+if [ $has_unpushed -eq 1 ]; then
+    echo ""
+    warning "⚠️  ADVERTENCIA: Commits locales sin pushear"
+    echo ""
+    for repo_info in "${unpushed_repos[@]}"; do
+        echo "  • ${COLOR_CYAN}$repo_info${COLOR_RESET}"
+    done
+    echo ""
+    echo "${COLOR_BOLD}📋 QUÉ SIGNIFICA ESTO:${COLOR_RESET}"
+    echo "   ${COLOR_GREEN}✅ Tus commits están SEGUROS (guardados localmente)${COLOR_RESET}"
+    echo "   ${COLOR_GREEN}✅ NO se perderán con el renombrado${COLOR_RESET}"
+    echo "   ${COLOR_GREEN}✅ El renombrado funcionará correctamente${COLOR_RESET}"
+    echo ""
+    echo "${COLOR_YELLOW}⚠️  PERO DESPUÉS del renombrado:${COLOR_RESET}"
+    echo "   - Deberás hacer 'git push' manualmente en cada repo"
+    echo "   - Si la branch remota se llama \"feature/$OLD_NAME\", tendrás que decidir:"
+    echo "     * Crear nueva branch remota: ${COLOR_CYAN}git push -u origin feature/$NEW_NAME${COLOR_RESET}"
+    echo "     * Borrar la antigua: ${COLOR_CYAN}git push origin --delete feature/$OLD_NAME${COLOR_RESET}"
+    echo ""
+    echo "${COLOR_BOLD}💡 RECOMENDACIÓN:${COLOR_RESET}"
+    echo "   Si trabajas en equipo, mejor pushea ANTES de renombrar."
+    echo "   Esto evita confusión con tus compañeros."
+    echo ""
+    echo -n "¿Entiendes las consecuencias y quieres continuar? [y/N]: "
+    read -r response
+    if [[ ! "$response" =~ ^[Yy]$ ]]; then
+        echo "Renombrado cancelado"
+        exit 0
+    fi
+fi
+
+# VERIFICACIÓN 3: Branches con upstream (WARNING)
+if [ $has_upstream -eq 1 ]; then
+    echo ""
+    warning "⚠️  ADVERTENCIA: Branches pusheadas al remoto"
+    echo ""
+    for repo_info in "${upstream_repos[@]}"; do
+        echo "  • ${COLOR_CYAN}$repo_info${COLOR_RESET}"
+    done
+    echo ""
+    echo "${COLOR_BOLD}📋 QUÉ VA A PASAR:${COLOR_RESET}"
+    echo "   1. Branch LOCAL se renombrará: ${COLOR_CYAN}feature/$NEW_NAME${COLOR_RESET} ✅"
+    echo "   2. Branch REMOTA seguirá: ${COLOR_YELLOW}origin/feature/$OLD_NAME${COLOR_RESET} ❌"
+    echo "   3. Tracking se romperá: Git no sabrá dónde pushear"
+    echo ""
+    echo "${COLOR_YELLOW}⚠️  CONSECUENCIAS:${COLOR_RESET}"
+    echo "   - 'git push' dará error hasta que reconfigures el tracking"
+    echo "   - Otros desarrolladores seguirán viendo \"feature/$OLD_NAME\" en GitHub"
+    echo "   - Pull requests apuntarán a la branch antigua"
+    echo ""
+    echo "${COLOR_BOLD}✅ SOLUCIÓN (después del renombrado):${COLOR_RESET}"
+    echo ""
+    echo "   Para cada repo, ejecuta:"
+    echo ""
+    echo "   ${COLOR_CYAN}# Crear nueva branch remota${COLOR_RESET}"
+    echo "   git push -u origin feature/$NEW_NAME"
+    echo ""
+    echo "   ${COLOR_CYAN}# Borrar branch antigua (CUIDADO si trabajas en equipo)${COLOR_RESET}"
+    echo "   git push origin --delete feature/$OLD_NAME"
+    echo ""
+    echo "   O mantener ambas branches (puedes decidir después)"
+    echo ""
+    echo "${COLOR_BOLD}💡 SI TRABAJAS EN EQUIPO:${COLOR_RESET}"
+    echo "   Coordina con tu equipo ANTES de renombrar."
+    echo "   Ellos deberán actualizar sus referencias."
+    echo ""
+    echo -n "¿Entiendes las consecuencias? Escribe 'CONTINUAR': "
+    read -r response
+    if [ "$response" != "CONTINUAR" ]; then
+        echo "Renombrado cancelado"
+        exit 0
+    fi
+fi
+
+# Contar repos
+repo_count=$(echo "$repos" | grep -c .)
+
+# RESUMEN FINAL
+echo ""
+echo "${COLOR_BOLD}═══════════════════════════════════════════════════${COLOR_RESET}"
+echo "${COLOR_BOLD}              RESUMEN DE RENOMBRADO${COLOR_RESET}"
+echo "${COLOR_BOLD}═══════════════════════════════════════════════════${COLOR_RESET}"
+echo ""
+echo "Workspace: ${COLOR_CYAN}$OLD_NAME${COLOR_RESET} → ${COLOR_GREEN}$NEW_NAME${COLOR_RESET}"
+echo ""
+echo "Directorio:"
+echo "  $OLD_DIR →"
+echo "  $NEW_DIR"
+echo ""
+echo "Repos ($repo_count):"
+echo "$repos" | while IFS= read -r repo_rel_path; do
+    if [ -n "$repo_rel_path" ]; then
+        cd "$OLD_DIR/$repo_rel_path"
+        current_branch=$(git branch --show-current)
+        if [[ "$current_branch" == "feature/$OLD_NAME" ]] || [[ "$current_branch" == "$OLD_NAME" ]]; then
+            new_branch="feature/$NEW_NAME"
+            echo "  • ${COLOR_CYAN}$repo_rel_path${COLOR_RESET} (branch: $current_branch → $new_branch)"
+        else
+            echo "  • ${COLOR_CYAN}$repo_rel_path${COLOR_RESET} (branch: $current_branch - sin cambios)"
+        fi
+    fi
+done
+echo ""
+echo "Estado:"
+if [ $has_uncommitted -eq 0 ]; then
+    echo "  ${COLOR_GREEN}✅ Sin cambios pendientes${COLOR_RESET}"
+else
+    echo "  ${COLOR_YELLOW}⚠️  Hay cambios sin commitear${COLOR_RESET}"
+fi
+if [ $has_unpushed -eq 1 ]; then
+    echo "  ${COLOR_YELLOW}⚠️  Hay commits sin pushear (no se perderán)${COLOR_RESET}"
+fi
+if [ $has_upstream -eq 1 ]; then
+    echo "  ${COLOR_YELLOW}⚠️  Hay branches remotas (requerirán reconfiguración)${COLOR_RESET}"
+fi
+echo ""
+echo "${COLOR_BOLD}ACCIONES QUE SE EJECUTARÁN:${COLOR_RESET}"
+echo "  1. Renombrar directorio: mv $OLD_DIR $NEW_DIR"
+echo "  2. Reparar referencias: git worktree repair (en cada repo)"
+echo "  3. Renombrar branches: git branch -m (solo si siguen patrón del workspace)"
+echo ""
+if [ $has_unpushed -eq 1 ] || [ $has_upstream -eq 1 ]; then
+    echo "${COLOR_BOLD}TAREAS PENDIENTES DESPUÉS:${COLOR_RESET}"
+    if [ $has_unpushed -eq 1 ]; then
+        echo "  • Pushear commits locales"
+    fi
+    if [ $has_upstream -eq 1 ]; then
+        echo "  • Reconfigurar tracking de branches remotas"
+        echo "  • Coordinar con equipo si corresponde"
+    fi
+    echo ""
+fi
+echo "${COLOR_YELLOW}⚠️  IMPORTANTE: Esta operación NO se puede deshacer automáticamente.${COLOR_RESET}"
+echo ""
+echo -n "Para confirmar, escribe exactamente: ${COLOR_BOLD}RENOMBRAR${COLOR_RESET}\nPara cancelar, presiona Enter o escribe cualquier otra cosa: "
+read -r confirmation
+
+if [ "$confirmation" != "RENOMBRAR" ]; then
+    echo ""
+    echo "Renombrado cancelado"
+    exit 0
+fi
+
+# EJECUTAR RENOMBRADO
+echo ""
+info "🔄 Renombrando workspace..."
+echo ""
+
+# 1. Renombrar directorio
+echo "1️⃣  Renombrando directorio..."
+mv "$OLD_DIR" "$NEW_DIR"
+if [ $? -ne 0 ]; then
+    error "❌ Error al renombrar directorio"
+    exit 1
+fi
+success "   ✅ Directorio renombrado"
+
+# 2. Reparar worktrees
+echo ""
+echo "2️⃣  Reparando referencias de worktrees..."
+echo "$repos" | while IFS= read -r repo_rel_path; do
+    if [ -z "$repo_rel_path" ]; then
+        continue
+    fi
+
+    # Determinar repo principal
+    repo_name=$(basename "$repo_rel_path")
+    repo_main="$REPOS_DIR/$repo_name"
+
+    if [ -d "$repo_main/.git" ]; then
+        cd "$repo_main"
+        git worktree repair >/dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            success "   ✅ $repo_rel_path"
+        else
+            warning "   ⚠️  $repo_rel_path (no se pudo reparar)"
+        fi
+    fi
+done
+
+# 3. Renombrar branches
+echo ""
+echo "3️⃣  Renombrando branches locales..."
+echo "$repos" | while IFS= read -r repo_rel_path; do
+    if [ -z "$repo_rel_path" ]; then
+        continue
+    fi
+
+    repo_path="$NEW_DIR/$repo_rel_path"
+    cd "$repo_path"
+
+    current_branch=$(git branch --show-current)
+
+    # Solo renombrar si sigue el patrón del workspace
+    if [[ "$current_branch" == "feature/$OLD_NAME" ]]; then
+        new_branch="feature/$NEW_NAME"
+        git branch -m "$new_branch" >/dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            success "   ✅ $repo_rel_path: $current_branch → $new_branch"
+        else
+            warning "   ⚠️  $repo_rel_path: no se pudo renombrar branch"
+        fi
+    elif [[ "$current_branch" == "$OLD_NAME" ]]; then
+        new_branch="$NEW_NAME"
+        git branch -m "$new_branch" >/dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            success "   ✅ $repo_rel_path: $current_branch → $new_branch"
+        else
+            warning "   ⚠️  $repo_rel_path: no se pudo renombrar branch"
+        fi
+    else
+        info "   ℹ️  $repo_rel_path: branch '$current_branch' sin cambios"
+    fi
+done
+
+echo ""
+echo "${COLOR_BOLD}═══════════════════════════════════════════════════${COLOR_RESET}"
+success "✅ Workspace renombrado exitosamente: $OLD_NAME → $NEW_NAME"
+echo "${COLOR_BOLD}═══════════════════════════════════════════════════${COLOR_RESET}"
+
+# Recordatorios finales
+if [ $has_unpushed -eq 1 ] || [ $has_upstream -eq 1 ]; then
+    echo ""
+    warning "📋 RECORDATORIOS:"
+    if [ $has_unpushed -eq 1 ]; then
+        echo ""
+        echo "   ${COLOR_BOLD}1. Pushear commits locales:${COLOR_RESET}"
+        echo "      cd $NEW_DIR/<repo>"
+        echo "      git push"
+    fi
+    if [ $has_upstream -eq 1 ]; then
+        echo ""
+        echo "   ${COLOR_BOLD}2. Reconfigurar branches remotas:${COLOR_RESET}"
+        echo "      cd $NEW_DIR/<repo>"
+        echo "      git push -u origin feature/$NEW_NAME"
+        echo "      git push origin --delete feature/$OLD_NAME"
+    fi
+fi
+
+echo ""
+info "📁 Nueva ubicación: ${COLOR_CYAN}$NEW_DIR${COLOR_RESET}"
+echo ""

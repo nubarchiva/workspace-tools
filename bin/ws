@@ -50,6 +50,13 @@ GESTIÓN DE WORKSPACES:
         ws switch feature-123
         ws cd feature-123              # cambia al directorio
 
+  rename <actual> <nuevo> (mv)
+      Renombra un workspace (directorio + branches + worktrees)
+      Verificaciones: sin cambios pendientes, advertencias claras
+      Ejemplos:
+        ws rename feature-123 feature-456
+        ws mv old-name new-name        # alias corto
+
   status [workspace] (., here)
       Muestra el estado del workspace actual (auto-detecta)
       Ejemplos:
@@ -116,7 +123,7 @@ fi
 # Función para expandir abreviaturas
 expand_abbreviation() {
     local abbrev=$1
-    local commands="new add remove switch list clean mvn git status help"
+    local commands="new add remove switch list clean mvn git status rename help"
 
     # Aliases predefinidos
     case $abbrev in
@@ -124,6 +131,7 @@ expand_abbreviation() {
         rm|del) echo "clean"; return 0 ;;
         cd|sw) echo "switch"; return 0 ;;
         mk|create) echo "new"; return 0 ;;
+        mv) echo "rename"; return 0 ;;
         .|here) echo "status"; return 0 ;;
         h) echo "help"; return 0 ;;
     esac
@@ -160,7 +168,7 @@ fi
 
 # Mapear subcomandos a scripts
 case $SUBCOMMAND in
-    new|add|remove|switch|list|clean|mvn|git|status)
+    new|add|remove|switch|list|clean|mvn|git|status|rename)
         SCRIPT_NAME="ws-$SUBCOMMAND"
         SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_NAME"
         
