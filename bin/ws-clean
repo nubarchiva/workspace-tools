@@ -149,20 +149,57 @@ if [ -d "$WORKSPACE_DIR" ]; then
     # Eliminar directorios vacíos recursivamente
     find "$WORKSPACE_DIR" -type d -empty -delete 2>/dev/null || true
 
-    # Verificar qué archivos quedan
-    remaining_files=$(ls -A "$WORKSPACE_DIR" 2>/dev/null)
+    # Archivos/directorios que deben ignorarse (creados por workspace-tools)
+    # - README.md: creado por el propio script
+    # - .idea/, .vscode/, .kiro/, .cursor/: configuración IDE/AI copiada por copy_workspace_config
+    # - AI.md, .ai/, docs/: symlinks creados por copy_workspace_config
+    ignore_patterns=("README.md" ".idea" ".vscode" ".kiro" ".cursor" "AI.md" ".ai" "docs")
 
-    # Si está vacío o solo queda README.md (que creamos nosotros), eliminar todo
-    if [ -z "$remaining_files" ]; then
-        rm -rf "$WORKSPACE_DIR"
-    elif [ "$remaining_files" = "README.md" ]; then
-        # Solo queda el README que creamos, eliminar todo
+    # Contar archivos que NO deben ignorarse
+    significant_files=0
+    all_files=()
+
+    # Leer todos los archivos en el directorio
+    while IFS= read -r file; do
+        all_files+=("$file")
+    done < <(ls -A "$WORKSPACE_DIR" 2>/dev/null)
+
+    # Contar archivos significativos (que no están en la lista de ignorados)
+    for file in "${all_files[@]}"; do
+        should_ignore=false
+        for pattern in "${ignore_patterns[@]}"; do
+            if [ "$file" = "$pattern" ]; then
+                should_ignore=true
+                break
+            fi
+        done
+
+        if [ "$should_ignore" = false ]; then
+            ((significant_files++))
+        fi
+    done
+
+    # Si no hay archivos significativos, eliminar todo el workspace
+    if [ $significant_files -eq 0 ]; then
         rm -rf "$WORKSPACE_DIR"
     else
+        # Hay archivos del usuario, no eliminar
         echo ""
-        echo "⚠️  El workspace tiene archivos adicionales. No se eliminó el directorio."
+        echo "⚠️  El workspace tiene archivos adicionales del usuario. No se eliminó el directorio."
         echo "   Revisa: $WORKSPACE_DIR"
-        echo "   Archivos restantes: $remaining_files"
+        echo "   Archivos restantes:"
+        for file in "${all_files[@]}"; do
+            is_ignored=false
+            for pattern in "${ignore_patterns[@]}"; do
+                if [ "$file" = "$pattern" ]; then
+                    is_ignored=true
+                    break
+                fi
+            done
+            if [ "$is_ignored" = false ]; then
+                echo "      • $file"
+            fi
+        done
     fi
 fi
 
