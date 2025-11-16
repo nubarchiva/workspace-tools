@@ -78,14 +78,6 @@ fi
 print_header "Workspace: ${COLOR_BOLD}$WORKSPACE_NAME${COLOR_RESET}"
 echo ""
 
-# Mostrar README si existe (solo si no estamos en WS_STATUS_MODE)
-if [ -z "$WS_STATUS_MODE" ] && [ -f "$WORKSPACE_DIR/README.md" ]; then
-    cat "$WORKSPACE_DIR/README.md"
-    echo ""
-    echo "═══════════════════════════════════════════════════"
-    echo ""
-fi
-
 # Mostrar estado de cada repo (incluyendo subdirectorios)
 echo "Estado de los repos:"
 echo ""
@@ -125,7 +117,6 @@ if [ -z "$repos" ] || [ "$repos" = "" ]; then
     echo ""
 fi
 
-echo "${COLOR_DIM}═══════════════════════════════════════════════════${COLOR_RESET}"
 echo ""
 
 # Calcular ruta a mostrar (relativa si es WS_STATUS_MODE, absoluta si no)

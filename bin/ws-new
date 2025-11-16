@@ -78,22 +78,6 @@ if [ ${#REPOS[@]} -eq 0 ]; then
     success "📁 Directorio creado: $WORKSPACE_DIR"
     info "💡 Añade repos con: ws add $WORKSPACE_NAME <repo>"
 
-    # Crear README si no existe
-    if [ ! -f "$WORKSPACE_DIR/README.md" ]; then
-        cat > $WORKSPACE_DIR/README.md <<EOF
-# Workspace: $WORKSPACE_NAME
-
-## Branch
-$BRANCH_NAME
-
-## Repos
-(Ninguno todavía - usa ws add para añadir)
-
-## Notas
-[Añade información de contexto aquí]
-EOF
-    fi
-
     # Copiar configuraciones de IDE y AI assistants
     copy_workspace_config "$WORKSPACE_DIR"
 
@@ -149,47 +133,11 @@ for repo in "${REPOS[@]}"; do
     fi
 done
 
-# Crear archivo de contexto
-cat > $WORKSPACE_DIR/README.md <<EOF
-# Workspace: $WORKSPACE_NAME
-
-## Branch
-$BRANCH_NAME
-
-## Repos involucrados
-$(for repo in "${REPOS[@]}"; do echo "- \`$repo\` → branch: $BRANCH_NAME"; done)
-
-## Descripción
-$(if [ "$WORKSPACE_NAME" != "master" ] && [ "$WORKSPACE_NAME" != "develop" ]; then
-    echo "[Describe aquí el objetivo de esta feature/tarea]"
-else
-    echo "Workspace para trabajo en $WORKSPACE_NAME"
-fi)
-
-## Notas para AI
-[Contexto relevante para herramientas de AI]
-
-$(if [ "$WORKSPACE_NAME" != "master" ] && [ "$WORKSPACE_NAME" != "develop" ]; then
-cat <<CHECKLIST
-## Checklist
-- [ ] Cambios implementados
-- [ ] Tests actualizados
-- [ ] Documentación actualizada
-- [ ] Revisión de dependencias
-- [ ] PR creado
-CHECKLIST
-fi)
-
-## Creado
-$(date)
-EOF
-
 # Copiar configuraciones de IDE y AI assistants
 copy_workspace_config "$WORKSPACE_DIR"
 
 echo ""
 success "✅ Workspace creado: $WORKSPACE_DIR"
-info "📝 Edita $WORKSPACE_DIR/README.md para documentar"
 echo ""
 echo "Para trabajar:"
 echo "  ${COLOR_CYAN}cd $WORKSPACE_DIR${COLOR_RESET}"

@@ -108,8 +108,9 @@ ws clean feature-123
 | `ws new` | Crear workspace | `ws new feature-123 repo1 libs/lib1` |
 | `ws add` | Añadir repo a workspace | `ws add feature-123 modules/module1` |
 | `ws list` | Listar workspaces | `ws list` o `ws ls` |
-| `ws switch` | Ver detalles de workspace | `ws switch feature-123` |
+| `ws info` | Ver información del workspace | `ws info feature-123` |
 | `ws cd` | Cambiar a workspace | `ws cd feature-123` |
+| `ws status` | Ver estado del workspace actual | `ws .` o `ws status` |
 | `ws rename` | Renombrar workspace | `ws rename old-name new-name` o `ws mv old-name new-name` |
 | `ws clean` | Limpiar workspace | `ws clean feature-123` o `ws rm feature-123` |
 

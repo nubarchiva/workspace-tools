@@ -145,6 +145,9 @@ ws .                                   # atajo ultra-corto
 ws status                              # desde dentro del workspace
 ws status <nombre>                     # especificar workspace
 
+# Ver información del workspace (sin cambiar directorio)
+ws info <nombre>                       # muestra info completa
+
 # Cambiar a workspace
 ws cd <nombre>                         # cambia automáticamente
 ws cd <nombre parcial>                 # búsqueda parcial
@@ -154,7 +157,7 @@ wscd <patrón>                          # busca repo y navega
 wscd                                   # menú de repos
 wscd .                                 # raíz del workspace
 
-# Ver detalle
+# Ver detalle (equivalente a ws info, pero con cd funciona como ws cd)
 ws switch <nombre>
 
 # Renombrar workspace
@@ -256,9 +259,9 @@ ws remove <nombre> libs/marc4j modules/docs
 
 ### Navegación
 ```bash
-# Ver info del workspace
-ws switch <nombre>
-ws switch fac                   # búsqueda parcial
+# Ver info del workspace (SIN cambiar directorio)
+ws info <nombre>
+ws info fac                     # búsqueda parcial
 
 # Cambiar al workspace
 ws cd <nombre>
@@ -274,6 +277,9 @@ wscd ks                         # navega a repo que contiene "ks"
 wscd                            # menú interactivo
 wscd .                          # raíz del workspace
 wscd ..                         # nivel arriba
+
+# Ver detalle (equivalente a ws info, pero con cd funciona como ws cd)
+ws switch <nombre>
 ```
 
 ### Renombrar
@@ -689,24 +695,8 @@ ws new ai-cataloging \
     libs/marc4j \
     modules/metadata-entities
 
-# 2. Documentar en README del workspace
+# 2. Navegar y trabajar
 ws cd ai-cataloging
-cat > README.md <<EOF
-# Feature: AI-Powered Cataloging
-
-## Objetivo
-Implementar catalogación asistida por IA
-
-## Repos y sus roles
-- \`ks-nuba\`: Frontend y servicios principales
-- \`libs/marc4j\`: Procesamiento MARC con IA
-- \`modules/metadata-entities\`: Entidades enriquecidas
-
-## Stack
-- Java 11
-- Apache Solr 3.5
-- MARC 21
-EOF
 
 # 3. Abrir con Claude Code
 claude-code .
@@ -720,7 +710,6 @@ claude-code .
 - Usar `ws cd` para navegar automáticamente
 - Usar `wscd` para navegar entre repos
 - Usar búsqueda parcial para ahorrar tiempo
-- Documentar el README.md de cada workspace
 - Commitear antes de limpiar
 - Usar `ws .` para ver estado rápido
 - Usar shortcuts: `wmci`, `wgt`, `wscd`

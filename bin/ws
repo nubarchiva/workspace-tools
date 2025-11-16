@@ -64,6 +64,10 @@ GESTIÓN DE WORKSPACES:
         ws .                           # atajo corto
         ws status feature-123          # desde cualquier lugar
 
+  info <workspace>
+      Muestra información del workspace (sin cambiar directorio)
+      Ejemplo: ws info feature-123
+
   clean <workspace> (rm)
       Elimina un workspace completo (worktrees + directorio)
       Ejemplo: ws clean feature-123
@@ -123,7 +127,7 @@ fi
 # Función para expandir abreviaturas
 expand_abbreviation() {
     local abbrev=$1
-    local commands="new add remove switch list clean mvn git status rename help"
+    local commands="new add remove switch list clean mvn git status rename info help"
 
     # Aliases predefinidos
     case $abbrev in
@@ -168,10 +172,10 @@ fi
 
 # Mapear subcomandos a scripts
 case $SUBCOMMAND in
-    new|add|remove|switch|list|clean|mvn|git|status|rename)
+    new|add|remove|switch|list|clean|mvn|git|status|rename|info)
         SCRIPT_NAME="ws-$SUBCOMMAND"
         SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_NAME"
-        
+
         # Verificar que el script existe
         if [ ! -f "$SCRIPT_PATH" ]; then
             echo "❌ Error: comando '$SUBCOMMAND' no encontrado"
@@ -179,7 +183,7 @@ case $SUBCOMMAND in
             show_help
             exit 1
         fi
-        
+
         # Ejecutar el script correspondiente, pasando todos los argumentos excepto el primero
         shift
         exec "$SCRIPT_PATH" "$@"

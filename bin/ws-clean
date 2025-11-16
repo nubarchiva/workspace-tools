@@ -151,10 +151,9 @@ if [ -d "$WORKSPACE_DIR" ]; then
     find "$WORKSPACE_DIR" -type d -empty -delete 2>/dev/null || true
 
     # Archivos/directorios que deben ignorarse (creados por workspace-tools)
-    # - README.md: creado por el propio script
     # - .idea/, .vscode/, .kiro/, .cursor/: configuración IDE/AI copiada por copy_workspace_config
     # - AI.md, .ai/, docs/: symlinks creados por copy_workspace_config
-    ignore_patterns=("README.md" ".idea" ".vscode" ".kiro" ".cursor" "AI.md" ".ai" "docs")
+    ignore_patterns=(".idea" ".vscode" ".kiro" ".cursor" "AI.md" ".ai" "docs")
 
     # Contar archivos que NO deben ignorarse
     significant_files=0

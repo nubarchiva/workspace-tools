@@ -78,12 +78,24 @@ highlight() {
     echo "${COLOR_BOLD}$*${COLOR_RESET}"
 }
 
-# Header con caja (usado en varios scripts)
+# Header simple y elegante (usado en varios scripts)
 print_header() {
     local title="$1"
-    echo "${COLOR_BOLD_CYAN}╔════════════════════════════════════════════════════╗${COLOR_RESET}"
-    printf "${COLOR_BOLD_CYAN}║  %-48s  ║${COLOR_RESET}\n" "$title"
-    echo "${COLOR_BOLD_CYAN}╚════════════════════════════════════════════════════╝${COLOR_RESET}"
+    local title_clean
+    # Eliminar códigos de color para calcular longitud real
+    title_clean=$(echo "$title" | sed 's/\x1b\[[0-9;]*m//g')
+    local len=${#title_clean}
+    local line=""
+
+    # Crear línea del tamaño exacto del título + 4 (espacios y bordes)
+    for ((i=0; i<len+4; i++)); do
+        line="${line}─"
+    done
+
+    echo ""
+    echo "${COLOR_DIM}${line}${COLOR_RESET}"
+    echo "${COLOR_BOLD_CYAN}  $title${COLOR_RESET}"
+    echo "${COLOR_DIM}${line}${COLOR_RESET}"
 }
 
 # Separador de secciones
