@@ -53,20 +53,40 @@ show_workspace() {
         fi
     done
 
-    # Mostrar repos con cambios
-    has_changes=false
+    # Mostrar repos con cambios sin commitear
+    has_uncommitted=false
     echo "$repos" | while read -r repo_rel_path; do
         if [ -n "$repo_rel_path" ]; then
             worktree_path="$path/$repo_rel_path"
             if [ -d "$worktree_path" ]; then
                 cd "$worktree_path"
                 if [ -n "$(git status -s 2>/dev/null)" ]; then
-                    if [ "$has_changes" = false ]; then
+                    if [ "$has_uncommitted" = false ]; then
                         echo "   ⚠️  Cambios sin commitear:"
-                        has_changes=true
+                        has_uncommitted=true
                     fi
                     change_count=$(git status -s | wc -l)
                     echo "      • $repo_rel_path ($change_count archivos)"
+                fi
+            fi
+        fi
+    done
+
+    # Mostrar repos con commits pendientes de push
+    has_unpushed=false
+    echo "$repos" | while read -r repo_rel_path; do
+        if [ -n "$repo_rel_path" ]; then
+            worktree_path="$path/$repo_rel_path"
+            if [ -d "$worktree_path" ]; then
+                cd "$worktree_path"
+                # Verificar si hay commits locales no pusheados
+                unpushed_count=$(git rev-list @{u}..HEAD 2>/dev/null | wc -l | tr -d ' ')
+                if [ -n "$unpushed_count" ] && [ "$unpushed_count" -gt 0 ]; then
+                    if [ "$has_unpushed" = false ]; then
+                        echo "   📤 Cambios sin push:"
+                        has_unpushed=true
+                    fi
+                    echo "      • $repo_rel_path ($unpushed_count commits)"
                 fi
             fi
         fi
