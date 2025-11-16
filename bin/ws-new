@@ -92,6 +92,12 @@ $BRANCH_NAME
 [Añade información de contexto aquí]
 EOF
     fi
+
+    # Copiar configuraciones de IDE y AI assistants
+    copy_workspace_config "$WORKSPACE_DIR"
+
+    echo ""
+    echo "✅ Workspace creado: $WORKSPACE_DIR"
     exit 0
 fi
 
