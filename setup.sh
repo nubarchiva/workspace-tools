@@ -25,6 +25,9 @@ if [[ ":$PATH:" != *":$SCRIPT_DIR/bin:"* ]]; then
     export PATH="$SCRIPT_DIR/bin:$PATH"
 fi
 
+# Eliminar alias ws si existe (para evitar conflicto con la función)
+unalias ws 2>/dev/null || true
+
 # Cargar la función ws() (permite 'ws cd' para cambiar de directorio)
 if [ -f "$SCRIPT_DIR/completions/ws-function.sh" ]; then
     source "$SCRIPT_DIR/completions/ws-function.sh"
