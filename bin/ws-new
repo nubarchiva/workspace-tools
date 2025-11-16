@@ -2,8 +2,6 @@
 # Crea un nuevo workspace
 # Soporta repos en subdirectorios (ej: libs/marc4j, modules/docs, tools/workspace-tools)
 
-set -e
-
 WORKSPACE_NAME=$1
 shift 2>/dev/null || true
 REPOS=("$@")
@@ -117,15 +115,17 @@ for repo in "${REPOS[@]}"; do
     WORKTREE_PARENT=$(dirname "$WORKTREE_PATH")
     mkdir -p "$WORKTREE_PARENT"
 
-    cd $REPO_PATH
+    cd "$REPO_PATH"
 
     # Para master/develop, usar la branch existente
     # Para features, crear branch nueva si no existe
     if [ "$WORKSPACE_NAME" != "master" ] && [ "$WORKSPACE_NAME" != "develop" ]; then
-        git rev-parse --verify $BRANCH_NAME >/dev/null 2>&1
-        if [ $? -ne 0 ]; then
+        if ! git rev-parse --verify "$BRANCH_NAME" >/dev/null 2>&1; then
             echo "  ➕ Creando branch: $BRANCH_NAME"
-            git branch $BRANCH_NAME
+            if ! git branch "$BRANCH_NAME" 2>&1; then
+                echo "  ❌ Error al crear branch $BRANCH_NAME"
+                continue
+            fi
         fi
     fi
 
@@ -133,8 +133,12 @@ for repo in "${REPOS[@]}"; do
     if [ -d "$WORKTREE_PATH" ]; then
         echo "  ⚠️  Worktree ya existe, saltando"
     else
-        git worktree add $WORKTREE_PATH $BRANCH_NAME
-        echo "  ✅ Worktree creado en branch: $BRANCH_NAME"
+        if git worktree add "$WORKTREE_PATH" "$BRANCH_NAME" 2>&1; then
+            echo "  ✅ Worktree creado en branch: $BRANCH_NAME"
+        else
+            echo "  ❌ Error al crear worktree"
+            echo "  💡 Verifica que la branch no esté siendo usada por otro worktree"
+        fi
     fi
 done
 
@@ -172,6 +176,9 @@ fi)
 ## Creado
 $(date)
 EOF
+
+# Copiar configuraciones de IDE y AI assistants
+copy_workspace_config "$WORKSPACE_DIR"
 
 echo ""
 echo "✅ Workspace creado: $WORKSPACE_DIR"

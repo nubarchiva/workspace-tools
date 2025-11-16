@@ -1,6 +1,10 @@
 #!/bin/bash
 # Funciones compartidas para workspace-tools
 
+# Directorio de referencia para copiar configuraciones (IDE, AI assistants, etc.)
+# Por defecto usa la raíz del workspace, pero puede personalizarse
+CONFIG_REFERENCE_DIR="${CONFIG_REFERENCE_DIR:-$WORKSPACE_ROOT}"
+
 # Función para encontrar workspaces que coincidan con un patrón (búsqueda parcial)
 # Uso: find_matching_workspace <patron> <workspaces_dir>
 # Retorna: nombre exacto del workspace encontrado
@@ -109,4 +113,46 @@ find_repos_in_workspace() {
         sed "s|$workspace_dir/||" | \
         sed 's|/.git||' | \
         sort
+}
+
+# Función para copiar configuraciones de IDE y AI assistants al workspace
+# Uso: copy_workspace_config <workspace_dir>
+copy_workspace_config() {
+    local workspace_dir=$1
+    local config_source="${CONFIG_REFERENCE_DIR:-$WORKSPACE_ROOT}"
+
+    echo ""
+    echo "📋 Copiando configuraciones desde $config_source..."
+
+    # Copiar .idea/ (IntelliJ IDEA)
+    if [ -d "$config_source/.idea" ]; then
+        echo "  • Copiando configuración IntelliJ (.idea/)"
+        cp -r "$config_source/.idea" "$workspace_dir/.idea"
+
+        # Limpiar archivos específicos de sesión que no deben copiarse
+        rm -f "$workspace_dir/.idea/workspace.xml" 2>/dev/null
+        rm -f "$workspace_dir/.idea/usage.statistics.xml" 2>/dev/null
+        rm -rf "$workspace_dir/.idea/shelf/" 2>/dev/null
+        rm -f "$workspace_dir/.idea/tasks.xml" 2>/dev/null
+    fi
+
+    # Copiar .kiro/ (Kiro AI assistant)
+    if [ -d "$config_source/.kiro" ]; then
+        echo "  • Copiando configuración Kiro AI (.kiro/)"
+        cp -r "$config_source/.kiro" "$workspace_dir/.kiro"
+    fi
+
+    # Copiar .cursor/ (Cursor AI)
+    if [ -d "$config_source/.cursor" ]; then
+        echo "  • Copiando configuración Cursor (.cursor/)"
+        cp -r "$config_source/.cursor" "$workspace_dir/.cursor"
+    fi
+
+    # Copiar .vscode/ (VS Code) - opcional
+    if [ -d "$config_source/.vscode" ]; then
+        echo "  • Copiando configuración VS Code (.vscode/)"
+        cp -r "$config_source/.vscode" "$workspace_dir/.vscode"
+    fi
+
+    echo "  ✅ Configuraciones copiadas"
 }
