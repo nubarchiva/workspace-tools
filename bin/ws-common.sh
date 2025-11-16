@@ -1,10 +1,6 @@
 #!/bin/bash
 # Funciones compartidas para workspace-tools
 
-# Directorio de referencia para copiar configuraciones (IDE, AI assistants, etc.)
-# Por defecto usa la raíz del workspace, pero puede personalizarse
-CONFIG_REFERENCE_DIR="${CONFIG_REFERENCE_DIR:-$WORKSPACE_ROOT}"
-
 # Función para encontrar workspaces que coincidan con un patrón (búsqueda parcial)
 # Uso: find_matching_workspace <patron> <workspaces_dir>
 # Retorna: nombre exacto del workspace encontrado
@@ -117,9 +113,15 @@ find_repos_in_workspace() {
 
 # Función para copiar configuraciones de IDE y AI assistants al workspace
 # Uso: copy_workspace_config <workspace_dir>
+# Directorio de referencia: usa CONFIG_REFERENCE_DIR si está definida, sino WORKSPACE_ROOT
 copy_workspace_config() {
     local workspace_dir=$1
-    local config_source="${CONFIG_REFERENCE_DIR:-$WORKSPACE_ROOT}"
+
+    # Evaluar en tiempo de ejecución para asegurar que WORKSPACE_ROOT está definida
+    local config_source="${CONFIG_REFERENCE_DIR}"
+    if [ -z "$config_source" ]; then
+        config_source="$WORKSPACE_ROOT"
+    fi
 
     echo ""
     echo "📋 Copiando configuraciones desde $config_source..."
