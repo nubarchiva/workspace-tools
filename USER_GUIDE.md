@@ -82,11 +82,11 @@ ws ls
 ### Navegar al workspace
 
 ```bash
-# Opción 1: Ver info (no cambia directorio)
-ws switch test
+# Opción 1: Cambiar al directorio del workspace
+ws cd test                      # cambia automáticamente
 
-# Opción 2: Cambiar automáticamente
-ws cd test
+# Opción 2: Ver información del workspace (NO cambia directorio)
+ws switch test                  # solo muestra info
 
 # Opción 3: Ver estado del workspace actual
 cd ~/workspaces/test/ks-nuba
