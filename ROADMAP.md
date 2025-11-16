@@ -4,145 +4,23 @@ Este documento describe las mejoras planificadas para Workspace Tools, priorizad
 
 ## ✅ Completado
 
-### Detección automática de workspace
-**Estado:** ✅ Implementado en v3.1
-
-Detecta automáticamente el workspace actual cuando ejecutas comandos desde dentro de un workspace, eliminando la necesidad de especificar el nombre explícitamente.
-
-**Lógica de prioridad:**
-1. Si primer argumento coincide con workspace existente → usar explícitamente
-2. Si no coincide → intentar auto-detección desde directorio actual
-3. Si no detecta → modo tradicional (primer arg es workspace)
-
-**Beneficios:**
-- Reduce fricción en el uso diario (comandos más cortos)
-- Menos errores al especificar workspace incorrecto
-- Permite especificar workspace explícito desde cualquier lugar
-- Funciona con cualquier comando git/maven sin restricciones
-
-**Uso:**
-```bash
-# Auto-detección (desde dentro de feature-123)
-cd ~/workspaces/feature-123/ks-nuba
-ws mvn clean install        # detecta feature-123 automáticamente
-ws git status               # detecta feature-123 automáticamente
-ws git show-branch ...      # funciona con cualquier comando git
-ws add libs/marc4j          # añade repo al workspace detectado
-
-# Especificación explícita (desde cualquier lugar)
-ws git feature-456 status   # ejecuta en feature-456 aunque estés en otro
-ws mvn otro-ws test         # ejecuta en otro-ws desde cualquier lugar
-```
-
-**Comandos soportados:** `ws mvn`, `ws git`, `ws add`
+### Auto-detección de workspace
+✅ **v3.1** - Detecta automáticamente el workspace actual cuando ejecutas comandos desde dentro, eliminando la necesidad de especificar el nombre. Soporta `ws mvn`, `ws git`, `ws add` con lógica de prioridad inteligente (explícito > auto-detección > tradicional).
 
 ---
 
-### Estado del workspace actual (ws status / ws .)
-**Estado:** ✅ Implementado en v3.1
-
-Muestra información del workspace actual sin necesidad de especificar el nombre, usando auto-detección.
-
-**Beneficios:**
-- Consulta rápida de estado desde cualquier directorio del workspace
-- No necesitas recordar el nombre exacto del workspace
-- Vista consolidada de todos los repos (branch, cambios pendientes)
-- Atajo ultra-corto: `ws .`
-
-**Uso:**
-```bash
-# Desde dentro de un workspace
-cd ~/workspaces/feature-123/ks-nuba
-ws status          # auto-detecta feature-123
-ws .               # atajo corto
-ws here            # alias alternativo
-
-# Especificación explícita (desde cualquier lugar)
-ws status feature-456    # muestra estado de feature-456
-```
-
-**Implementación:**
-- Usa `detect_current_workspace()` para auto-detección
-- Delega a `ws-switch` para mostrar la información
-- Aliases: `.`, `here`, `status`
-- Muestra: README, estado de repos, branch, cambios, rutas
+### ws status / ws . - Estado del workspace actual
+✅ **v3.1** - Muestra información del workspace actual con auto-detección. Atajo ultra-corto `ws .` para consulta rápida de estado (repos, branches, cambios pendientes, rutas relativas).
 
 ---
 
-### Navegación rápida entre repos (wscd)
-**Estado:** ✅ Implementado en v3.2
-
-Navega entre repos del workspace actual usando matching parcial, sin necesidad de conocer rutas exactas.
-
-**Beneficios:**
-- Navegación ultra-rápida: `wscd ks` en lugar de `cd ../../../ks-nuba`
-- Matching parcial inteligente con menú de selección
-- Context-aware: funciona desde cualquier directorio del workspace
-- Consistente con otros comandos (mismo patrón de búsqueda)
-
-**Uso:**
-```bash
-# Desde cualquier lugar del workspace
-wscd ks              # busca "ks" → navega a ks-nuba
-wscd libs/marc       # busca parcial → navega a libs/marc4j
-wscd                 # muestra menú con todos los repos
-wscd .               # navega a raíz del workspace
-wscd ..              # navega un nivel arriba
-```
-
-**Implementación:**
-- `bin/ws-repo-path`: Helper script que encuentra repos con matching parcial
-- `setup.sh`: Función `wscd()` que hace `cd` a la ruta devuelta
-- Menús interactivos con `/dev/tty` para interacción directa
-- Auto-detecta workspace con `detect_current_workspace()`
+### wscd - Navegación rápida entre repos
+✅ **v3.2** - Navega entre repos del workspace actual con matching parcial y menú interactivo. `wscd ks` en lugar de `cd ../../../ks-nuba`. Soporta `wscd .` (raíz) y `wscd ..` (arriba).
 
 ---
 
-### Renombrado seguro de workspaces (ws rename)
-**Estado:** ✅ Implementado en v3.3
-
-Renombra workspaces de forma segura con verificaciones exhaustivas y mensajes extremadamente claros sobre consecuencias.
-
-**Beneficios:**
-- Renombrado seguro sin perder trabajo (NUNCA permite cambios sin commitear)
-- Actualiza automáticamente referencias de worktrees y branches
-- Advertencias claras explicando QUÉ pasará, POR QUÉ importa, CÓMO solucionarlo
-- Confirmación explícita para evitar errores accidentales
-- Documentación paso a paso para tareas post-renombrado
-
-**Uso:**
-```bash
-ws rename old-name new-name    # renombra workspace completo
-ws mv feature-123 feature-456  # alias corto
-```
-
-**Verificaciones de seguridad:**
-1. **BLOQUEANTE** - Cambios sin commitear:
-   - ERROR si hay archivos modificados sin guardar
-   - Explica: referencias rotas, estado inconsistente
-   - Solución: commit o stash antes de renombrar
-
-2. **WARNING** - Commits sin pushear:
-   - Advierte pero permite continuar
-   - Explica: commits están seguros, NO se perderán
-   - Recomienda: push antes si trabajas en equipo
-
-3. **WARNING** - Branches con tracking remoto:
-   - Advierte sobre desincronización
-   - Explica: branch local se renombra, remota NO
-   - Proporciona pasos para reconfigurar después
-
-**Proceso:**
-1. Renombra directorio: `mv workspaces/old → workspaces/new`
-2. Repara worktrees: `git worktree repair` en cada repo
-3. Renombra branches locales: `git branch -m` si siguen patrón
-4. Muestra recordatorios de tareas pendientes
-
-**Implementación:**
-- `bin/ws-rename`: 500+ líneas con verificaciones exhaustivas
-- Mensajes formatados con colores para claridad
-- Confirmación escribiendo "RENOMBRAR" (no solo y/N)
-- Resumen completo antes de ejecutar
+### ws rename - Renombrado seguro de workspaces
+✅ **v3.3** - Renombra workspaces con verificaciones exhaustivas (bloquea si hay cambios sin commitear, advierte sobre commits sin pushear y branches remotas). Actualiza automáticamente worktrees y branches locales. Confirmación explícita escribiendo "RENOMBRAR".
 
 ---
 
