@@ -52,7 +52,12 @@ find_matching_workspace() {
         return 1
     elif [ $num_matches -eq 1 ]; then
         # Una sola coincidencia, usarla automáticamente
-        echo "${matches[0]}"
+        # Compatible bash (0-indexed) y zsh (1-indexed)
+        if [ -n "$ZSH_VERSION" ]; then
+            echo "${matches[1]}"
+        else
+            echo "${matches[0]}"
+        fi
         return 0
     else
         # Múltiples coincidencias, mostrar menú
@@ -80,8 +85,14 @@ find_matching_workspace() {
             return 1
         fi
 
-        # Retornar el workspace seleccionado (índice es 1-based, array es 0-based)
-        echo "${matches[$((selection-1))]}"
+        # Retornar el workspace seleccionado
+        # En bash: índice es 1-based (user), array es 0-based → selection-1
+        # En zsh: índice es 1-based (user), array es 1-based → selection
+        if [ -n "$ZSH_VERSION" ]; then
+            echo "${matches[$selection]}"
+        else
+            echo "${matches[$((selection-1))]}"
+        fi
         return 0
     fi
 }
