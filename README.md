@@ -301,9 +301,7 @@ El sistema copia automáticamente configuraciones de IDE/AI al crear workspaces:
 
 ## Documentación Adicional
 
-- **[QUICKSTART.md](QUICKSTART.md)** - Guía de inicio rápido
-- **[EJEMPLOS.md](EJEMPLOS.md)** - Casos de uso detallados paso a paso
-- **[CHEATSHEET.md](CHEATSHEET.md)** - Referencia rápida de comandos
+- **[USER_GUIDE.md](USER_GUIDE.md)** - Guía de usuario completa (inicio rápido, referencia, ejemplos)
 
 ## Contribuir
 
