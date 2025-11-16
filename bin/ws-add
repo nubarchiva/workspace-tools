@@ -2,8 +2,6 @@
 # Añade uno o más repos a un workspace existente
 # Soporta repos en subdirectorios (ej: libs/marc4j, modules/docs, tools/*)
 
-set -e
-
 WORKSPACE_PATTERN=$1
 shift
 REPOS=("$@")
@@ -89,10 +87,12 @@ for REPO in "${REPOS[@]}"; do
 
     # Para features, crear branch si no existe
     if [ "$WORKSPACE_NAME" != "master" ] && [ "$WORKSPACE_NAME" != "develop" ]; then
-        git rev-parse --verify "$BRANCH_NAME" >/dev/null 2>&1
-        if [ $? -ne 0 ]; then
+        if ! git rev-parse --verify "$BRANCH_NAME" >/dev/null 2>&1; then
             echo "  ➕ Creando branch: $BRANCH_NAME"
-            git branch "$BRANCH_NAME"
+            if ! git branch "$BRANCH_NAME" 2>&1; then
+                echo "  ❌ Error al crear branch $BRANCH_NAME"
+                continue
+            fi
         fi
     fi
 

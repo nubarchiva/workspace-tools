@@ -2,8 +2,6 @@
 # Limpia un workspace terminado (elimina worktrees pero mantiene branches)
 # Soporta repos en subdirectorios
 
-set -e
-
 WORKSPACE_PATTERN=$1
 
 # Detectar WORKSPACE_ROOT desde WS_TOOLS o por defecto
