@@ -372,7 +372,8 @@ if [ $has_unpushed -eq 1 ] || [ $has_upstream -eq 1 ]; then
 fi
 echo "${COLOR_YELLOW}⚠️  IMPORTANTE: Esta operación NO se puede deshacer automáticamente.${COLOR_RESET}"
 echo ""
-echo -n "Para confirmar, escribe exactamente: ${COLOR_BOLD}RENOMBRAR${COLOR_RESET}\nPara cancelar, presiona Enter o escribe cualquier otra cosa: "
+echo "Para confirmar, escribe exactamente: ${COLOR_BOLD}RENOMBRAR${COLOR_RESET}"
+echo -n "Para cancelar, presiona Enter o escribe cualquier otra cosa: "
 read -r confirmation
 
 if [ "$confirmation" != "RENOMBRAR" ]; then
