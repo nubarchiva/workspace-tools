@@ -124,7 +124,23 @@ copy_workspace_config() {
     fi
 
     echo ""
-    echo "📋 Copiando configuraciones desde $config_source..."
+    echo "📋 Configurando workspace desde $config_source..."
+
+    # Crear symlinks para documentación AI (SSOT - Single Source of Truth)
+    if [ -f "$config_source/AI.md" ]; then
+        echo "  • Enlazando AI.md (SSOT)"
+        ln -sf "$config_source/AI.md" "$workspace_dir/AI.md"
+    fi
+
+    if [ -d "$config_source/.ai" ]; then
+        echo "  • Enlazando .ai/ (documentación AI)"
+        ln -sf "$config_source/.ai" "$workspace_dir/.ai"
+    fi
+
+    if [ -d "$config_source/docs" ]; then
+        echo "  • Enlazando docs/ (documentación compartida)"
+        ln -sf "$config_source/docs" "$workspace_dir/docs"
+    fi
 
     # Copiar .idea/ (IntelliJ IDEA)
     if [ -d "$config_source/.idea" ]; then
@@ -156,5 +172,5 @@ copy_workspace_config() {
         cp -r "$config_source/.vscode" "$workspace_dir/.vscode"
     fi
 
-    echo "  ✅ Configuraciones copiadas"
+    echo "  ✅ Configuración completada"
 }
