@@ -23,35 +23,60 @@ ws() {
             return $?
         fi
 
-        # Ejecutar ws-switch y capturar output
+        # Cargar funciones compartidas para resolver el workspace de forma interactiva
+        source "$WS_TOOLS/bin/ws-common.sh"
+
+        # Detectar WORKSPACE_ROOT
+        if [ -n "$WS_TOOLS" ]; then
+            WORKSPACE_ROOT="${WS_TOOLS%/tools/workspace-tools}"
+        else
+            WORKSPACE_ROOT=~/wrkspc.nubarchiva
+        fi
+        WORKSPACES_DIR=$WORKSPACE_ROOT/workspaces
+
+        # Resolver el workspace (permite interacción si hay múltiples coincidencias)
+        local workspace_name
+        workspace_name=$(find_matching_workspace "$workspace_pattern" "$WORKSPACES_DIR")
+        local find_exit_code=$?
+
+        # Si falló (ej: no encontrado, cancelado), salir
+        if [ $find_exit_code -ne 0 ]; then
+            return $find_exit_code
+        fi
+
+        # Ahora ejecutar ws-switch con el nombre exacto y capturar output
         local switch_output
-        switch_output=$("$WS_TOOLS/bin/ws-switch" "$workspace_pattern" 2>&1)
+        switch_output=$("$WS_TOOLS/bin/ws-switch" "$workspace_name" 2>&1)
         local exit_code=$?
 
-        # Si falló (ej: múltiples coincidencias, no encontrado), mostrar output y salir
         if [ $exit_code -ne 0 ]; then
             echo "$switch_output"
             return $exit_code
         fi
 
         # Extraer la ruta del workspace del output
-        local workspace_path
-        workspace_path=$(echo "$switch_output" | grep "📁 Ruta:" | cut -d: -f2- | xargs)
+        local workspace_path="$WORKSPACES_DIR/$workspace_name"
 
-        if [ -n "$workspace_path" ] && [ -d "$workspace_path" ]; then
+        if [ -d "$workspace_path" ]; then
             # Cambiar al directorio
             cd "$workspace_path" || return 1
-            
+
             # Mostrar confirmación breve
-            echo "✅ Cambiado a workspace: $(basename "$workspace_path")"
+            echo "✅ Cambiado a workspace: $workspace_name"
             echo "📁 $workspace_path"
             echo ""
-            
+
             # Mostrar lista de repos si los hay
-            echo "$switch_output" | grep -A 100 "Estado de los repos:" | grep "^📦" || true
+            local repos=$(find_repos_in_workspace "$workspace_path" 2>/dev/null)
+            if [ -n "$repos" ]; then
+                echo "📦 Repos:"
+                echo "$repos" | while read -r repo; do
+                    echo "   • $repo"
+                done
+            fi
         else
-            # Si no se pudo extraer la ruta, mostrar output completo
-            echo "$switch_output"
+            echo "❌ Error: No se pudo acceder a $workspace_path"
+            return 1
         fi
 
         return 0
