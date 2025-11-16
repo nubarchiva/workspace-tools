@@ -110,6 +110,7 @@ ws clean feature-123
 | `ws list` | Listar workspaces | `ws list` o `ws ls` |
 | `ws switch` | Ver detalles de workspace | `ws switch feature-123` |
 | `ws cd` | Cambiar a workspace | `ws cd feature-123` |
+| `ws rename` | Renombrar workspace | `ws rename old-name new-name` o `ws mv old-name new-name` |
 | `ws clean` | Limpiar workspace | `ws clean feature-123` o `ws rm feature-123` |
 
 ### Operaciones Multi-Repo

@@ -7,6 +7,16 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Añadido
+- **`ws rename <actual> <nuevo>` / `ws mv`** - Renombrar workspaces de forma segura
+  - Renombra directorio, actualiza worktrees con `git worktree repair`, renombra branches locales
+  - Verificaciones exhaustivas: BLOQUEA si hay cambios sin commitear (protege contra pérdida de trabajo)
+  - Advertencias claras con WARNING si hay commits sin pushear o branches remotas
+  - Mensajes detallados explicando QUÉ pasará, POR QUÉ importa, y CÓMO solucionarlo
+  - Confirmación explícita escribiendo "RENOMBRAR" (no solo y/N)
+  - Resumen completo antes de ejecutar: repos afectados, branches, estado, acciones, tareas pendientes
+  - NUNCA permite perder trabajo (commits o cambios pendientes están protegidos)
+
 ## [3.2.0] - 2025-11-20
 
 ### Añadido

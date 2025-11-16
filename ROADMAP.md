@@ -98,6 +98,54 @@ wscd ..              # navega un nivel arriba
 
 ---
 
+### Renombrado seguro de workspaces (ws rename)
+**Estado:** ✅ Implementado en v3.3
+
+Renombra workspaces de forma segura con verificaciones exhaustivas y mensajes extremadamente claros sobre consecuencias.
+
+**Beneficios:**
+- Renombrado seguro sin perder trabajo (NUNCA permite cambios sin commitear)
+- Actualiza automáticamente referencias de worktrees y branches
+- Advertencias claras explicando QUÉ pasará, POR QUÉ importa, CÓMO solucionarlo
+- Confirmación explícita para evitar errores accidentales
+- Documentación paso a paso para tareas post-renombrado
+
+**Uso:**
+```bash
+ws rename old-name new-name    # renombra workspace completo
+ws mv feature-123 feature-456  # alias corto
+```
+
+**Verificaciones de seguridad:**
+1. **BLOQUEANTE** - Cambios sin commitear:
+   - ERROR si hay archivos modificados sin guardar
+   - Explica: referencias rotas, estado inconsistente
+   - Solución: commit o stash antes de renombrar
+
+2. **WARNING** - Commits sin pushear:
+   - Advierte pero permite continuar
+   - Explica: commits están seguros, NO se perderán
+   - Recomienda: push antes si trabajas en equipo
+
+3. **WARNING** - Branches con tracking remoto:
+   - Advierte sobre desincronización
+   - Explica: branch local se renombra, remota NO
+   - Proporciona pasos para reconfigurar después
+
+**Proceso:**
+1. Renombra directorio: `mv workspaces/old → workspaces/new`
+2. Repara worktrees: `git worktree repair` en cada repo
+3. Renombra branches locales: `git branch -m` si siguen patrón
+4. Muestra recordatorios de tareas pendientes
+
+**Implementación:**
+- `bin/ws-rename`: 500+ líneas con verificaciones exhaustivas
+- Mensajes formatados con colores para claridad
+- Confirmación escribiendo "RENOMBRAR" (no solo y/N)
+- Resumen completo antes de ejecutar
+
+---
+
 ## 🔥 Alto impacto / Alta prioridad
 
 ### 1. Sincronización de repos (ws sync)
