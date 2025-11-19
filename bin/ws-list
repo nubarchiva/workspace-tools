@@ -91,14 +91,26 @@ show_workspace() {
                         echo "      ${COLOR_YELLOW}• $repo_rel_path ($unpushed_count commits)${COLOR_RESET}"
                     fi
                 else
-                    # No hay upstream: contar todos los commits en la branch
-                    local_count=$(git rev-list HEAD 2>/dev/null | wc -l | tr -d ' ')
-                    if [ -n "$local_count" ] && [ "$local_count" -gt 0 ]; then
-                        if [ "$has_unpushed" = false ]; then
-                            echo "   ${COLOR_YELLOW}📤 Cambios sin push:${COLOR_RESET}"
-                            has_unpushed=true
+                    # No hay upstream: verificar si hay commits únicos respecto a branches principales
+                    # Intentar comparar con origin/develop, origin/master, develop, o master
+                    base_branch=""
+                    for branch in origin/develop origin/master develop master; do
+                        if git rev-parse --verify "$branch" >/dev/null 2>&1; then
+                            base_branch="$branch"
+                            break
                         fi
-                        echo "      ${COLOR_YELLOW}• $repo_rel_path ($local_count commits, sin remoto)${COLOR_RESET}"
+                    done
+
+                    if [ -n "$base_branch" ]; then
+                        # Contar commits únicos en HEAD que no están en la base
+                        unique_count=$(git rev-list ${base_branch}..HEAD 2>/dev/null | wc -l | tr -d ' ')
+                        if [ -n "$unique_count" ] && [ "$unique_count" -gt 0 ]; then
+                            if [ "$has_unpushed" = false ]; then
+                                echo "   ${COLOR_YELLOW}📤 Cambios sin push:${COLOR_RESET}"
+                                has_unpushed=true
+                            fi
+                            echo "      ${COLOR_YELLOW}• $repo_rel_path ($unique_count commits sin remoto)${COLOR_RESET}"
+                        fi
                     fi
                 fi
             fi
