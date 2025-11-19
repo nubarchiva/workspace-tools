@@ -13,32 +13,56 @@ fi
 source "$SCRIPT_DIR/ws-common.sh"
 source "$SCRIPT_DIR/ws-colors.sh"
 
-# Primer argumento puede ser workspace o repo (si hay detección automática)
-FIRST_ARG=$1
+# Determinar workspace y repos
+# Prioridad: 1) Workspace explícito si $1 coincide con uno existente
+#            2) Auto-detección si estamos dentro de un workspace
+#            3) Modo tradicional (primer arg es workspace)
+WORKSPACE_PATTERN=""
+REPOS=()
 
-# Intentar detectar workspace automáticamente
-DETECTED_WORKSPACE=$(detect_current_workspace 2>/dev/null || true)
+if [ -n "$1" ]; then
+    # Verificar si primer argumento corresponde a un workspace existente
+    first_arg_lower=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+    is_workspace=false
 
-# Si detectamos un workspace Y el primer argumento no parece ser un workspace conocido,
-# entonces el primer argumento es un repo
-if [ -n "$DETECTED_WORKSPACE" ] && [ -n "$FIRST_ARG" ]; then
-    # Verificar si FIRST_ARG es un workspace válido o un repo
-    # Si FIRST_ARG parece ser una ruta de repo (contiene /), asumimos que es repo
-    if [[ "$FIRST_ARG" == */* ]] || [ ! -d "$WORKSPACES_DIR/$FIRST_ARG" ]; then
-        # Es un repo, usar workspace detectado
-        WORKSPACE_PATTERN="$DETECTED_WORKSPACE"
-        REPOS=("$@")
-    else
-        # Es un workspace
-        WORKSPACE_PATTERN=$1
+    if [ -d "$WORKSPACES_DIR" ]; then
+        for ws_dir in "$WORKSPACES_DIR"/*; do
+            if [ -d "$ws_dir" ]; then
+                ws_name=$(basename "$ws_dir")
+                ws_name_lower=$(echo "$ws_name" | tr '[:upper:]' '[:lower:]')
+                if [[ "$ws_name_lower" == *"$first_arg_lower"* ]]; then
+                    is_workspace=true
+                    break
+                fi
+            fi
+        done
+    fi
+
+    if [ "$is_workspace" = true ]; then
+        # Primer argumento coincide con workspace → modo explícito
+        WORKSPACE_PATTERN="$1"
         shift
         REPOS=("$@")
+    else
+        # Primer argumento NO es workspace → intentar auto-detección
+        DETECTED_WORKSPACE=$(detect_current_workspace 2>/dev/null || true)
+        if [ -n "$DETECTED_WORKSPACE" ]; then
+            # Auto-detectado, todos los args son repos
+            WORKSPACE_PATTERN="$DETECTED_WORKSPACE"
+            REPOS=("$@")
+        else
+            # No auto-detectado, asumir modo tradicional
+            WORKSPACE_PATTERN="$1"
+            shift
+            REPOS=("$@")
+        fi
     fi
 else
-    # Sin detección automática, primer argumento es workspace
-    WORKSPACE_PATTERN=$1
-    shift
-    REPOS=("$@")
+    # Sin argumentos, intentar auto-detección
+    DETECTED_WORKSPACE=$(detect_current_workspace 2>/dev/null || true)
+    if [ -n "$DETECTED_WORKSPACE" ]; then
+        WORKSPACE_PATTERN="$DETECTED_WORKSPACE"
+    fi
 fi
 
 # Detectar WORKSPACE_ROOT

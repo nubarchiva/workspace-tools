@@ -1,41 +1,6 @@
 #!/bin/bash
 # Ejecuta comandos Git en todos los repos de un workspace
 
-# Detectar si el primer argumento es un workspace o un comando de Git
-FIRST_ARG=$1
-
-# Comandos comunes de Git
-GIT_COMMANDS="status add commit push pull fetch checkout branch merge rebase log diff stash reset"
-
-# Verificar si el primer argumento parece ser un comando de Git
-IS_GIT_CMD=false
-if [ -n "$FIRST_ARG" ]; then
-    # Si empieza con -, es un flag de Git
-    if [[ "$FIRST_ARG" == -* ]]; then
-        IS_GIT_CMD=true
-    else
-        # Si es un comando común de Git
-        for cmd in $GIT_COMMANDS; do
-            if [ "$FIRST_ARG" = "$cmd" ]; then
-                IS_GIT_CMD=true
-                break
-            fi
-        done
-    fi
-fi
-
-# Determinar workspace y argumentos de Git
-if [ "$IS_GIT_CMD" = true ]; then
-    # Primer argumento es Git, detectar workspace automáticamente
-    WORKSPACE_PATTERN=""
-    GIT_ARGS="$@"
-else
-    # Primer argumento es workspace
-    WORKSPACE_PATTERN=$1
-    shift
-    GIT_ARGS="$@"
-fi
-
 # Detectar WORKSPACE_ROOT desde WS_TOOLS o por defecto
 if [ -n "$WS_TOOLS" ]; then
     WORKSPACE_ROOT="${WS_TOOLS%/tools/workspace-tools}"
@@ -55,6 +20,58 @@ fi
 # Cargar funciones compartidas
 source "$SCRIPT_DIR/ws-common.sh"
 source "$SCRIPT_DIR/ws-colors.sh"
+
+# Determinar workspace y argumentos
+# Prioridad: 1) Workspace explícito si $1 coincide con uno existente
+#            2) Auto-detección si estamos dentro de un workspace
+#            3) Modo tradicional (primer arg es workspace)
+WORKSPACE_PATTERN=""
+GIT_ARGS=""
+
+if [ -n "$1" ]; then
+    # Verificar si primer argumento corresponde a un workspace existente
+    first_arg_lower=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+    is_workspace=false
+
+    if [ -d "$WORKSPACES_DIR" ]; then
+        for ws_dir in "$WORKSPACES_DIR"/*; do
+            if [ -d "$ws_dir" ]; then
+                ws_name=$(basename "$ws_dir")
+                ws_name_lower=$(echo "$ws_name" | tr '[:upper:]' '[:lower:]')
+                if [[ "$ws_name_lower" == *"$first_arg_lower"* ]]; then
+                    is_workspace=true
+                    break
+                fi
+            fi
+        done
+    fi
+
+    if [ "$is_workspace" = true ]; then
+        # Primer argumento coincide con workspace → modo explícito
+        WORKSPACE_PATTERN="$1"
+        shift
+        GIT_ARGS="$@"
+    else
+        # Primer argumento NO es workspace → intentar auto-detección
+        DETECTED_WORKSPACE=$(detect_current_workspace 2>/dev/null || true)
+        if [ -n "$DETECTED_WORKSPACE" ]; then
+            # Auto-detectado, todos los args son para Git
+            WORKSPACE_PATTERN="$DETECTED_WORKSPACE"
+            GIT_ARGS="$@"
+        else
+            # No auto-detectado, asumir modo tradicional
+            WORKSPACE_PATTERN="$1"
+            shift
+            GIT_ARGS="$@"
+        fi
+    fi
+else
+    # Sin argumentos, intentar auto-detección
+    DETECTED_WORKSPACE=$(detect_current_workspace 2>/dev/null || true)
+    if [ -n "$DETECTED_WORKSPACE" ]; then
+        WORKSPACE_PATTERN="$DETECTED_WORKSPACE"
+    fi
+fi
 
 # Función de ayuda
 show_help() {
