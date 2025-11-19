@@ -165,22 +165,10 @@ copy_workspace_config() {
         rm -f "$workspace_dir/.idea/tasks.xml" 2>/dev/null
     fi
 
-    # Copiar .kiro/ (Kiro AI assistant)
-    if [ -d "$config_source/.kiro" ]; then
-        echo "  • Copiando configuración Kiro AI (.kiro/)"
-        cp -r "$config_source/.kiro" "$workspace_dir/.kiro"
-    fi
-
     # Copiar .cursor/ (Cursor AI)
     if [ -d "$config_source/.cursor" ]; then
         echo "  • Copiando configuración Cursor (.cursor/)"
         cp -r "$config_source/.cursor" "$workspace_dir/.cursor"
-    fi
-
-    # Copiar .vscode/ (VS Code) - opcional
-    if [ -d "$config_source/.vscode" ]; then
-        echo "  • Copiando configuración VS Code (.vscode/)"
-        cp -r "$config_source/.vscode" "$workspace_dir/.vscode"
     fi
 
     echo "  ✅ Configuración completada"
