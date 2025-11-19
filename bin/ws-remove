@@ -1,0 +1,226 @@
+#!/bin/bash
+# Elimina uno o más repos de un workspace existente
+# Verifica que no haya cambios pendientes antes de eliminar
+
+WORKSPACE_PATTERN=$1
+shift  # Remover el primer argumento (workspace), el resto son repos
+REPOS_TO_REMOVE="$@"
+
+# Detectar WORKSPACE_ROOT desde WS_TOOLS o por defecto
+if [ -n "$WS_TOOLS" ]; then
+    WORKSPACE_ROOT="${WS_TOOLS%/tools/workspace-tools}"
+else
+    # Fallback: asumir ubicación estándar
+    WORKSPACE_ROOT=~/wrkspc.nubarchiva
+fi
+WORKSPACES_DIR=$WORKSPACE_ROOT/workspaces
+
+# Detectar directorio del script (compatible bash/zsh)
+if [ -n "$BASH_SOURCE" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+else
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+fi
+
+# Cargar funciones compartidas
+source "$SCRIPT_DIR/ws-common.sh"
+
+# Función de ayuda
+show_help() {
+    echo "Uso: ws remove <nombre|patrón> <repo1> [repo2] [repo3] ..."
+    echo ""
+    echo "Elimina uno o más repos de un workspace existente."
+    echo ""
+    echo "💡 Puedes usar coincidencia parcial para el nombre del workspace"
+    echo ""
+    echo "Ejemplos:"
+    echo "  ws remove nuba-8400 libs/marc4j"
+    echo "  ws remove nuba-8400 libs/marc4j modules/docs"
+    echo "  ws remove fac modules/docs                    # coincidencia parcial"
+    echo ""
+    echo "Verificaciones:"
+    echo "  • Comprueba que no hay cambios sin commitear"
+    echo "  • Comprueba que no hay commits sin pushear"
+    echo "  • Pide confirmación antes de eliminar"
+    echo "  • Elimina el worktree y la branch local"
+}
+
+if [ -z "$WORKSPACE_PATTERN" ]; then
+    show_help
+    exit 1
+fi
+
+if [ -z "$REPOS_TO_REMOVE" ]; then
+    echo "❌ Error: debes especificar al menos un repo para eliminar"
+    echo ""
+    show_help
+    exit 1
+fi
+
+# Buscar workspace que coincida con el patrón
+WORKSPACE_NAME=$(find_matching_workspace "$WORKSPACE_PATTERN" "$WORKSPACES_DIR")
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+
+# Determinar directorio del workspace
+WORKSPACE_DIR=$WORKSPACES_DIR/$WORKSPACE_NAME
+BRANCH_NAME=$(get_branch_name "$WORKSPACE_NAME")
+
+if [ ! -d "$WORKSPACE_DIR" ]; then
+    echo "❌ Workspace no existe: $WORKSPACE_NAME"
+    exit 1
+fi
+
+echo "╔════════════════════════════════════════════════════╗"
+echo "║  Eliminando repos de workspace                     ║"
+echo "╚════════════════════════════════════════════════════╝"
+echo ""
+echo "Workspace: $WORKSPACE_NAME"
+echo "Branch:    $BRANCH_NAME"
+echo ""
+
+# Arrays para almacenar información de repos
+declare -a repos_to_process=()
+declare -a repos_with_uncommitted=()
+declare -a repos_with_unpushed=()
+declare -a repos_not_found=()
+
+# Verificar cada repo
+for repo_rel_path in $REPOS_TO_REMOVE; do
+    worktree_path="$WORKSPACE_DIR/$repo_rel_path"
+
+    if [ ! -d "$worktree_path" ]; then
+        repos_not_found+=("$repo_rel_path")
+        continue
+    fi
+
+    repos_to_process+=("$repo_rel_path")
+
+    # Verificar cambios sin commitear
+    cd "$worktree_path"
+    if [ -n "$(git status -s 2>/dev/null)" ]; then
+        repos_with_uncommitted+=("$repo_rel_path")
+    fi
+
+    # Verificar commits sin push
+    if git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then
+        # Hay upstream: verificar commits pendientes
+        unpushed_count=$(git rev-list @{u}..HEAD 2>/dev/null | wc -l | tr -d ' ')
+        if [ -n "$unpushed_count" ] && [ "$unpushed_count" -gt 0 ]; then
+            repos_with_unpushed+=("$repo_rel_path")
+        fi
+    else
+        # No hay upstream: verificar si hay commits locales
+        local_count=$(git rev-list HEAD 2>/dev/null | wc -l | tr -d ' ')
+        if [ -n "$local_count" ] && [ "$local_count" -gt 0 ]; then
+            repos_with_unpushed+=("$repo_rel_path (sin remoto)")
+        fi
+    fi
+done
+
+# Mostrar repos no encontrados
+if [ ${#repos_not_found[@]} -gt 0 ]; then
+    echo "❌ Repos no encontrados en el workspace:"
+    for repo in "${repos_not_found[@]}"; do
+        echo "   • $repo"
+    done
+    echo ""
+fi
+
+# Si no hay repos para procesar, salir
+if [ ${#repos_to_process[@]} -eq 0 ]; then
+    echo "❌ No hay repos válidos para eliminar"
+    exit 1
+fi
+
+# Mostrar resumen
+echo "Repos a eliminar:"
+for repo in "${repos_to_process[@]}"; do
+    echo "   • $repo"
+done
+echo ""
+
+# Advertir sobre cambios sin commitear
+if [ ${#repos_with_uncommitted[@]} -gt 0 ]; then
+    echo "⚠️  ADVERTENCIA: Repos con cambios sin commitear:"
+    for repo in "${repos_with_uncommitted[@]}"; do
+        echo "   • $repo"
+    done
+    echo ""
+fi
+
+# Advertir sobre commits sin push
+if [ ${#repos_with_unpushed[@]} -gt 0 ]; then
+    echo "⚠️  ADVERTENCIA: Repos con commits sin pushear:"
+    for repo in "${repos_with_unpushed[@]}"; do
+        echo "   • $repo"
+    done
+    echo ""
+fi
+
+# Pedir confirmación
+echo "Esto eliminará:"
+echo "  • Los worktrees de estos repos"
+echo "  • Las branches locales ($BRANCH_NAME)"
+echo ""
+read -p "¿Continuar? (s/N) " -n 1 -r
+echo
+
+if [[ ! $REPLY =~ ^[Ss]$ ]]; then
+    echo "❌ Cancelado"
+    exit 1
+fi
+
+echo ""
+echo "Eliminando repos..."
+echo ""
+
+# Eliminar cada repo
+for repo_rel_path in "${repos_to_process[@]}"; do
+    worktree_path="$WORKSPACE_DIR/$repo_rel_path"
+
+    echo "════════════════════════════════════════════════════"
+    echo "▶ Eliminando: $repo_rel_path"
+    echo "════════════════════════════════════════════════════"
+
+    cd "$worktree_path"
+
+    # Obtener el directorio del repo principal
+    if [ -f "$worktree_path/.git" ]; then
+        # Es un worktree (archivo .git apunta al repo principal)
+        MAIN_REPO=$(grep "gitdir:" "$worktree_path/.git" | cut -d' ' -f2 | sed 's|/\.git/worktrees/.*||')
+    else
+        # Es el repo principal o un caso especial
+        MAIN_REPO=$(git rev-parse --git-common-dir 2>/dev/null | sed 's|/\.git.*||')
+    fi
+
+    if [ -d "$MAIN_REPO" ]; then
+        cd "$MAIN_REPO"
+
+        # Eliminar worktree
+        echo "  🗑️  Eliminando worktree..."
+        git worktree remove "$worktree_path" --force 2>/dev/null || {
+            rm -rf "$worktree_path"
+            git worktree prune
+        }
+
+        # Eliminar branch local
+        echo "  🗑️  Eliminando branch local: $BRANCH_NAME"
+        git branch -D "$BRANCH_NAME" 2>/dev/null || echo "     ℹ️  Branch ya eliminada o no existe"
+
+        echo "  ✅ Eliminado"
+    else
+        echo "  ⚠️  No se pudo encontrar repo principal"
+        rm -rf "$worktree_path"
+    fi
+
+    echo ""
+done
+
+# Limpiar directorios vacíos en el workspace
+if [ -d "$WORKSPACE_DIR" ]; then
+    find "$WORKSPACE_DIR" -type d -empty -delete 2>/dev/null || true
+fi
+
+echo "✅ Repos eliminados del workspace: $WORKSPACE_NAME"

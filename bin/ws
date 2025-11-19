@@ -32,12 +32,18 @@ Comandos disponibles:
         ws new master ks-nuba
         ws new develop
 
-  add <nombre|patrón> <repo>
-      Añade un repo a un workspace existente
+  add <nombre|patrón> <repo> [repo2] [repo3] ...
+      Añade uno o más repos a un workspace existente
       Ejemplos:
         ws add nuba-8400 libs/marc4j
         ws add fac modules/docs            # coincidencia parcial
         ws add master ks-nuba
+
+  remove <nombre|patrón> <repo> [repo2] [repo3] ...
+      Elimina uno o más repos de un workspace
+      Ejemplos:
+        ws remove nuba-8400 libs/marc4j
+        ws remove fac modules/docs         # coincidencia parcial
 
   switch [nombre|patrón]
       Cambia a un workspace y muestra su información
@@ -116,7 +122,7 @@ fi
 # Función para expandir abreviaturas
 expand_abbreviation() {
     local abbrev=$1
-    local commands="new add switch list clean mvn git help"
+    local commands="new add remove switch list clean mvn git help"
 
     # Aliases predefinidos
     case $abbrev in
@@ -159,7 +165,7 @@ fi
 
 # Mapear subcomandos a scripts
 case $SUBCOMMAND in
-    new|add|switch|list|clean|mvn|git)
+    new|add|remove|switch|list|clean|mvn|git)
         SCRIPT_NAME="ws-$SUBCOMMAND"
         SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_NAME"
         
