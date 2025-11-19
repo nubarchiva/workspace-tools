@@ -1,0 +1,127 @@
+#!/bin/bash
+# Ejecuta comandos Git en todos los repos de un workspace
+
+WORKSPACE_PATTERN=$1
+shift  # Remover el primer argumento (workspace), el resto son args de Git
+GIT_ARGS="$@"
+
+# Detectar WORKSPACE_ROOT desde WS_TOOLS o por defecto
+if [ -n "$WS_TOOLS" ]; then
+    WORKSPACE_ROOT="${WS_TOOLS%/tools/workspace-tools}"
+else
+    # Fallback: asumir ubicación estándar
+    WORKSPACE_ROOT=~/wrkspc.nubarchiva
+fi
+WORKSPACES_DIR=$WORKSPACE_ROOT/workspaces
+
+# Detectar directorio del script (compatible bash/zsh)
+if [ -n "$BASH_SOURCE" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+else
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+fi
+
+# Cargar funciones compartidas
+source "$SCRIPT_DIR/ws-common.sh"
+
+# Función de ayuda
+show_help() {
+    echo "Uso: ws git <nombre|patrón> <comando-git> [argumentos...]"
+    echo ""
+    echo "Ejecuta comandos Git en todos los repos de un workspace."
+    echo ""
+    echo "💡 Puedes usar coincidencia parcial para el nombre del workspace"
+    echo ""
+    echo "Ejemplos:"
+    echo "  ws git nuba-8400 status"
+    echo "  ws git master pull"
+    echo "  ws git fac log --oneline -5"
+    echo "  ws git 8089 fetch"
+    echo ""
+    echo "Comportamiento:"
+    echo "  • Ejecuta 'git <args>' en cada repo del workspace"
+    echo "  • Se detiene en el primer error"
+    echo "  • Ignora directorios sin .git"
+}
+
+if [ -z "$WORKSPACE_PATTERN" ]; then
+    show_help
+    exit 1
+fi
+
+if [ -z "$GIT_ARGS" ]; then
+    echo "❌ Error: debes especificar un comando para Git"
+    echo ""
+    show_help
+    exit 1
+fi
+
+# Buscar workspace que coincida con el patrón
+WORKSPACE_NAME=$(find_matching_workspace "$WORKSPACE_PATTERN" "$WORKSPACES_DIR")
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+
+# Determinar directorio del workspace
+WORKSPACE_DIR=$WORKSPACES_DIR/$WORKSPACE_NAME
+BRANCH_NAME=$(get_branch_name "$WORKSPACE_NAME")
+
+if [ ! -d "$WORKSPACE_DIR" ]; then
+    echo "❌ Workspace no existe: $WORKSPACE_NAME"
+    exit 1
+fi
+
+echo "╔════════════════════════════════════════════════════╗"
+echo "║  Ejecutando Git en workspace                       ║"
+echo "╚════════════════════════════════════════════════════╝"
+echo ""
+echo "Workspace: $WORKSPACE_NAME"
+echo "Branch:    $BRANCH_NAME"
+echo "Comando:   git $GIT_ARGS"
+echo ""
+
+# Encontrar todos los repos en el workspace
+repos=$(find_repos_in_workspace "$WORKSPACE_DIR")
+
+if [ -z "$repos" ] || [ "$repos" = "" ]; then
+    echo "❌ No hay repos en este workspace"
+    exit 1
+fi
+
+# Ejecutar Git en cada repo
+echo "$repos" | while read -r repo_rel_path; do
+    if [ -n "$repo_rel_path" ]; then
+        repo_path="$WORKSPACE_DIR/$repo_rel_path"
+
+        if [ -d "$repo_path/.git" ] || [ -f "$repo_path/.git" ]; then
+            echo "════════════════════════════════════════════════════"
+            echo "▶ $repo_rel_path"
+            echo "════════════════════════════════════════════════════"
+            echo ""
+
+            # Cambiar al directorio del repo y ejecutar Git
+            cd "$repo_path"
+            git $GIT_ARGS
+
+            # Verificar el resultado
+            exit_code=$?
+            if [ $exit_code -ne 0 ]; then
+                echo ""
+                echo "❌ Error en $repo_rel_path (exit code: $exit_code)"
+                echo "   Deteniendo ejecución"
+                exit $exit_code
+            fi
+
+            echo ""
+        fi
+    fi
+done
+
+# Capturar el exit code del while loop
+exit_code=$?
+
+if [ $exit_code -ne 0 ]; then
+    exit $exit_code
+fi
+
+echo "✅ Git ejecutado correctamente en todos los repos"
