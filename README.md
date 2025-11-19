@@ -124,6 +124,7 @@ ws clean feature-123
 | Shortcut | Equivalente | Descripción |
 |----------|------------|-------------|
 | `wmcis <workspace>` | `ws mvn <workspace> -T 1C clean install -DskipTests=true -Denforcer.skip=true` | Clean install sin tests |
+| `wmis <workspace>` | `ws mvn <workspace> -T 1C install -DskipTests=true -Denforcer.skip=true` | Install sin tests (sin clean) |
 | `wmci <workspace>` | `ws mvn <workspace> -T 1C clean install` | Clean install |
 | `wmcl <workspace>` | `ws mvn <workspace> -T 1C clean` | Clean |
 

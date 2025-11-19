@@ -59,6 +59,7 @@ fi
 # Maven shortcuts para workspaces
 # Funciones equivalentes a los aliases maven comunes pero a nivel workspace
 wmcis() { ws mvn "$1" -T 1C clean install -DskipTests=true -Denforcer.skip=true; }
+wmis() { ws mvn "$1" -T 1C install -DskipTests=true -Denforcer.skip=true; }
 wmci() { ws mvn "$1" -T 1C clean install; }
 wmcl() { ws mvn "$1" -T 1C clean; }
 
