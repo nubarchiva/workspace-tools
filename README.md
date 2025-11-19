@@ -1,52 +1,55 @@
 # Workspace Tools
 
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Shell](https://img.shields.io/badge/Shell-Bash%20%7C%20Zsh-green.svg)](https://www.gnu.org/software/bash/)
+
 Sistema de gestión de workspaces con Git worktrees para desarrollo paralelo en múltiples repositorios.
 
-## Estructura de tu Workspace
+## Características
+
+- ✅ Workspaces aislados para master, develop y features
+- ✅ Un cambio afecta a múltiples repos simultáneamente
+- ✅ Soporte para repos en subdirectorios (`libs/*`, `modules/*`, `tools/*`)
+- ✅ Ejecutar Maven/Git en todos los repos del workspace
+- ✅ Añadir repos dinámicamente según necesites
+- ✅ Múltiples features en paralelo sin conflictos
+- ✅ Comando unificado con abreviaturas intuitivas
+- ✅ Búsqueda parcial de workspaces
+- ✅ Autocompletado inteligente (bash y zsh)
+- ✅ `ws cd` cambia automáticamente de directorio
+- ✅ Shortcuts para operaciones comunes (Maven, Git)
+
+## Estructura de Workspace
 
 ```
-~/wrkspc.nubarchiva/
-├── ks-nuba/                    # Repo
-├── dga-commons/                # Repo
+~/workspace/                    # Tu directorio raíz (configurable)
+├── repo1/                      # Repositorio Git
+├── repo2/                      # Repositorio Git
 ├── libs/                       # Contenedor de repos
-│   ├── dspace/                # Repo
-│   ├── marc4j/                # Repo
-│   ├── foo-commonj/           # Repo
-│   └── ...
+│   ├── lib1/                   # Repositorio Git
+│   └── lib2/                   # Repositorio Git
 ├── modules/                    # Contenedor de repos
-│   ├── docs/                  # Repo
-│   ├── metadata-entities/     # Repo
-│   └── ...
+│   ├── module1/                # Repositorio Git
+│   └── module2/                # Repositorio Git
 ├── tools/                      # Contenedor de repos
-│   └── workspace-tools/       # Este repo
-│       ├── bin/               # Scripts
-│       ├── completions/       # Autocompletado
-│       ├── setup.sh           # Configuración
+│   └── workspace-tools/        # Este repo
+│       ├── bin/                # Scripts
+│       ├── completions/        # Autocompletado
+│       ├── setup.sh            # Configuración
 │       └── README.md
 └── workspaces/                 # Se crea automáticamente
     ├── master/
     ├── develop/
-    └── nuba-8400/             # Ejemplo de workspace
+    └── feature-123/            # Ejemplo de workspace
 ```
 
 ## Instalación
 
-### Paso 1: Obtener Workspace Tools
-
-#### Opción 1: Como Repositorio Git (Recomendado)
+### Paso 1: Clonar el repositorio
 
 ```bash
-cd ~/wrkspc.nubarchiva/tools
-git clone <url-del-repo> workspace-tools
-cd workspace-tools
-./install.sh
-```
-
-#### Opción 2: Extraer desde Tarball
-
-```bash
-cd ~/wrkspc.nubarchiva/tools
-tar -xzf workspace-tools.tar.gz
+cd ~/workspace/tools  # o donde prefieras
+git clone https://github.com/your-org/workspace-tools.git
 cd workspace-tools
 ./install.sh
 ```
@@ -56,7 +59,7 @@ cd workspace-tools
 Añade a tu `~/.bashrc` o `~/.zshrc`:
 
 ```bash
-source ~/wrkspc.nubarchiva/tools/workspace-tools/setup.sh
+source ~/workspace/tools/workspace-tools/setup.sh
 ```
 
 Después ejecuta:
@@ -69,356 +72,251 @@ source ~/.bashrc  # o source ~/.zshrc
 - ✅ Añade `ws` al PATH
 - ✅ Carga función `ws cd` (cambia automáticamente de directorio)
 - ✅ Habilita autocompletado (bash o zsh según tu shell)
+- ✅ Define shortcuts para Maven y Git
 
 ## Uso Rápido
 
-Con `setup.sh` cargado, usa `ws` desde cualquier lugar:
-
 ```bash
 # Crear workspace
-ws new nuba-8400 ks-nuba libs/marc4j
+ws new feature-123 repo1 libs/lib1
 
 # Listar workspaces
 ws list
 
 # Cambiar a workspace (¡cambia automáticamente de directorio!)
-ws cd nuba-8400
+ws cd feature-123
 
 # Añadir repo a workspace
-ws add nuba-8400 modules/docs
+ws add feature-123 modules/module1
+
+# Ejecutar Maven en todos los repos
+ws mvn feature-123 clean install
+
+# Ejecutar Git en todos los repos
+ws git feature-123 status
 
 # Limpiar workspace
-ws clean nuba-8400
+ws clean feature-123
 ```
 
-### Abreviaturas Soportadas
+## Comandos Principales
+
+### Gestión de Workspaces
+
+| Comando | Descripción | Ejemplo |
+|---------|-------------|---------|
+| `ws new` | Crear workspace | `ws new feature-123 repo1 libs/lib1` |
+| `ws add` | Añadir repo a workspace | `ws add feature-123 modules/module1` |
+| `ws list` | Listar workspaces | `ws list` o `ws ls` |
+| `ws switch` | Ver detalles de workspace | `ws switch feature-123` |
+| `ws cd` | Cambiar a workspace | `ws cd feature-123` |
+| `ws clean` | Limpiar workspace | `ws clean feature-123` o `ws rm feature-123` |
+
+### Operaciones Multi-Repo
+
+| Comando | Descripción | Ejemplo |
+|---------|-------------|---------|
+| `ws mvn` | Maven en todos los repos | `ws mvn feature-123 clean install` |
+| `ws git` | Git en todos los repos | `ws git feature-123 status` |
+
+### Shortcuts Maven
+
+| Shortcut | Equivalente | Descripción |
+|----------|------------|-------------|
+| `wmcis <workspace>` | `ws mvn <workspace> -T 1C clean install -DskipTests=true -Denforcer.skip=true` | Clean install sin tests |
+| `wmci <workspace>` | `ws mvn <workspace> -T 1C clean install` | Clean install |
+| `wmcl <workspace>` | `ws mvn <workspace> -T 1C clean` | Clean |
+
+### Shortcuts Git
+
+| Shortcut | Equivalente | Descripción |
+|----------|-------------|-------------|
+| `wgt <workspace>` | `ws git <workspace> status` | Status en todos los repos |
+| `wgpa <workspace>` | `ws git <workspace> pull --all` | Pull all en todos los repos |
+
+## Ejemplos de Uso
+
+### Crear feature con múltiples repos
+
+```bash
+ws new feature-auth repo1 libs/auth modules/security
+
+# Estructura creada:
+# workspaces/feature-auth/
+# ├── repo1/
+# ├── libs/
+# │   └── auth/
+# └── modules/
+#     └── security/
+```
+
+### Ejecutar Maven en todos los proyectos
+
+```bash
+# Compilar todos los proyectos
+ws mvn feature-auth clean install
+
+# O usar el shortcut
+wmci feature-auth
+
+# Con resumen de tiempos al final:
+# ═══════════════════════════════════════════════════
+# Resumen de ejecución:
+# ═══════════════════════════════════════════════════
+#   • repo1                                    45.2s
+#   • libs/auth                                12.3s
+#   • modules/security                         8.7s
+# ───────────────────────────────────────────────────
+#   Total: 66.2s
+```
+
+### Ver estado Git de todos los repos
+
+```bash
+# Ver status de todos los repos
+ws git feature-auth status
+
+# O usar el shortcut
+wgt feature-auth
+
+# Salida:
+# ════════════════════════════════════════════════════
+# ▶ repo1
+# ════════════════════════════════════════════════════
+# On branch feature/feature-auth
+# nothing to commit, working tree clean
+#
+# ════════════════════════════════════════════════════
+# ▶ libs/auth
+# ════════════════════════════════════════════════════
+# On branch feature/feature-auth
+# Changes not staged for commit:
+#   modified:   src/main/java/Auth.java
+```
+
+### Workflow típico
+
+```bash
+# 1. Crear feature
+ws new api-redesign repo1 libs/api
+
+# 2. Cambiar al workspace
+ws cd api-redesign
+
+# 3. Compilar y verificar
+wmci api-redesign
+
+# 4. Hacer cambios y compilar
+# ... editar archivos ...
+wmci api-redesign
+
+# 5. Ver cambios en todos los repos
+wgt api-redesign
+
+# 6. Commitear en cada repo
+cd repo1 && git commit -am "feat: new API design"
+cd ../libs/api && git commit -am "feat: update API lib"
+
+# 7. Push
+ws git api-redesign push origin feature/api-redesign
+
+# 8. Limpiar cuando termines
+ws clean api-redesign
+```
+
+## Abreviaturas y Búsqueda Parcial
+
+### Abreviaturas de comandos
 
 ```bash
 # Automáticas (cualquier prefijo único)
-ws n nuba-8400 ks-nuba      # ws new
-ws a nuba-8400 libs/marc4j  # ws add
-ws l                         # ws list
+ws n feature-123 repo1      # ws new
+ws a feature-123 libs/lib1  # ws add
+ws l                        # ws list
 
 # Predefinidas
-ws ls                        # ws list
-ws cd nuba-8400              # ws switch (cambia directorio)
-ws rm nuba-8400              # ws clean
-ws mk test ks-nuba           # ws new
+ws ls                       # ws list
+ws cd feature-123           # ws switch
+ws rm feature-123           # ws clean
 ```
 
-### Búsqueda Parcial
+### Búsqueda parcial de workspaces
 
-No necesitas escribir el nombre completo del workspace:
+No necesitas escribir el nombre completo:
 
 ```bash
-ws cd nuba       # busca 'nuba' en workspaces
-ws add fac ...   # busca 'fac' en workspaces
-ws rm test       # busca 'test' en workspaces
+ws cd fea       # busca 'fea' en workspaces
+ws add auth ... # busca 'auth' en workspaces
 ```
 
-Si hay múltiples coincidencias, se mostrará un menú interactivo para seleccionar.
-
-## Características
-
-- ✅ Workspaces aislados para master, develop y features
-- ✅ Un cambio afecta a múltiples repos simultáneamente
-- ✅ Soporte para repos en subdirectorios (`libs/*`, `modules/*`, `tools/*`)
-- ✅ Añadir repos dinámicamente según necesites
-- ✅ Múltiples features en paralelo sin conflictos
-- ✅ Comando unificado con abreviaturas intuitivas
-- ✅ Búsqueda parcial de workspaces
-- ✅ Autocompletado inteligente (bash y zsh)
-- ✅ `ws cd` cambia automáticamente de directorio
-- ✅ Optimizado para herramientas de AI (Claude Code, etc.)
-
-## Comandos
-
-### ws new
-
-Crea un nuevo workspace.
-
-```bash
-# Sintaxis
-ws new <nombre> [repo1] [repo2] ...
-
-# Nombres especiales: master, develop
-# Otros nombres crean workspace en branch feature/<nombre>
-
-# Ejemplos
-ws new nuba-8400 ks-nuba                        # feature/nuba-8400
-ws new nuba-8400 ks-nuba libs/marc4j modules/docs
-ws new master ks-nuba libs/dspace               # branch master
-ws new develop                                   # branch develop
-```
-
-### ws add
-
-Añade uno o más repos a un workspace existente.
-
-```bash
-# Sintaxis
-ws add <nombre|patrón> <repo1> [repo2] [repo3] ...
-
-# Ejemplos
-ws add nuba-8400 libs/marc4j
-ws add nuba-8400 dga-commons libs/marc4j modules/docs    # múltiples repos
-ws add nuba libs/marc4j                                   # búsqueda parcial
-ws add master tools/workspace-tools
-```
-
-### ws list
-
-Lista todos los workspaces activos con su estado.
-
-```bash
-ws list
-# o con abreviatura
-ws ls
-```
-
-### ws switch (ws cd)
-
-Muestra información detallada de un workspace y opcionalmente cambia a él.
-
-```bash
-# Ver workspaces disponibles
-ws switch
-
-# Ver detalle de uno específico
-ws switch nuba-8400
-ws switch nuba                    # búsqueda parcial
-
-# Cambiar al workspace (¡cambia el directorio!)
-ws cd nuba-8400                   # equivalente a ws switch + cd automático
-ws cd nuba                        # con búsqueda parcial
-```
-
-💡 **Diferencia entre `ws switch` y `ws cd`:**
-- `ws switch` muestra información del workspace
-- `ws cd` muestra información Y cambia automáticamente al directorio
-
-### ws clean (ws rm)
-
-Limpia un workspace (elimina worktrees, mantiene branches).
-
-```bash
-ws clean nuba-8400
-ws clean nuba                     # búsqueda parcial
-ws rm nuba-8400                   # con alias
-ws clean master
-ws clean develop
-```
-
-⚠️ **Este comando:**
-- Elimina los directorios de worktree
-- Mantiene las branches en los repos principales
-- NO elimina commits ni cambios commiteados
-
-## Especificar Repos
-
-**Siempre usa rutas relativas desde `~/wrkspc.nubarchiva`:**
-
-```bash
-# ✅ Correcto
-ws new test ks-nuba                    # Repo en raíz
-ws new test libs/marc4j                # Repo en libs/
-ws new test modules/docs               # Repo en modules/
-ws new test tools/workspace-tools      # Repo en tools/
-
-# ❌ Incorrecto
-ws new test marc4j      # Falta "libs/"
-ws new test docs        # Falta "modules/"
-```
-
-## Estructura de Workspaces
-
-Los workspaces mantienen la jerarquía de subdirectorios:
-
-```
-workspaces/nuba-8400/
-├── ks-nuba/                    # Worktree → feature/nuba-8400
-├── libs/
-│   ├── marc4j/                # Worktree → feature/nuba-8400
-│   └── dspace/                # Worktree → feature/nuba-8400
-├── modules/
-│   └── docs/                  # Worktree → feature/nuba-8400
-└── tools/
-    └── otro-tool/             # Worktree → feature/nuba-8400
-```
+Si hay múltiples coincidencias, se mostrará un menú interactivo.
 
 ## Branches
 
-| Workspace | Branch Name | Creación |
-|-----------|------------|----------|
+| Workspace | Branch Name | Descripción |
+|-----------|------------|-------------|
 | `master` | `master` | Usa branch existente |
 | `develop` | `develop` | Usa branch existente |
-| Otros (ej: `nuba-8400`) | `feature/nuba-8400` | Crea branch automáticamente |
+| Otros (ej: `feature-123`) | `feature/feature-123` | Crea branch automáticamente |
 
-## Ejemplos
+## Configuración Avanzada
 
-### Feature con múltiples repos
+### Personalizar el directorio raíz
 
-```bash
-ws new marc-upgrade ks-nuba libs/marc4j modules/metadata-entities
-
-# Estructura creada:
-# workspaces/marc-upgrade/
-# ├── ks-nuba/
-# ├── libs/
-# │   └── marc4j/
-# └── modules/
-#     └── metadata-entities/
-```
-
-### Feature incremental
+Por defecto, se detecta automáticamente desde `WS_TOOLS`. Para especificar un directorio diferente:
 
 ```bash
-# Empezar con un repo
-ws new explore ks-nuba
-
-# Añadir según necesites
-ws add explore libs/marc4j
-ws add explore modules/docs
+# En setup.sh o tu shell rc
+export WS_TOOLS=~/my-custom-workspace/tools/workspace-tools
 ```
 
-### Hotfix en librería
+### Copiar configuraciones al crear workspaces
 
-```bash
-ws new master libs/marc4j
-ws cd master
-cd libs/marc4j
-# hacer fix...
-git commit -am "fix: critical bug"
-git push origin master
-cd ~
-ws clean master
-```
+El sistema copia automáticamente configuraciones de IDE/AI al crear workspaces:
+- `.idea/` (IntelliJ IDEA)
+- `.cursor/` (Cursor AI)
+- Symlinks a `AI.md`, `.ai/`, `docs/`
 
-## Workflow Típico
+## Compatibilidad
 
-```bash
-# 1. Crear feature con los repos necesarios
-ws new nueva-busqueda ks-nuba libs/marc4j
-
-# 2. Cambiar al workspace
-ws cd nueva-busqueda
-
-# 3. Abrir con tu editor
-claude-code .  # o tu editor preferido
-
-# 4. Hacer commits en cada repo
-cd ks-nuba
-git commit -am "feat: implement search"
-
-cd ../libs/marc4j
-git commit -am "feat: extend MARC parser"
-
-# 5. Push
-cd ks-nuba && git push origin feature/nueva-busqueda
-cd ../libs/marc4j && git push origin feature/nueva-busqueda
-
-# 6. Limpiar cuando termines
-ws clean nueva-busqueda
-```
-
-## Integración con AI Tools
-
-### Claude Code
-
-```bash
-# Todo el workspace
-ws cd mi-feature
-claude-code .
-
-# Un repo específico
-ws cd mi-feature
-cd libs/marc4j
-claude-code .
-```
-
-### Documentar para AI
-
-Cada workspace tiene un `README.md` donde puedes documentar:
-- Objetivo del cambio
-- Repos involucrados y su rol
-- Contexto técnico
-- Checklist
-
-Esto ayuda a las herramientas de AI a entender el contexto.
-
-## Troubleshooting
-
-### Ver repos disponibles
-
-```bash
-cd ~/wrkspc.nubarchiva
-find . -maxdepth 3 -name ".git" -type d | sed 's|/.git||' | sed 's|^\./||' | sort
-```
-
-### Limpiar worktrees huérfanos
-
-```bash
-# En cualquier repo
-cd ~/wrkspc.nubarchiva/<path-to-repo>
-git worktree list
-git worktree prune
-```
-
-### Verificar workspaces
-
-```bash
-ws list
-# o
-cd ~/wrkspc.nubarchiva/workspaces
-tree -L 3
-```
-
-### Desinstalar
-
-Elimina la línea de `~/.bashrc` o `~/.zshrc`:
-
-```bash
-# Elimina esto:
-source ~/wrkspc.nubarchiva/tools/workspace-tools/setup.sh
-```
-
-Después ejecuta `source ~/.bashrc` (o `~/.zshrc`).
-
-## Actualizar
-
-Si este repo tiene actualizaciones:
-
-```bash
-cd ~/wrkspc.nubarchiva/tools/workspace-tools
-git pull
-```
-
-## Compatibilidad con Versión Anterior
-
-Los scripts individuales siguen funcionando para compatibilidad:
-
-```bash
-# En lugar de:
-ws new test ks-nuba
-
-# Puedes usar:
-ws-new test ks-nuba
-
-# Pero requieren que hayas cargado setup.sh o configurado el PATH manualmente
-```
+- **Bash** 4.0+
+- **Zsh** 5.0+
+- **macOS** y **Linux**
 
 ## Documentación Adicional
 
-- **QUICKSTART.md** - Guía de inicio rápido
-- **EJEMPLOS.md** - 11 casos de uso detallados paso a paso
-- **CHEATSHEET.md** - Referencia rápida de comandos
+- **[QUICKSTART.md](QUICKSTART.md)** - Guía de inicio rápido
+- **[EJEMPLOS.md](EJEMPLOS.md)** - Casos de uso detallados paso a paso
+- **[CHEATSHEET.md](CHEATSHEET.md)** - Referencia rápida de comandos
+
+## Contribuir
+
+Las contribuciones son bienvenidas. Por favor:
+
+1. Fork el repositorio
+2. Crea una branch para tu feature (`git checkout -b feature/amazing-feature`)
+3. Commit tus cambios (`git commit -m 'feat: add amazing feature'`)
+4. Push a la branch (`git push origin feature/amazing-feature`)
+5. Abre un Pull Request
+
+### Convenciones de commits
+
+Usamos [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+feat: nueva funcionalidad
+fix: corrección de bug
+docs: cambios en documentación
+refactor: refactorización de código
+test: añadir o modificar tests
+chore: tareas de mantenimiento
+```
 
 ## Licencia
 
-Uso interno para el proyecto NubArchiva.
+Este proyecto está licenciado bajo la Licencia Apache 2.0 - ver el archivo [LICENSE](LICENSE) para más detalles.
 
 ---
 
-**Versión:** 2.2
-**Fecha:** 16 de noviembre de 2025
-**Autor:** José Antonio
+**Versión:** 3.0
+**Fecha:** 19 de noviembre de 2025
