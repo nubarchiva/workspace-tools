@@ -70,6 +70,11 @@ else
     DETECTED_WORKSPACE=$(detect_current_workspace 2>/dev/null || true)
     if [ -n "$DETECTED_WORKSPACE" ]; then
         WORKSPACE_PATTERN="$DETECTED_WORKSPACE"
+        # Si primer argumento está vacío (ej: wgt sin args), saltarlo
+        if [ "$#" -gt 0 ] && [ -z "$1" ]; then
+            shift
+        fi
+        GIT_ARGS="$@"
     fi
 fi
 
