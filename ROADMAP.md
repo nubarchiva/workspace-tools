@@ -9,16 +9,29 @@ Este documento describe las mejoras planificadas para Workspace Tools, priorizad
 
 Detecta automáticamente el workspace actual cuando ejecutas comandos desde dentro de un workspace, eliminando la necesidad de especificar el nombre explícitamente.
 
+**Lógica de prioridad:**
+1. Si primer argumento coincide con workspace existente → usar explícitamente
+2. Si no coincide → intentar auto-detección desde directorio actual
+3. Si no detecta → modo tradicional (primer arg es workspace)
+
 **Beneficios:**
-- Reduce fricción en el uso diario
+- Reduce fricción en el uso diario (comandos más cortos)
 - Menos errores al especificar workspace incorrecto
-- Comandos más cortos y naturales
+- Permite especificar workspace explícito desde cualquier lugar
+- Funciona con cualquier comando git/maven sin restricciones
 
 **Uso:**
 ```bash
+# Auto-detección (desde dentro de feature-123)
 cd ~/workspaces/feature-123/ks-nuba
 ws mvn clean install        # detecta feature-123 automáticamente
 ws git status               # detecta feature-123 automáticamente
+ws git show-branch ...      # funciona con cualquier comando git
+ws add libs/marc4j          # añade repo al workspace detectado
+
+# Especificación explícita (desde cualquier lugar)
+ws git feature-456 status   # ejecuta en feature-456 aunque estés en otro
+ws mvn otro-ws test         # ejecuta en otro-ws desde cualquier lugar
 ```
 
 **Comandos soportados:** `ws mvn`, `ws git`, `ws add`
