@@ -59,6 +59,13 @@ Comandos disponibles:
         ws clean fac                       # coincidencia parcial
         ws clean master
 
+  mvn <nombre|patrón> <argumentos-maven>
+      Ejecuta comandos Maven en todos los proyectos del workspace
+      Ejemplos:
+        ws mvn nuba-8400 clean install
+        ws mvn master test
+        ws mvn fac clean compile           # coincidencia parcial
+
 Nombres especiales:
   • master   - Workspace en branch master
   • develop  - Workspace en branch develop
@@ -102,7 +109,7 @@ fi
 # Función para expandir abreviaturas
 expand_abbreviation() {
     local abbrev=$1
-    local commands="new add switch list clean help"
+    local commands="new add switch list clean mvn help"
 
     # Aliases predefinidos
     case $abbrev in
@@ -145,7 +152,7 @@ fi
 
 # Mapear subcomandos a scripts
 case $SUBCOMMAND in
-    new|add|switch|list|clean)
+    new|add|switch|list|clean|mvn)
         SCRIPT_NAME="ws-$SUBCOMMAND"
         SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_NAME"
         

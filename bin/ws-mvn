@@ -1,0 +1,139 @@
+#!/bin/bash
+# Ejecuta comandos Maven en todos los proyectos de un workspace
+
+WORKSPACE_PATTERN=$1
+shift  # Remover el primer argumento (workspace), el resto son args de Maven
+MVN_ARGS="$@"
+
+# Detectar WORKSPACE_ROOT desde WS_TOOLS o por defecto
+if [ -n "$WS_TOOLS" ]; then
+    WORKSPACE_ROOT="${WS_TOOLS%/tools/workspace-tools}"
+else
+    # Fallback: asumir ubicación estándar
+    WORKSPACE_ROOT=~/wrkspc.nubarchiva
+fi
+WORKSPACES_DIR=$WORKSPACE_ROOT/workspaces
+
+# Detectar directorio del script (compatible bash/zsh)
+if [ -n "$BASH_SOURCE" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+else
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+fi
+
+# Cargar funciones compartidas
+source "$SCRIPT_DIR/ws-common.sh"
+
+# Función de ayuda
+show_help() {
+    echo "Uso: ws mvn <nombre|patrón> <argumentos-maven>"
+    echo ""
+    echo "Ejecuta comandos Maven en todos los proyectos de un workspace."
+    echo ""
+    echo "💡 Puedes usar coincidencia parcial para el nombre del workspace"
+    echo ""
+    echo "Ejemplos:"
+    echo "  ws mvn nuba-8400 clean install"
+    echo "  ws mvn master test"
+    echo "  ws mvn fac clean compile     # búsqueda parcial"
+    echo ""
+    echo "Comportamiento:"
+    echo "  • Busca pom.xml en la raíz de cada repo del workspace"
+    echo "  • Ejecuta 'mvn <args> -f <repo>/pom.xml' en cada proyecto"
+    echo "  • Se detiene en el primer error"
+    echo "  • Ignora repos sin pom.xml con un mensaje informativo"
+}
+
+if [ -z "$WORKSPACE_PATTERN" ]; then
+    show_help
+    exit 1
+fi
+
+if [ -z "$MVN_ARGS" ]; then
+    echo "❌ Error: debes especificar argumentos para Maven"
+    echo ""
+    show_help
+    exit 1
+fi
+
+# Buscar workspace que coincida con el patrón
+WORKSPACE_NAME=$(find_matching_workspace "$WORKSPACE_PATTERN" "$WORKSPACES_DIR")
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+
+# Determinar directorio del workspace
+WORKSPACE_DIR=$WORKSPACES_DIR/$WORKSPACE_NAME
+BRANCH_NAME=$(get_branch_name "$WORKSPACE_NAME")
+
+if [ ! -d "$WORKSPACE_DIR" ]; then
+    echo "❌ Workspace no existe: $WORKSPACE_NAME"
+    exit 1
+fi
+
+echo "╔════════════════════════════════════════════════════╗"
+echo "║  Ejecutando Maven en workspace                     ║"
+echo "╚════════════════════════════════════════════════════╝"
+echo ""
+echo "Workspace: $WORKSPACE_NAME"
+echo "Branch:    $BRANCH_NAME"
+echo "Comando:   mvn $MVN_ARGS"
+echo ""
+
+# Encontrar todos los repos en el workspace
+repos=$(find_repos_in_workspace "$WORKSPACE_DIR")
+
+if [ -z "$repos" ] || [ "$repos" = "" ]; then
+    echo "❌ No hay repos en este workspace"
+    exit 1
+fi
+
+# Contar proyectos Maven
+maven_projects=0
+skipped_repos=0
+
+# Ejecutar Maven en cada repo que tenga pom.xml
+echo "$repos" | while read -r repo_rel_path; do
+    if [ -n "$repo_rel_path" ]; then
+        repo_path="$WORKSPACE_DIR/$repo_rel_path"
+        pom_path="$repo_path/pom.xml"
+
+        if [ -f "$pom_path" ]; then
+            ((maven_projects++))
+            echo "════════════════════════════════════════════════════"
+            echo "▶ Ejecutando en: $repo_rel_path"
+            echo "════════════════════════════════════════════════════"
+            echo ""
+
+            # Ejecutar Maven
+            mvn $MVN_ARGS -f "$pom_path"
+
+            # Verificar el resultado
+            exit_code=$?
+            if [ $exit_code -ne 0 ]; then
+                echo ""
+                echo "❌ Error en $repo_rel_path (exit code: $exit_code)"
+                echo "   Deteniendo ejecución"
+                exit $exit_code
+            fi
+
+            echo ""
+        else
+            ((skipped_repos++))
+            echo "ℹ️  Ignorando $repo_rel_path (no tiene pom.xml)"
+        fi
+    fi
+done
+
+# Capturar el exit code del while loop
+exit_code=$?
+
+if [ $exit_code -ne 0 ]; then
+    exit $exit_code
+fi
+
+echo ""
+echo "✅ Maven ejecutado correctamente en todos los proyectos"
+if [ $skipped_repos -gt 0 ]; then
+    echo "   ($skipped_repos repos ignorados por no tener pom.xml)"
+fi
