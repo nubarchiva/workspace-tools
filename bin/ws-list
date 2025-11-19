@@ -1,5 +1,8 @@
 #!/bin/bash
-# Lista todos los workspaces activos
+# Lista todos los workspaces activos (opcionalmente filtrados por patrón)
+
+# Patrón de filtro opcional
+FILTER_PATTERN=$1
 
 # Detectar WORKSPACE_ROOT desde WS_TOOLS o por defecto
 if [ -n "$WS_TOOLS" ]; then
@@ -21,7 +24,11 @@ fi
 source "$SCRIPT_DIR/ws-common.sh"
 source "$SCRIPT_DIR/ws-colors.sh"
 
-print_header "WORKSPACES ACTIVOS"
+if [ -n "$FILTER_PATTERN" ]; then
+    print_header "WORKSPACES ACTIVOS (filtro: $FILTER_PATTERN)"
+else
+    print_header "WORKSPACES ACTIVOS"
+fi
 echo ""
 
 # Función para mostrar workspace
@@ -122,6 +129,7 @@ show_workspace() {
 
 # Contar workspaces
 workspace_count=0
+filtered_count=0
 
 # Listar todos los workspaces (master, develop y cualquier otro)
 if [ -d "$WORKSPACES_DIR" ]; then
@@ -129,6 +137,16 @@ if [ -d "$WORKSPACES_DIR" ]; then
         if [ -d "$workspace_dir" ]; then
             workspace_name=$(basename "$workspace_dir")
             ((workspace_count++))
+
+            # Si hay filtro, verificar que el nombre coincida
+            if [ -n "$FILTER_PATTERN" ]; then
+                # Búsqueda parcial case-insensitive
+                if [[ ! "$workspace_name" =~ "$FILTER_PATTERN" ]]; then
+                    continue  # Saltar este workspace
+                fi
+            fi
+
+            ((filtered_count++))
             show_workspace "$workspace_name" "$workspace_dir"
         fi
     done
@@ -139,9 +157,18 @@ if [ $workspace_count -eq 0 ]; then
     echo ""
     info "💡 Usa 'ws new <nombre> [repos...]' para crear uno"
     echo ""
+elif [ -n "$FILTER_PATTERN" ] && [ $filtered_count -eq 0 ]; then
+    echo "  ${COLOR_DIM}(No hay workspaces que coincidan con '$FILTER_PATTERN')${COLOR_RESET}"
+    echo ""
+    echo "${COLOR_DIM}Total de workspaces: $workspace_count${COLOR_RESET}"
+    echo ""
 else
     echo "${COLOR_DIM}═══════════════════════════════════════════════════${COLOR_RESET}"
-    echo "${COLOR_DIM}Total: $workspace_count workspaces${COLOR_RESET}"
+    if [ -n "$FILTER_PATTERN" ]; then
+        echo "${COLOR_DIM}Mostrando: $filtered_count de $workspace_count workspaces${COLOR_RESET}"
+    else
+        echo "${COLOR_DIM}Total: $workspace_count workspaces${COLOR_RESET}"
+    fi
     echo "${COLOR_DIM}═══════════════════════════════════════════════════${COLOR_RESET}"
     echo ""
     info "💡 Usa 'ws switch <nombre>' para ver detalle de un workspace"

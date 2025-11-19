@@ -36,9 +36,12 @@ GESTIÓN DE WORKSPACES:
         ws new master repo1
         ws new develop
 
-  list (ls)
-      Lista todos los workspaces activos
-      Ejemplo: ws list
+  list [patrón] (ls)
+      Lista todos los workspaces activos (opcionalmente filtrados)
+      Ejemplos:
+        ws list                        # todos los workspaces
+        ws ls 8089                     # solo los que contienen "8089"
+        ws ls NUBA                     # solo los que contienen "NUBA"
 
   switch <workspace> (cd)
       Muestra información del workspace
