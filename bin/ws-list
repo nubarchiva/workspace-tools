@@ -79,14 +79,28 @@ show_workspace() {
             worktree_path="$path/$repo_rel_path"
             if [ -d "$worktree_path" ]; then
                 cd "$worktree_path"
-                # Verificar si hay commits locales no pusheados
-                unpushed_count=$(git rev-list @{u}..HEAD 2>/dev/null | wc -l | tr -d ' ')
-                if [ -n "$unpushed_count" ] && [ "$unpushed_count" -gt 0 ]; then
-                    if [ "$has_unpushed" = false ]; then
-                        echo "   📤 Cambios sin push:"
-                        has_unpushed=true
+
+                # Verificar si la branch tiene upstream configurado
+                if git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then
+                    # Hay upstream: contar commits pendientes de push
+                    unpushed_count=$(git rev-list @{u}..HEAD 2>/dev/null | wc -l | tr -d ' ')
+                    if [ -n "$unpushed_count" ] && [ "$unpushed_count" -gt 0 ]; then
+                        if [ "$has_unpushed" = false ]; then
+                            echo "   📤 Cambios sin push:"
+                            has_unpushed=true
+                        fi
+                        echo "      • $repo_rel_path ($unpushed_count commits)"
                     fi
-                    echo "      • $repo_rel_path ($unpushed_count commits)"
+                else
+                    # No hay upstream: contar todos los commits en la branch
+                    local_count=$(git rev-list HEAD 2>/dev/null | wc -l | tr -d ' ')
+                    if [ -n "$local_count" ] && [ "$local_count" -gt 0 ]; then
+                        if [ "$has_unpushed" = false ]; then
+                            echo "   📤 Cambios sin push:"
+                            has_unpushed=true
+                        fi
+                        echo "      • $repo_rel_path ($local_count commits, sin remoto)"
+                    fi
                 fi
             fi
         fi
