@@ -1,9 +1,40 @@
 #!/bin/bash
 # Ejecuta comandos Git en todos los repos de un workspace
 
-WORKSPACE_PATTERN=$1
-shift  # Remover el primer argumento (workspace), el resto son args de Git
-GIT_ARGS="$@"
+# Detectar si el primer argumento es un workspace o un comando de Git
+FIRST_ARG=$1
+
+# Comandos comunes de Git
+GIT_COMMANDS="status add commit push pull fetch checkout branch merge rebase log diff stash reset"
+
+# Verificar si el primer argumento parece ser un comando de Git
+IS_GIT_CMD=false
+if [ -n "$FIRST_ARG" ]; then
+    # Si empieza con -, es un flag de Git
+    if [[ "$FIRST_ARG" == -* ]]; then
+        IS_GIT_CMD=true
+    else
+        # Si es un comando común de Git
+        for cmd in $GIT_COMMANDS; do
+            if [ "$FIRST_ARG" = "$cmd" ]; then
+                IS_GIT_CMD=true
+                break
+            fi
+        done
+    fi
+fi
+
+# Determinar workspace y argumentos de Git
+if [ "$IS_GIT_CMD" = true ]; then
+    # Primer argumento es Git, detectar workspace automáticamente
+    WORKSPACE_PATTERN=""
+    GIT_ARGS="$@"
+else
+    # Primer argumento es workspace
+    WORKSPACE_PATTERN=$1
+    shift
+    GIT_ARGS="$@"
+fi
 
 # Detectar WORKSPACE_ROOT desde WS_TOOLS o por defecto
 if [ -n "$WS_TOOLS" ]; then
@@ -45,9 +76,19 @@ show_help() {
     echo "  • Ignora directorios sin .git"
 }
 
+# Si no se especificó workspace, intentar detectar automáticamente
 if [ -z "$WORKSPACE_PATTERN" ]; then
-    show_help
-    exit 1
+    WORKSPACE_PATTERN=$(detect_current_workspace)
+    if [ -z "$WORKSPACE_PATTERN" ]; then
+        error "❌ Error: no se especificó workspace y no se pudo detectar automáticamente"
+        echo ""
+        info "💡 Ejecuta este comando desde dentro de un workspace o especifica el nombre:"
+        echo "   ws git <workspace> <comando-git>"
+        echo ""
+        show_help
+        exit 1
+    fi
+    info "🔍 Workspace detectado: $WORKSPACE_PATTERN"
 fi
 
 if [ -z "$GIT_ARGS" ]; then

@@ -173,3 +173,30 @@ copy_workspace_config() {
 
     echo "  ✅ Configuración completada"
 }
+
+# Función para detectar el workspace actual basándose en el directorio actual
+# Retorna: nombre del workspace si estamos dentro de uno, vacío si no
+detect_current_workspace() {
+    local current_dir="$(pwd)"
+
+    # Detectar WORKSPACE_ROOT desde WS_TOOLS o por defecto
+    local workspace_root
+    if [ -n "$WS_TOOLS" ]; then
+        workspace_root="${WS_TOOLS%/tools/workspace-tools}"
+    else
+        workspace_root=~/wrkspc.nubarchiva
+    fi
+    local workspaces_dir="$workspace_root/workspaces"
+
+    # Verificar si estamos dentro de un workspace
+    # Los workspaces están en $workspaces_dir/<nombre>/...
+    if [[ "$current_dir" == "$workspaces_dir"/* ]]; then
+        # Extraer el nombre del workspace (primer nivel después de workspaces/)
+        local workspace_name="${current_dir#$workspaces_dir/}"
+        workspace_name="${workspace_name%%/*}"
+        echo "$workspace_name"
+        return 0
+    fi
+
+    return 1
+}

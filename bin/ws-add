@@ -2,19 +2,6 @@
 # Añade uno o más repos a un workspace existente
 # Soporta repos en subdirectorios (ej: libs/marc4j, modules/docs, tools/*)
 
-WORKSPACE_PATTERN=$1
-shift
-REPOS=("$@")
-
-# Detectar WORKSPACE_ROOT desde WS_TOOLS o por defecto
-if [ -n "$WS_TOOLS" ]; then
-    WORKSPACE_ROOT="${WS_TOOLS%/tools/workspace-tools}"
-else
-    # Fallback: asumir ubicación estándar
-    WORKSPACE_ROOT=~/wrkspc.nubarchiva
-fi
-WORKSPACES_DIR=$WORKSPACE_ROOT/workspaces
-
 # Detectar directorio del script (compatible bash/zsh)
 if [ -n "$BASH_SOURCE" ]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,9 +9,45 @@ else
     SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 fi
 
-# Cargar funciones compartidas
+# Cargar funciones compartidas ANTES de usarlas
 source "$SCRIPT_DIR/ws-common.sh"
 source "$SCRIPT_DIR/ws-colors.sh"
+
+# Primer argumento puede ser workspace o repo (si hay detección automática)
+FIRST_ARG=$1
+
+# Intentar detectar workspace automáticamente
+DETECTED_WORKSPACE=$(detect_current_workspace 2>/dev/null || true)
+
+# Si detectamos un workspace Y el primer argumento no parece ser un workspace conocido,
+# entonces el primer argumento es un repo
+if [ -n "$DETECTED_WORKSPACE" ] && [ -n "$FIRST_ARG" ]; then
+    # Verificar si FIRST_ARG es un workspace válido o un repo
+    # Si FIRST_ARG parece ser una ruta de repo (contiene /), asumimos que es repo
+    if [[ "$FIRST_ARG" == */* ]] || [ ! -d "$WORKSPACES_DIR/$FIRST_ARG" ]; then
+        # Es un repo, usar workspace detectado
+        WORKSPACE_PATTERN="$DETECTED_WORKSPACE"
+        REPOS=("$@")
+    else
+        # Es un workspace
+        WORKSPACE_PATTERN=$1
+        shift
+        REPOS=("$@")
+    fi
+else
+    # Sin detección automática, primer argumento es workspace
+    WORKSPACE_PATTERN=$1
+    shift
+    REPOS=("$@")
+fi
+
+# Detectar WORKSPACE_ROOT
+if [ -n "$WS_TOOLS" ]; then
+    WORKSPACE_ROOT="${WS_TOOLS%/tools/workspace-tools}"
+else
+    WORKSPACE_ROOT=~/wrkspc.nubarchiva
+fi
+WORKSPACES_DIR=$WORKSPACE_ROOT/workspaces
 
 if [ ${#REPOS[@]} -eq 0 ]; then
     echo "Uso: ws add <nombre|patrón> <repo1> [repo2] [repo3] ..."

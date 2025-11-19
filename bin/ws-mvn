@@ -1,9 +1,41 @@
 #!/bin/bash
 # Ejecuta comandos Maven en todos los proyectos de un workspace
 
-WORKSPACE_PATTERN=$1
-shift  # Remover el primer argumento (workspace), el resto son args de Maven
-MVN_ARGS="$@"
+# Detectar si el primer argumento es un workspace o un argumento de Maven
+FIRST_ARG=$1
+
+# Goals y fases comunes de Maven
+MAVEN_GOALS="clean validate compile test package verify install deploy site"
+MAVEN_FLAGS="-D -P -T -f -pl -am -amd -rf -N -U -X -e -q -B -V -C -s"
+
+# Verificar si el primer argumento parece ser un argumento de Maven
+IS_MAVEN_ARG=false
+if [ -n "$FIRST_ARG" ]; then
+    # Si empieza con -, es un flag de Maven
+    if [[ "$FIRST_ARG" == -* ]]; then
+        IS_MAVEN_ARG=true
+    else
+        # Si es una goal común de Maven
+        for goal in $MAVEN_GOALS; do
+            if [ "$FIRST_ARG" = "$goal" ]; then
+                IS_MAVEN_ARG=true
+                break
+            fi
+        done
+    fi
+fi
+
+# Determinar workspace y argumentos de Maven
+if [ "$IS_MAVEN_ARG" = true ]; then
+    # Primer argumento es Maven, detectar workspace automáticamente
+    WORKSPACE_PATTERN=""
+    MVN_ARGS="$@"
+else
+    # Primer argumento es workspace
+    WORKSPACE_PATTERN=$1
+    shift
+    MVN_ARGS="$@"
+fi
 
 # Detectar WORKSPACE_ROOT desde WS_TOOLS o por defecto
 if [ -n "$WS_TOOLS" ]; then
@@ -45,9 +77,19 @@ show_help() {
     echo "  • Ignora repos sin pom.xml con un mensaje informativo"
 }
 
+# Si no se especificó workspace, intentar detectar automáticamente
 if [ -z "$WORKSPACE_PATTERN" ]; then
-    show_help
-    exit 1
+    WORKSPACE_PATTERN=$(detect_current_workspace)
+    if [ -z "$WORKSPACE_PATTERN" ]; then
+        error "❌ Error: no se especificó workspace y no se pudo detectar automáticamente"
+        echo ""
+        info "💡 Ejecuta este comando desde dentro de un workspace o especifica el nombre:"
+        echo "   ws mvn <workspace> <argumentos-maven>"
+        echo ""
+        show_help
+        exit 1
+    fi
+    info "🔍 Workspace detectado: $WORKSPACE_PATTERN"
 fi
 
 if [ -z "$MVN_ARGS" ]; then
