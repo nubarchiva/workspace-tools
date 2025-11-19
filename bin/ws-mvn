@@ -23,6 +23,7 @@ fi
 
 # Cargar funciones compartidas
 source "$SCRIPT_DIR/ws-common.sh"
+source "$SCRIPT_DIR/ws-colors.sh"
 
 # Función de ayuda
 show_help() {
@@ -50,7 +51,7 @@ if [ -z "$WORKSPACE_PATTERN" ]; then
 fi
 
 if [ -z "$MVN_ARGS" ]; then
-    echo "❌ Error: debes especificar argumentos para Maven"
+    error "❌ Error: debes especificar argumentos para Maven"
     echo ""
     show_help
     exit 1
@@ -67,24 +68,22 @@ WORKSPACE_DIR=$WORKSPACES_DIR/$WORKSPACE_NAME
 BRANCH_NAME=$(get_branch_name "$WORKSPACE_NAME")
 
 if [ ! -d "$WORKSPACE_DIR" ]; then
-    echo "❌ Workspace no existe: $WORKSPACE_NAME"
+    error "❌ Workspace no existe: $WORKSPACE_NAME"
     exit 1
 fi
 
-echo "╔════════════════════════════════════════════════════╗"
-echo "║  Ejecutando Maven en workspace                     ║"
-echo "╚════════════════════════════════════════════════════╝"
+print_header "Ejecutando Maven en workspace"
 echo ""
-echo "Workspace: $WORKSPACE_NAME"
-echo "Branch:    $BRANCH_NAME"
-echo "Comando:   mvn $MVN_ARGS"
+echo "Workspace: ${COLOR_CYAN}$WORKSPACE_NAME${COLOR_RESET}"
+echo "Branch:    ${COLOR_CYAN}$BRANCH_NAME${COLOR_RESET}"
+echo "Comando:   ${COLOR_BOLD}mvn $MVN_ARGS${COLOR_RESET}"
 echo ""
 
 # Encontrar todos los repos en el workspace
 repos=$(find_repos_in_workspace "$WORKSPACE_DIR")
 
 if [ -z "$repos" ] || [ "$repos" = "" ]; then
-    echo "❌ No hay repos en este workspace"
+    error "❌ No hay repos en este workspace"
     exit 1
 fi
 
@@ -104,9 +103,7 @@ echo "$repos" | while read -r repo_rel_path; do
 
         if [ -f "$pom_path" ]; then
             ((maven_projects++))
-            echo "════════════════════════════════════════════════════"
-            echo "▶ Ejecutando en: $repo_rel_path"
-            echo "════════════════════════════════════════════════════"
+            print_separator_with_title "Ejecutando en: ${COLOR_CYAN}$repo_rel_path${COLOR_RESET}"
             echo ""
 
             # Capturar tiempo de inicio
@@ -127,15 +124,15 @@ echo "$repos" | while read -r repo_rel_path; do
 
             if [ $exit_code -ne 0 ]; then
                 echo ""
-                echo "❌ Error en $repo_rel_path (exit code: $exit_code)"
-                echo "   Deteniendo ejecución"
+                error "❌ Error en $repo_rel_path (exit code: $exit_code)"
+                error "   Deteniendo ejecución"
                 exit $exit_code
             fi
 
             echo ""
         else
             ((skipped_repos++))
-            echo "ℹ️  Ignorando $repo_rel_path (no tiene pom.xml)"
+            info "ℹ️  Ignorando $repo_rel_path (no tiene pom.xml)"
         fi
     fi
 done
@@ -148,25 +145,25 @@ if [ $exit_code -ne 0 ]; then
 fi
 
 echo ""
-echo "✅ Maven ejecutado correctamente en todos los proyectos"
+success "✅ Maven ejecutado correctamente en todos los proyectos"
 if [ $skipped_repos -gt 0 ]; then
-    echo "   ($skipped_repos repos ignorados por no tener pom.xml)"
+    echo "   ${COLOR_DIM}($skipped_repos repos ignorados por no tener pom.xml)${COLOR_RESET}"
 fi
 
 # Mostrar resumen de tiempos
 if [ -f "$temp_times" ] && [ -s "$temp_times" ]; then
     echo ""
-    echo "═══════════════════════════════════════════════════"
-    echo "Resumen de ejecución:"
-    echo "═══════════════════════════════════════════════════"
+    echo "${COLOR_BOLD}═══════════════════════════════════════════════════${COLOR_RESET}"
+    echo "${COLOR_BOLD}Resumen de ejecución:${COLOR_RESET}"
+    echo "${COLOR_BOLD}═══════════════════════════════════════════════════${COLOR_RESET}"
 
     total_time=0
     while IFS='|' read -r project time; do
         total_time=$((total_time + time))
         # Formatear nombre del proyecto con puntos para alineación
-        printf "  • %-40s %5ss\n" "$project" "$time"
+        printf "  • %-40s ${COLOR_DIM}%5ss${COLOR_RESET}\n" "$project" "$time"
     done < "$temp_times"
 
-    echo "───────────────────────────────────────────────────"
-    printf "  Total: %ss\n" "$total_time"
+    echo "${COLOR_DIM}───────────────────────────────────────────────────${COLOR_RESET}"
+    printf "  ${COLOR_BOLD_GREEN}Total: %ss${COLOR_RESET}\n" "$total_time"
 fi

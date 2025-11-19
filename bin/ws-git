@@ -23,6 +23,7 @@ fi
 
 # Cargar funciones compartidas
 source "$SCRIPT_DIR/ws-common.sh"
+source "$SCRIPT_DIR/ws-colors.sh"
 
 # Función de ayuda
 show_help() {
@@ -50,7 +51,7 @@ if [ -z "$WORKSPACE_PATTERN" ]; then
 fi
 
 if [ -z "$GIT_ARGS" ]; then
-    echo "❌ Error: debes especificar un comando para Git"
+    error "❌ Error: debes especificar un comando para Git"
     echo ""
     show_help
     exit 1
@@ -67,24 +68,22 @@ WORKSPACE_DIR=$WORKSPACES_DIR/$WORKSPACE_NAME
 BRANCH_NAME=$(get_branch_name "$WORKSPACE_NAME")
 
 if [ ! -d "$WORKSPACE_DIR" ]; then
-    echo "❌ Workspace no existe: $WORKSPACE_NAME"
+    error "❌ Workspace no existe: $WORKSPACE_NAME"
     exit 1
 fi
 
-echo "╔════════════════════════════════════════════════════╗"
-echo "║  Ejecutando Git en workspace                       ║"
-echo "╚════════════════════════════════════════════════════╝"
+print_header "Ejecutando Git en workspace"
 echo ""
-echo "Workspace: $WORKSPACE_NAME"
-echo "Branch:    $BRANCH_NAME"
-echo "Comando:   git $GIT_ARGS"
+echo "Workspace: ${COLOR_CYAN}$WORKSPACE_NAME${COLOR_RESET}"
+echo "Branch:    ${COLOR_CYAN}$BRANCH_NAME${COLOR_RESET}"
+echo "Comando:   ${COLOR_BOLD}git $GIT_ARGS${COLOR_RESET}"
 echo ""
 
 # Encontrar todos los repos en el workspace
 repos=$(find_repos_in_workspace "$WORKSPACE_DIR")
 
 if [ -z "$repos" ] || [ "$repos" = "" ]; then
-    echo "❌ No hay repos en este workspace"
+    error "❌ No hay repos en este workspace"
     exit 1
 fi
 
@@ -94,9 +93,7 @@ echo "$repos" | while read -r repo_rel_path; do
         repo_path="$WORKSPACE_DIR/$repo_rel_path"
 
         if [ -d "$repo_path/.git" ] || [ -f "$repo_path/.git" ]; then
-            echo "════════════════════════════════════════════════════"
-            echo "▶ $repo_rel_path"
-            echo "════════════════════════════════════════════════════"
+            print_separator_with_title "${COLOR_CYAN}$repo_rel_path${COLOR_RESET}"
             echo ""
 
             # Cambiar al directorio del repo y ejecutar Git
@@ -107,8 +104,8 @@ echo "$repos" | while read -r repo_rel_path; do
             exit_code=$?
             if [ $exit_code -ne 0 ]; then
                 echo ""
-                echo "❌ Error en $repo_rel_path (exit code: $exit_code)"
-                echo "   Deteniendo ejecución"
+                error "❌ Error en $repo_rel_path (exit code: $exit_code)"
+                error "   Deteniendo ejecución"
                 exit $exit_code
             fi
 
@@ -124,4 +121,4 @@ if [ $exit_code -ne 0 ]; then
     exit $exit_code
 fi
 
-echo "✅ Git ejecutado correctamente en todos los repos"
+success "✅ Git ejecutado correctamente en todos los repos"

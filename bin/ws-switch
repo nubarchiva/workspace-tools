@@ -21,6 +21,7 @@ fi
 
 # Cargar funciones compartidas
 source "$SCRIPT_DIR/ws-common.sh"
+source "$SCRIPT_DIR/ws-colors.sh"
 
 # Función de ayuda
 show_help() {
@@ -45,7 +46,7 @@ if [ -z "$WORKSPACE_PATTERN" ]; then
             if [ -d "$workspace_dir" ]; then
                 workspace_name=$(basename "$workspace_dir")
                 branch_name=$(get_branch_name "$workspace_name")
-                echo "  • $workspace_name (branch: $branch_name)"
+                echo "  • ${COLOR_CYAN}$workspace_name${COLOR_RESET} ${COLOR_DIM}(branch: $branch_name)${COLOR_RESET}"
             fi
         done
     fi
@@ -66,7 +67,7 @@ WORKSPACE_DIR=$WORKSPACES_DIR/$WORKSPACE_NAME
 BRANCH_NAME=$(get_branch_name "$WORKSPACE_NAME")
 
 if [ ! -d "$WORKSPACE_DIR" ]; then
-    echo "❌ Workspace no existe: $WORKSPACE_NAME"
+    error "❌ Workspace no existe: $WORKSPACE_NAME"
     echo ""
     echo "Workspaces disponibles:"
     $0
@@ -74,9 +75,7 @@ if [ ! -d "$WORKSPACE_DIR" ]; then
 fi
 
 # Mostrar información del workspace
-echo "╔════════════════════════════════════════════════════╗"
-echo "║  Workspace: $WORKSPACE_NAME"
-echo "╚════════════════════════════════════════════════════╝"
+print_header "Workspace: ${COLOR_BOLD}$WORKSPACE_NAME${COLOR_RESET}"
 echo ""
 
 # Mostrar README si existe
@@ -100,19 +99,19 @@ echo "$repos" | while read -r repo_rel_path; do
         worktree_path="$WORKSPACE_DIR/$repo_rel_path"
 
         if [ -d "$worktree_path" ]; then
-            echo "📦 $repo_rel_path:"
+            echo "📦 ${COLOR_CYAN}$repo_rel_path${COLOR_RESET}:"
             cd "$worktree_path"
 
             # Branch actual
             current_branch=$(git branch --show-current)
-            echo "   Branch: $current_branch"
+            echo "   Branch: ${COLOR_CYAN}$current_branch${COLOR_RESET}"
 
             # Estado
             status=$(git status -s)
             if [ -z "$status" ]; then
-                echo "   ✅ Sin cambios"
+                success "   ✅ Sin cambios"
             else
-                echo "   ⚠️  Cambios sin commitear:"
+                warning "   ⚠️  Cambios sin commitear:"
                 git status -s | sed 's/^/      /'
             fi
             echo ""
@@ -121,24 +120,24 @@ echo "$repos" | while read -r repo_rel_path; do
 done
 
 if [ -z "$repos" ] || [ "$repos" = "" ]; then
-    echo "  (No hay repos en este workspace)"
-    echo "  💡 Usa 'ws add $WORKSPACE_NAME <repo>' para añadir"
+    echo "  ${COLOR_DIM}(No hay repos en este workspace)${COLOR_RESET}"
+    info "  💡 Usa 'ws add $WORKSPACE_NAME <repo>' para añadir"
     echo ""
 fi
 
-echo "═══════════════════════════════════════════════════"
+echo "${COLOR_DIM}═══════════════════════════════════════════════════${COLOR_RESET}"
 echo ""
-echo "📁 Ruta: $WORKSPACE_DIR"
+echo "📁 Ruta: ${COLOR_CYAN}$WORKSPACE_DIR${COLOR_RESET}"
 echo ""
 echo "Para trabajar aquí:"
-echo "  cd $WORKSPACE_DIR"
+echo "  ${COLOR_CYAN}cd $WORKSPACE_DIR${COLOR_RESET}"
 echo ""
 
 if [ -n "$repos" ]; then
     echo "O con un repo específico:"
     echo "$repos" | while read -r repo_rel_path; do
         if [ -n "$repo_rel_path" ]; then
-            echo "  cd $WORKSPACE_DIR/$repo_rel_path"
+            echo "  ${COLOR_DIM}cd $WORKSPACE_DIR/$repo_rel_path${COLOR_RESET}"
         fi
     done
 fi

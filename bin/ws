@@ -9,106 +9,90 @@ else
     SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 fi
 
+# Cargar colores para la ayuda
+source "$SCRIPT_DIR/ws-colors.sh" 2>/dev/null || true
+
 # Subcomando (primer argumento)
 SUBCOMMAND=$1
 
 # Función de ayuda
 show_help() {
+    print_header "Workspace Tools" 2>/dev/null || {
+        echo "╔════════════════════════════════════════════════════╗"
+        echo "║  Workspace Tools                                   ║"
+        echo "║  Gestión de workspaces con Git worktrees          ║"
+        echo "╚════════════════════════════════════════════════════╝"
+    }
     cat <<'EOF'
-╔════════════════════════════════════════════════════╗
-║  Workspace Tools                                   ║
-║  Sistema de gestión de workspaces nubarchiva       ║
-╚════════════════════════════════════════════════════╝
 
 Uso: ws <comando> [argumentos...]
 
-Comandos disponibles:
+GESTIÓN DE WORKSPACES:
 
-  new <nombre> [repos...]
-      Crea un nuevo workspace
+  new <nombre> [repo1] [repo2] ...
+      Crea un workspace nuevo con los repos especificados
       Ejemplos:
-        ws new nuba-8400 ks-nuba libs/marc4j
-        ws new faceted-search ks-nuba
-        ws new master ks-nuba
+        ws new feature-123 repo1 libs/lib1
+        ws new master repo1
         ws new develop
 
-  add <nombre|patrón> <repo> [repo2] [repo3] ...
-      Añade uno o más repos a un workspace existente
-      Ejemplos:
-        ws add nuba-8400 libs/marc4j
-        ws add fac modules/docs            # coincidencia parcial
-        ws add master ks-nuba
-
-  remove <nombre|patrón> <repo> [repo2] [repo3] ...
-      Elimina uno o más repos de un workspace
-      Ejemplos:
-        ws remove nuba-8400 libs/marc4j
-        ws remove fac modules/docs         # coincidencia parcial
-
-  switch [nombre|patrón]
-      Cambia a un workspace y muestra su información
-      Ejemplos:
-        ws switch                          # lista todos
-        ws switch nuba-8400
-        ws switch fac                      # coincidencia parcial
-        ws switch master
-
-  list
+  list (ls)
       Lista todos los workspaces activos
-      Ejemplo:
-        ws list
+      Ejemplo: ws list
 
-  clean <nombre|patrón>
-      Limpia un workspace (elimina worktrees, mantiene branches)
+  switch <workspace> (cd)
+      Muestra información del workspace
+      Con 'ws cd' cambia automáticamente al directorio
       Ejemplos:
-        ws clean nuba-8400
-        ws clean fac                       # coincidencia parcial
-        ws clean master
+        ws switch feature-123
+        ws cd feature-123              # cambia al directorio
 
-  mvn <nombre|patrón> <argumentos-maven>
-      Ejecuta comandos Maven en todos los proyectos del workspace
-      Ejemplos:
-        ws mvn nuba-8400 clean install
-        ws mvn master test
-        ws mvn fac clean compile           # coincidencia parcial
+  clean <workspace> (rm)
+      Elimina un workspace completo (worktrees + directorio)
+      Ejemplo: ws clean feature-123
 
-  git <nombre|patrón> <comando-git> [argumentos...]
-      Ejecuta comandos Git en todos los repos del workspace
-      Ejemplos:
-        ws git nuba-8400 status
-        ws git master pull
-        ws git fac log --oneline -5        # coincidencia parcial
+GESTIÓN DE REPOS EN WORKSPACE:
 
-Nombres especiales:
-  • master   - Workspace en branch master
-  • develop  - Workspace en branch develop
-  • otros    - Workspace en branch feature/<nombre>
+  add <workspace> <repo1> [repo2] ...
+      Añade repos a un workspace existente
+      Ejemplo: ws add feature-123 libs/lib1 modules/mod1
 
-💡 Abreviaturas de comandos:
-  Puedes usar abreviaturas de comandos:
-  • Automáticas: n, a, l, c, cl, etc. (cualquier prefijo único)
-  • Predefinidas: ls→list, cd→switch, sw→switch, rm→clean, del→clean,
-                  mk→new, create→new, h→help
+  remove <workspace> <repo1> [repo2] ...
+      Elimina repos de un workspace (verifica cambios pendientes)
+      Ejemplo: ws remove feature-123 libs/lib1
 
-💡 Búsqueda parcial de workspaces:
-  Puedes usar partes del nombre en lugar del nombre completo.
-  Si hay múltiples coincidencias, se mostrará un menú interactivo.
+OPERACIONES MULTI-REPO:
 
-Ejemplos con abreviaturas:
-  ws n nuba-8400 ks-nuba         # ws new
-  ws a master libs/marc4j        # ws add
-  ws ls                          # ws list
-  ws cd nuba-8400                # ws switch
-  ws rm nuba-8400                # ws clean
+  mvn <workspace> <args>
+      Ejecuta Maven en todos los repos del workspace
+      Ejemplo: ws mvn feature-123 clean install
 
-Compatibilidad:
-  Los comandos individuales (ws-new, ws-add, etc.) siguen disponibles
+  git <workspace> <comando> [args]
+      Ejecuta Git en todos los repos del workspace
+      Ejemplo: ws git feature-123 status
 
-Documentación:
+CARACTERÍSTICAS:
+
+  • Búsqueda parcial: usa parte del nombre (ej: ws cd fea)
+  • Abreviaturas: n (new), a (add), ls (list), cd (switch), rm (clean)
+  • Nombres especiales: master, develop (usan esas branches)
+  • Otros nombres: crean branch feature/<nombre>
+
+EJEMPLOS:
+
+  ws new api-v2 repo1 libs/api         # Crear workspace
+  ws add api-v2 modules/docs           # Añadir repo
+  ws mvn api-v2 clean install          # Compilar todos
+  ws git api-v2 status                 # Ver estado
+  ws remove api-v2 modules/docs        # Quitar repo
+  ws clean api-v2                      # Limpiar workspace
+
+DOCUMENTACIÓN:
+
   README.md       - Guía completa
-  EJEMPLOS.md     - Casos de uso prácticos
-  CHEATSHEET.md   - Referencia rápida
   QUICKSTART.md   - Inicio rápido
+  CHEATSHEET.md   - Referencia rápida
+  EJEMPLOS.md     - Casos de uso
 
 EOF
 }

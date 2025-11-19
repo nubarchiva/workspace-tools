@@ -19,10 +19,9 @@ fi
 
 # Cargar funciones compartidas
 source "$SCRIPT_DIR/ws-common.sh"
+source "$SCRIPT_DIR/ws-colors.sh"
 
-echo "╔════════════════════════════════════════════════════╗"
-echo "║           WORKSPACES ACTIVOS                       ║"
-echo "╚════════════════════════════════════════════════════╝"
+print_header "WORKSPACES ACTIVOS"
 echo ""
 
 # Función para mostrar workspace
@@ -31,19 +30,19 @@ show_workspace() {
     local path=$2
     local branch=$(get_branch_name "$name")
 
-    echo "🔹 $name (branch: $branch)"
+    echo "🔹 ${COLOR_BOLD_CYAN}$name${COLOR_RESET} ${COLOR_DIM}(branch: ${COLOR_CYAN}$branch${COLOR_RESET}${COLOR_DIM})${COLOR_RESET}"
 
     # Encontrar repos (incluyendo subdirectorios)
     local repos=$(find_repos_in_workspace "$path")
     local repo_count=$(echo "$repos" | grep -v '^$' | wc -l)
 
     if [ $repo_count -eq 0 ]; then
-        echo "   📦 Repos: 0"
+        echo "   ${COLOR_DIM}📦 Repos: 0${COLOR_RESET}"
         echo ""
         return
     fi
 
-    echo "   📦 Repos: $repo_count"
+    echo "   ${COLOR_DIM}📦 Repos: $repo_count${COLOR_RESET}"
 
     # Listar repos
     echo "   📂 Contenido:"
@@ -62,11 +61,11 @@ show_workspace() {
                 cd "$worktree_path"
                 if [ -n "$(git status -s 2>/dev/null)" ]; then
                     if [ "$has_uncommitted" = false ]; then
-                        echo "   ⚠️  Cambios sin commitear:"
+                        echo "   ${COLOR_YELLOW}⚠️  Cambios sin commitear:${COLOR_RESET}"
                         has_uncommitted=true
                     fi
                     change_count=$(git status -s | wc -l)
-                    echo "      • $repo_rel_path ($change_count archivos)"
+                    echo "      ${COLOR_YELLOW}• $repo_rel_path ($change_count archivos)${COLOR_RESET}"
                 fi
             fi
         fi
@@ -86,20 +85,20 @@ show_workspace() {
                     unpushed_count=$(git rev-list @{u}..HEAD 2>/dev/null | wc -l | tr -d ' ')
                     if [ -n "$unpushed_count" ] && [ "$unpushed_count" -gt 0 ]; then
                         if [ "$has_unpushed" = false ]; then
-                            echo "   📤 Cambios sin push:"
+                            echo "   ${COLOR_YELLOW}📤 Cambios sin push:${COLOR_RESET}"
                             has_unpushed=true
                         fi
-                        echo "      • $repo_rel_path ($unpushed_count commits)"
+                        echo "      ${COLOR_YELLOW}• $repo_rel_path ($unpushed_count commits)${COLOR_RESET}"
                     fi
                 else
                     # No hay upstream: contar todos los commits en la branch
                     local_count=$(git rev-list HEAD 2>/dev/null | wc -l | tr -d ' ')
                     if [ -n "$local_count" ] && [ "$local_count" -gt 0 ]; then
                         if [ "$has_unpushed" = false ]; then
-                            echo "   📤 Cambios sin push:"
+                            echo "   ${COLOR_YELLOW}📤 Cambios sin push:${COLOR_RESET}"
                             has_unpushed=true
                         fi
-                        echo "      • $repo_rel_path ($local_count commits, sin remoto)"
+                        echo "      ${COLOR_YELLOW}• $repo_rel_path ($local_count commits, sin remoto)${COLOR_RESET}"
                     fi
                 fi
             fi
@@ -124,14 +123,14 @@ if [ -d "$WORKSPACES_DIR" ]; then
 fi
 
 if [ $workspace_count -eq 0 ]; then
-    echo "  (No hay workspaces activos)"
+    echo "  ${COLOR_DIM}(No hay workspaces activos)${COLOR_RESET}"
     echo ""
-    echo "💡 Usa 'ws new <nombre> [repos...]' para crear uno"
+    info "💡 Usa 'ws new <nombre> [repos...]' para crear uno"
     echo ""
 else
-    echo "═══════════════════════════════════════════════════"
-    echo "Total: $workspace_count workspaces"
-    echo "═══════════════════════════════════════════════════"
+    echo "${COLOR_DIM}═══════════════════════════════════════════════════${COLOR_RESET}"
+    echo "${COLOR_DIM}Total: $workspace_count workspaces${COLOR_RESET}"
+    echo "${COLOR_DIM}═══════════════════════════════════════════════════${COLOR_RESET}"
     echo ""
-    echo "💡 Usa 'ws switch <nombre>' para ver detalle de un workspace"
+    info "💡 Usa 'ws switch <nombre>' para ver detalle de un workspace"
 fi

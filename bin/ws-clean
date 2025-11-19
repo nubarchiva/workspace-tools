@@ -22,6 +22,7 @@ fi
 
 # Cargar funciones compartidas
 source "$SCRIPT_DIR/ws-common.sh"
+source "$SCRIPT_DIR/ws-colors.sh"
 
 # Función de ayuda
 show_help() {
@@ -59,12 +60,12 @@ WORKSPACE_DIR=$WORKSPACES_DIR/$WORKSPACE_NAME
 BRANCH_NAME=$(get_branch_name "$WORKSPACE_NAME")
 
 if [ ! -d "$WORKSPACE_DIR" ]; then
-    echo "❌ Workspace no existe: $WORKSPACE_NAME"
+    error "❌ Workspace no existe: $WORKSPACE_NAME"
     exit 1
 fi
 
 # Mostrar qué se va a eliminar
-echo "⚠️  Vas a limpiar el workspace: $WORKSPACE_NAME (branch: $BRANCH_NAME)"
+warning "⚠️  Vas a limpiar el workspace: ${COLOR_BOLD}$WORKSPACE_NAME${COLOR_RESET} (branch: ${COLOR_CYAN}$BRANCH_NAME${COLOR_RESET})"
 echo ""
 echo "Repos afectados:"
 
@@ -76,13 +77,13 @@ echo "$repos" | while read -r repo_rel_path; do
     if [ -n "$repo_rel_path" ]; then
         has_repos=true
         worktree_path="$WORKSPACE_DIR/$repo_rel_path"
-        echo "  • $repo_rel_path"
+        echo "  • ${COLOR_CYAN}$repo_rel_path${COLOR_RESET}"
 
         # Verificar si hay cambios sin commitear
         if [ -d "$worktree_path" ]; then
             cd "$worktree_path"
             if [ -n "$(git status -s 2>/dev/null)" ]; then
-                echo "    ⚠️  TIENE CAMBIOS SIN COMMITEAR"
+                warning "    ⚠️  TIENE CAMBIOS SIN COMMITEAR"
                 has_uncommitted_changes=true
             fi
         fi
@@ -90,7 +91,7 @@ echo "$repos" | while read -r repo_rel_path; do
 done
 
 if [ -z "$repos" ] || [ "$repos" = "" ]; then
-    echo "  (No hay repos en este workspace)"
+    echo "  ${COLOR_DIM}(No hay repos en este workspace)${COLOR_RESET}"
 fi
 
 echo ""
@@ -100,20 +101,20 @@ read -p "¿Continuar? (s/n) " -n 1 -r
 echo
 
 if [[ ! $REPLY =~ ^[Ss]$ ]]; then
-    echo "❌ Cancelado"
+    error "❌ Cancelado"
     exit 1
 fi
 
 # Eliminar cada worktree
 echo ""
-echo "Limpiando worktrees..."
+info "Limpiando worktrees..."
 
 echo "$repos" | while read -r repo_rel_path; do
     if [ -n "$repo_rel_path" ]; then
         worktree_path="$WORKSPACE_DIR/$repo_rel_path"
 
         if [ -d "$worktree_path" ]; then
-            echo "  🗑️  Eliminando worktree: $repo_rel_path"
+            echo "  ${COLOR_DIM}🗑️  Eliminando worktree: $repo_rel_path${COLOR_RESET}"
 
             cd "$worktree_path"
 
@@ -135,9 +136,9 @@ echo "$repos" | while read -r repo_rel_path; do
                     rm -rf "$worktree_path"
                     git worktree prune
                 }
-                echo "     ✅ Eliminado"
+                success "     ✅ Eliminado"
             else
-                echo "     ⚠️  No se pudo encontrar repo principal, eliminando directorio"
+                warning "     ⚠️  No se pudo encontrar repo principal, eliminando directorio"
                 rm -rf "$worktree_path"
             fi
         fi
@@ -185,7 +186,7 @@ if [ -d "$WORKSPACE_DIR" ]; then
     else
         # Hay archivos del usuario, no eliminar
         echo ""
-        echo "⚠️  El workspace tiene archivos adicionales del usuario. No se eliminó el directorio."
+        warning "⚠️  El workspace tiene archivos adicionales del usuario. No se eliminó el directorio."
         echo "   Revisa: $WORKSPACE_DIR"
         echo "   Archivos restantes:"
         for file in "${all_files[@]}"; do
@@ -204,10 +205,10 @@ if [ -d "$WORKSPACE_DIR" ]; then
 fi
 
 echo ""
-echo "✅ Workspace limpiado: $WORKSPACE_NAME"
+success "✅ Workspace limpiado: $WORKSPACE_NAME"
 echo ""
-echo "💡 La branch se mantiene en los repos principales:"
-echo "   Branch: $BRANCH_NAME"
+info "💡 La branch se mantiene en los repos principales:"
+echo "   Branch: ${COLOR_CYAN}$BRANCH_NAME${COLOR_RESET}"
 echo ""
 echo "Para ver branches en un repo:"
-echo "  cd $WORKSPACE_ROOT/<repo> && git branch -a"
+echo "  ${COLOR_DIM}cd $WORKSPACE_ROOT/<repo> && git branch -a${COLOR_RESET}"
