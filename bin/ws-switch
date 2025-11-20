@@ -78,8 +78,8 @@ fi
 print_header "Workspace: ${COLOR_BOLD}$WORKSPACE_NAME${COLOR_RESET}"
 echo ""
 
-# Mostrar README si existe
-if [ -f "$WORKSPACE_DIR/README.md" ]; then
+# Mostrar README si existe (solo si no estamos en WS_STATUS_MODE)
+if [ -z "$WS_STATUS_MODE" ] && [ -f "$WORKSPACE_DIR/README.md" ]; then
     cat "$WORKSPACE_DIR/README.md"
     echo ""
     echo "═══════════════════════════════════════════════════"
@@ -127,17 +127,40 @@ fi
 
 echo "${COLOR_DIM}═══════════════════════════════════════════════════${COLOR_RESET}"
 echo ""
-echo "📁 Ruta: ${COLOR_CYAN}$WORKSPACE_DIR${COLOR_RESET}"
-echo ""
-echo "Para trabajar aquí:"
-echo "  ${COLOR_CYAN}cd $WORKSPACE_DIR${COLOR_RESET}"
-echo ""
 
-if [ -n "$repos" ]; then
-    echo "O con un repo específico:"
-    echo "$repos" | while read -r repo_rel_path; do
-        if [ -n "$repo_rel_path" ]; then
-            echo "  ${COLOR_DIM}cd $WORKSPACE_DIR/$repo_rel_path${COLOR_RESET}"
-        fi
-    done
+# Calcular ruta a mostrar (relativa si es WS_STATUS_MODE, absoluta si no)
+if [ -n "$WS_STATUS_MODE" ]; then
+    # Modo status: mostrar ruta relativa desde directorio actual
+    DISPLAY_PATH=$(realpath --relative-to="$(pwd)" "$WORKSPACE_DIR" 2>/dev/null || echo "$WORKSPACE_DIR")
+    echo "📁 Ruta: ${COLOR_CYAN}$DISPLAY_PATH${COLOR_RESET}"
+    echo ""
+    echo "Para trabajar aquí:"
+    echo "  ${COLOR_CYAN}cd $DISPLAY_PATH${COLOR_RESET}"
+    echo ""
+
+    if [ -n "$repos" ]; then
+        echo "O con un repo específico:"
+        echo "$repos" | while read -r repo_rel_path; do
+            if [ -n "$repo_rel_path" ]; then
+                REPO_DISPLAY_PATH=$(realpath --relative-to="$(pwd)" "$WORKSPACE_DIR/$repo_rel_path" 2>/dev/null || echo "$WORKSPACE_DIR/$repo_rel_path")
+                echo "  ${COLOR_DIM}cd $REPO_DISPLAY_PATH${COLOR_RESET}"
+            fi
+        done
+    fi
+else
+    # Modo switch normal: mostrar ruta absoluta
+    echo "📁 Ruta: ${COLOR_CYAN}$WORKSPACE_DIR${COLOR_RESET}"
+    echo ""
+    echo "Para trabajar aquí:"
+    echo "  ${COLOR_CYAN}cd $WORKSPACE_DIR${COLOR_RESET}"
+    echo ""
+
+    if [ -n "$repos" ]; then
+        echo "O con un repo específico:"
+        echo "$repos" | while read -r repo_rel_path; do
+            if [ -n "$repo_rel_path" ]; then
+                echo "  ${COLOR_DIM}cd $WORKSPACE_DIR/$repo_rel_path${COLOR_RESET}"
+            fi
+        done
+    fi
 fi

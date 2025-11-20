@@ -36,5 +36,10 @@ else
     echo ""
 fi
 
+# Establecer variable de entorno para que ws-switch ajuste su comportamiento
+# - No mostrar README.md
+# - Usar rutas relativas en sugerencias de navegación
+export WS_STATUS_MODE=1
+
 # Llamar a ws-switch para mostrar el estado
 exec "$SCRIPT_DIR/ws-switch" "$WORKSPACE_PATTERN"
