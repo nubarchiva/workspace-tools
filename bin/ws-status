@@ -1,0 +1,40 @@
+#!/bin/bash
+# Muestra el estado del workspace actual o especificado
+
+# Detectar directorio del script (compatible bash/zsh)
+if [ -n "$BASH_SOURCE" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+else
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+fi
+
+# Cargar funciones compartidas
+source "$SCRIPT_DIR/ws-common.sh"
+source "$SCRIPT_DIR/ws-colors.sh"
+
+# Determinar workspace: si hay argumento usarlo, sino auto-detectar
+WORKSPACE_PATTERN=""
+
+if [ -n "$1" ]; then
+    # Workspace especificado explícitamente
+    WORKSPACE_PATTERN="$1"
+else
+    # Auto-detectar workspace actual
+    WORKSPACE_PATTERN=$(detect_current_workspace 2>/dev/null || true)
+    if [ -z "$WORKSPACE_PATTERN" ]; then
+        error "❌ No estás dentro de un workspace"
+        echo ""
+        info "💡 Ejecuta este comando desde dentro de un workspace o especifica el nombre:"
+        echo "   ws status <workspace>"
+        echo ""
+        echo "Ejemplos:"
+        echo "  ws status              # desde dentro de un workspace"
+        echo "  ws status feature-123  # desde cualquier lugar"
+        exit 1
+    fi
+    info "🔍 Workspace detectado: $WORKSPACE_PATTERN"
+    echo ""
+fi
+
+# Llamar a ws-switch para mostrar el estado
+exec "$SCRIPT_DIR/ws-switch" "$WORKSPACE_PATTERN"

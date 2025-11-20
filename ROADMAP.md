@@ -38,6 +38,37 @@ ws mvn otro-ws test         # ejecuta en otro-ws desde cualquier lugar
 
 ---
 
+### Estado del workspace actual (ws status / ws .)
+**Estado:** ✅ Implementado en v3.1
+
+Muestra información del workspace actual sin necesidad de especificar el nombre, usando auto-detección.
+
+**Beneficios:**
+- Consulta rápida de estado desde cualquier directorio del workspace
+- No necesitas recordar el nombre exacto del workspace
+- Vista consolidada de todos los repos (branch, cambios pendientes)
+- Atajo ultra-corto: `ws .`
+
+**Uso:**
+```bash
+# Desde dentro de un workspace
+cd ~/workspaces/feature-123/ks-nuba
+ws status          # auto-detecta feature-123
+ws .               # atajo corto
+ws here            # alias alternativo
+
+# Especificación explícita (desde cualquier lugar)
+ws status feature-456    # muestra estado de feature-456
+```
+
+**Implementación:**
+- Usa `detect_current_workspace()` para auto-detección
+- Delega a `ws-switch` para mostrar la información
+- Aliases: `.`, `here`, `status`
+- Muestra: README, estado de repos, branch, cambios, rutas
+
+---
+
 ## 🔥 Alto impacto / Alta prioridad
 
 ### 1. Sincronización de repos (ws sync)
