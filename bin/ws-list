@@ -47,16 +47,13 @@ show_workspace() {
     echo "$repos" | while read -r repo_rel_path; do
         if [ -n "$repo_rel_path" ]; then
             worktree_path="$path/$repo_rel_path"
-            if [ -d "$worktree_path" ]; then
-                cd "$worktree_path"
-                if [ -n "$(git status -s 2>/dev/null)" ]; then
-                    if [ "$has_uncommitted" = false ]; then
-                        echo "   ${COLOR_YELLOW}⚠️  Cambios sin commitear:${COLOR_RESET}"
-                        has_uncommitted=true
-                    fi
-                    change_count=$(git status -s | wc -l)
-                    echo "      ${COLOR_YELLOW}• $repo_rel_path ($change_count archivos)${COLOR_RESET}"
+            if git_has_uncommitted_changes "$worktree_path"; then
+                if [ "$has_uncommitted" = false ]; then
+                    echo "   ${COLOR_YELLOW}⚠️  Cambios sin commitear:${COLOR_RESET}"
+                    has_uncommitted=true
                 fi
+                change_count=$(git_count_uncommitted_changes "$worktree_path")
+                echo "      ${COLOR_YELLOW}• $repo_rel_path ($change_count archivos)${COLOR_RESET}"
             fi
         fi
     done
@@ -66,42 +63,16 @@ show_workspace() {
     echo "$repos" | while read -r repo_rel_path; do
         if [ -n "$repo_rel_path" ]; then
             worktree_path="$path/$repo_rel_path"
-            if [ -d "$worktree_path" ]; then
-                cd "$worktree_path"
-
-                # Verificar si la branch tiene upstream configurado
-                if git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then
-                    # Hay upstream: contar commits pendientes de push
-                    unpushed_count=$(git rev-list @{u}..HEAD 2>/dev/null | wc -l | tr -d ' ')
-                    if [ -n "$unpushed_count" ] && [ "$unpushed_count" -gt 0 ]; then
-                        if [ "$has_unpushed" = false ]; then
-                            echo "   ${COLOR_YELLOW}📤 Cambios sin push:${COLOR_RESET}"
-                            has_unpushed=true
-                        fi
-                        echo "      ${COLOR_YELLOW}• $repo_rel_path ($unpushed_count commits)${COLOR_RESET}"
-                    fi
+            if git_has_unpushed_commits "$worktree_path"; then
+                if [ "$has_unpushed" = false ]; then
+                    echo "   ${COLOR_YELLOW}📤 Cambios sin push:${COLOR_RESET}"
+                    has_unpushed=true
+                fi
+                unpushed_count=$(git_count_unpushed_commits "$worktree_path")
+                if git_has_upstream "$worktree_path"; then
+                    echo "      ${COLOR_YELLOW}• $repo_rel_path ($unpushed_count commits)${COLOR_RESET}"
                 else
-                    # No hay upstream: verificar si hay commits únicos respecto a branches principales
-                    # Intentar comparar con origin/develop, origin/master, develop, o master
-                    base_branch=""
-                    for branch in origin/develop origin/master develop master; do
-                        if git rev-parse --verify "$branch" >/dev/null 2>&1; then
-                            base_branch="$branch"
-                            break
-                        fi
-                    done
-
-                    if [ -n "$base_branch" ]; then
-                        # Contar commits únicos en HEAD que no están en la base
-                        unique_count=$(git rev-list ${base_branch}..HEAD 2>/dev/null | wc -l | tr -d ' ')
-                        if [ -n "$unique_count" ] && [ "$unique_count" -gt 0 ]; then
-                            if [ "$has_unpushed" = false ]; then
-                                echo "   ${COLOR_YELLOW}📤 Cambios sin push:${COLOR_RESET}"
-                                has_unpushed=true
-                            fi
-                            echo "      ${COLOR_YELLOW}• $repo_rel_path ($unique_count commits sin remoto)${COLOR_RESET}"
-                        fi
-                    fi
+                    echo "      ${COLOR_YELLOW}• $repo_rel_path ($unpushed_count commits sin remoto)${COLOR_RESET}"
                 fi
             fi
         fi

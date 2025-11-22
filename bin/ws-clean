@@ -80,12 +80,9 @@ echo "$repos" | while read -r repo_rel_path; do
         echo "  • ${COLOR_CYAN}$repo_rel_path${COLOR_RESET}"
 
         # Verificar si hay cambios sin commitear
-        if [ -d "$worktree_path" ]; then
-            cd "$worktree_path"
-            if [ -n "$(git status -s 2>/dev/null)" ]; then
-                warning "    ⚠️  TIENE CAMBIOS SIN COMMITEAR"
-                has_uncommitted_changes=true
-            fi
+        if git_has_uncommitted_changes "$worktree_path"; then
+            warning "    ⚠️  TIENE CAMBIOS SIN COMMITEAR"
+            has_uncommitted_changes=true
         fi
     fi
 done

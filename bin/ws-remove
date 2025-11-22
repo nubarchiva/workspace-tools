@@ -79,35 +79,17 @@ for repo_rel_path in $REPOS_TO_REMOVE; do
     repos_to_process+=("$repo_rel_path")
 
     # Verificar cambios sin commitear
-    cd "$worktree_path"
-    if [ -n "$(git status -s 2>/dev/null)" ]; then
+    if git_has_uncommitted_changes "$worktree_path"; then
         repos_with_uncommitted+=("$repo_rel_path")
     fi
 
     # Verificar commits sin push
-    if git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then
-        # Hay upstream: verificar commits pendientes
-        unpushed_count=$(git rev-list @{u}..HEAD 2>/dev/null | wc -l | tr -d ' ')
-        if [ -n "$unpushed_count" ] && [ "$unpushed_count" -gt 0 ]; then
+    if git_has_unpushed_commits "$worktree_path"; then
+        unpushed_count=$(git_count_unpushed_commits "$worktree_path")
+        if git_has_upstream "$worktree_path"; then
             repos_with_unpushed+=("$repo_rel_path")
-        fi
-    else
-        # No hay upstream: verificar si hay commits únicos respecto a branches principales
-        # Intentar comparar con origin/develop, origin/master, develop, o master
-        base_branch=""
-        for branch in origin/develop origin/master develop master; do
-            if git rev-parse --verify "$branch" >/dev/null 2>&1; then
-                base_branch="$branch"
-                break
-            fi
-        done
-
-        if [ -n "$base_branch" ]; then
-            # Contar commits únicos en HEAD que no están en la base
-            unique_count=$(git rev-list ${base_branch}..HEAD 2>/dev/null | wc -l | tr -d ' ')
-            if [ -n "$unique_count" ] && [ "$unique_count" -gt 0 ]; then
-                repos_with_unpushed+=("$repo_rel_path ($unique_count commits sin remoto)")
-            fi
+        else
+            repos_with_unpushed+=("$repo_rel_path ($unpushed_count commits sin remoto)")
         fi
     fi
 done

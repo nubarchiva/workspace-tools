@@ -8,6 +8,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **Módulo `ws-git-utils.sh`** - Funciones de utilidad Git centralizadas
+  - `git_has_uncommitted_changes()` - Verifica cambios sin commitear
+  - `git_count_uncommitted_changes()` - Cuenta archivos modificados
+  - `git_has_unpushed_commits()` - Verifica commits sin pushear
+  - `git_count_unpushed_commits()` - Cuenta commits pendientes
+  - `git_has_upstream()` - Verifica si tiene branch remota
+  - `git_get_base_branch()` - Encuentra branch base (origin/develop, etc.)
+  - `git_repo_status()` - Estado completo en formato parseable
+  - Refactorizados para usar el módulo: ws-list, ws-switch, ws-clean, ws-remove
 - **CI con GitHub Actions** (`.github/workflows/ci.yml`)
   - Tests automatizados en Ubuntu y macOS
   - Análisis estático con ShellCheck

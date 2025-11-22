@@ -112,6 +112,12 @@ if [[ -f "$_WS_INIT_DIR/ws-common.sh" ]]; then
     source "$_WS_INIT_DIR/ws-common.sh"
 fi
 
+# Cargar utilidades Git
+if [[ -f "$_WS_INIT_DIR/ws-git-utils.sh" ]]; then
+    # shellcheck source=/dev/null
+    source "$_WS_INIT_DIR/ws-git-utils.sh"
+fi
+
 # -----------------------------------------------------------------------------
 # Funciones de utilidad adicionales
 # -----------------------------------------------------------------------------
