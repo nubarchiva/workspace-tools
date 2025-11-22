@@ -42,33 +42,45 @@ run_ws_clean() {
 # =============================================================================
 
 @test "ws-clean: workspace inexistente falla" {
-    skip "Requiere que ws-clean use WORKSPACE_ROOT del entorno"
     run run_ws_clean "no-existe"
     [ "$status" -ne 0 ]
     [[ "$output" == *"no existe"* ]] || [[ "$output" == *"No se encontr"* ]]
 }
 
 @test "ws-clean: elimina workspace vacio" {
-    skip "Requiere que ws-clean use WORKSPACE_ROOT del entorno"
     mkdir -p "$TEST_WORKSPACES_DIR/vacio"
 
-    # Simular confirmacion
-    run bash -c "echo 's' | env WORKSPACE_ROOT='$TEST_WORKSPACE_ROOT' '$WS_TOOLS_ROOT/bin/ws-clean' 'vacio'"
-    [ "$status" -eq 0 ]
+    # Simular confirmacion con subshell
+    result=$(
+        echo 's' | \
+        WORKSPACE_ROOT="$TEST_WORKSPACE_ROOT" \
+        WORKSPACES_DIR="$TEST_WORKSPACES_DIR" \
+        WS_TOOLS="$WS_TOOLS_ROOT" \
+        "$WS_TOOLS_ROOT/bin/ws-clean" 'vacio' 2>&1
+        echo "EXIT_CODE:$?"
+    )
+    local exit_code=$(echo "$result" | grep "EXIT_CODE:" | cut -d: -f2)
+    [ "$exit_code" -eq 0 ]
     [ ! -d "$TEST_WORKSPACES_DIR/vacio" ]
 }
 
 @test "ws-clean: busqueda parcial funciona" {
-    skip "Requiere que ws-clean use WORKSPACE_ROOT del entorno"
     mkdir -p "$TEST_WORKSPACES_DIR/NUBA-8400-feature"
 
-    # Buscar por "8400"
-    run bash -c "echo 's' | env WORKSPACE_ROOT='$TEST_WORKSPACE_ROOT' '$WS_TOOLS_ROOT/bin/ws-clean' '8400'"
-    [ "$status" -eq 0 ]
+    # Buscar por "8400" con confirmacion
+    result=$(
+        echo 's' | \
+        WORKSPACE_ROOT="$TEST_WORKSPACE_ROOT" \
+        WORKSPACES_DIR="$TEST_WORKSPACES_DIR" \
+        WS_TOOLS="$WS_TOOLS_ROOT" \
+        "$WS_TOOLS_ROOT/bin/ws-clean" '8400' 2>&1
+        echo "EXIT_CODE:$?"
+    )
+    local exit_code=$(echo "$result" | grep "EXIT_CODE:" | cut -d: -f2)
+    [ "$exit_code" -eq 0 ]
 }
 
 @test "ws-clean: advierte sobre cambios sin commitear" {
-    skip "Requiere que ws-clean use WORKSPACE_ROOT del entorno"
     mkdir -p "$TEST_WORKSPACES_DIR/con-cambios/mi-repo"
 
     # Crear repo con cambios
@@ -87,17 +99,19 @@ run_ws_clean() {
 }
 
 @test "ws-clean: elimina worktrees de git" {
-    skip "Requiere que ws-clean use WORKSPACE_ROOT del entorno"
     # Este test verifica que git worktree prune se ejecuta
     # Requiere setup mas complejo con repo principal
-    true
+    # Test simplificado: verificar que funciona con workspace sin repos
+    mkdir -p "$TEST_WORKSPACES_DIR/worktree-test"
+
+    run run_ws_clean "--force" "worktree-test"
+    [ "$status" -eq 0 ]
 }
 
 @test "ws-clean: opcion --force omite confirmacion" {
-    skip "Requiere que ws-clean use WORKSPACE_ROOT del entorno"
     mkdir -p "$TEST_WORKSPACES_DIR/force-test"
 
-    run env WORKSPACE_ROOT="$TEST_WORKSPACE_ROOT" "$WS_TOOLS_ROOT/bin/ws-clean" "force-test" "--force"
+    run run_ws_clean "--force" "force-test"
     [ "$status" -eq 0 ]
     [ ! -d "$TEST_WORKSPACES_DIR/force-test" ]
 }
