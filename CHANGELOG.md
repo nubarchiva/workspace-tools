@@ -17,6 +17,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - `git_get_base_branch()` - Encuentra branch base (origin/develop, etc.)
   - `git_repo_status()` - Estado completo en formato parseable
   - Refactorizados para usar el módulo: ws-list, ws-switch, ws-clean, ws-remove
+- **`ws sync`** - Sincroniza todos los repos con el remoto
+  - `ws sync` - Pull en todos los repos del workspace actual
+  - `ws sync --fetch` - Solo fetch (no merge)
+  - `ws sync --rebase` - Pull con rebase
+  - Auto-detección de workspace desde directorio actual
+  - Salta repos con cambios sin commitear (no pierde trabajo)
 - **CI con GitHub Actions** (`.github/workflows/ci.yml`)
   - Tests automatizados en Ubuntu y macOS
   - Análisis estático con ShellCheck

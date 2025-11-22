@@ -92,6 +92,11 @@ OPERACIONES MULTI-REPO:
       Ejecuta Git en todos los repos del workspace
       Ejemplo: ws git feature-123 status
 
+  sync [workspace] [--fetch|-f] [--rebase|-r]
+      Sincroniza todos los repos con el remoto (git pull)
+      Opciones: --fetch (solo fetch), --rebase (pull con rebase)
+      Ejemplo: ws sync feature-123
+
 CARACTERÍSTICAS:
 
   • Búsqueda parcial: usa parte del nombre (ej: ws cd fea)
@@ -127,7 +132,7 @@ fi
 # Función para expandir abreviaturas
 expand_abbreviation() {
     local abbrev=$1
-    local commands="new add remove switch list clean mvn git status rename info help"
+    local commands="new add remove switch list clean mvn git sync status rename info help"
 
     # Aliases predefinidos
     case $abbrev in
@@ -172,7 +177,7 @@ fi
 
 # Mapear subcomandos a scripts
 case $SUBCOMMAND in
-    new|add|remove|switch|list|clean|mvn|git|status|rename|info)
+    new|add|remove|switch|list|clean|mvn|git|sync|status|rename|info)
         SCRIPT_NAME="ws-$SUBCOMMAND"
         SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_NAME"
 

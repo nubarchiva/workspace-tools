@@ -365,6 +365,12 @@ ws mvn <nombre> test
 ws git <nombre> status
 ws git <nombre> pull --all
 ws git <nombre> log --oneline -5
+
+# Sincronizar repos con remoto
+ws sync <nombre>                       # pull en todos los repos
+ws sync <nombre> --rebase              # pull con rebase
+ws sync <nombre> --fetch               # solo fetch (no merge)
+ws sync                                # auto-detecta workspace actual
 ```
 
 ## Shortcuts
@@ -385,9 +391,11 @@ wmci               # detecta workspace actual
 ```bash
 wgt <nombre>       # git status en todos
 wgpa <nombre>      # git pull --all en todos
+wsync <nombre>     # sync (pull) en todos
 
 # Con auto-detección
 wgt                # detecta workspace actual
+wsync              # detecta workspace actual
 ```
 
 ### Navegación
@@ -700,7 +708,34 @@ ws status new-name
 # - Reconfigurar tracking de branches remotas
 ```
 
-## Ejemplo 8: Trabajar en Múltiples Features
+## Ejemplo 8: Sincronizar Workspace con Remoto
+
+**Contexto:** Actualizar todos los repos antes de empezar a trabajar
+
+```bash
+# 1. Sincronizar workspace actual (desde dentro del workspace)
+ws sync                           # pull en todos los repos
+
+# 2. Sincronizar workspace específico
+ws sync feature-123               # pull en todos los repos
+
+# 3. Solo fetch (ver cambios sin mergear)
+ws sync --fetch                   # fetch en todos
+ws sync -f feature-123            # equivalente
+
+# 4. Pull con rebase (mantiene historial lineal)
+ws sync --rebase                  # pull --rebase en todos
+ws sync -r feature-123            # equivalente
+
+# Comportamiento:
+# - ⏭️ Salta repos con cambios sin commitear (no pierde trabajo)
+# - ⏭️ Salta repos sin remoto configurado
+# - ✅/✓ Muestra éxito o "Ya actualizado"
+# - ❌ Muestra errores con detalle
+# - Resumen final: OK / saltados / errores
+```
+
+## Ejemplo 9: Trabajar en Múltiples Features
 
 **Contexto:** Varias features simultáneas
 
@@ -727,7 +762,7 @@ ws status ui-redesign
 ws status libs-update
 ```
 
-## Ejemplo 9: Claude Code Optimizado
+## Ejemplo 10: Claude Code Optimizado
 
 **Contexto:** Maximizar efectividad de IA
 

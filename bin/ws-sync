@@ -1,0 +1,171 @@
+#!/bin/bash
+# Sincroniza todos los repos de un workspace con el remoto (git pull)
+
+# Inicializacion centralizada
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
+
+# =============================================================================
+# Funciones
+# =============================================================================
+
+show_help() {
+    echo "Uso: ws sync [opciones] [nombre|patrón]"
+    echo ""
+    echo "Sincroniza todos los repos de un workspace con el remoto."
+    echo ""
+    echo "Opciones:"
+    echo "  --fetch, -f    Solo hacer fetch (no pull)"
+    echo "  --rebase, -r   Usar pull --rebase en vez de merge"
+    echo "  --help, -h     Mostrar esta ayuda"
+    echo ""
+    echo "💡 Si no especificas workspace, se auto-detecta desde el directorio actual"
+    echo ""
+    echo "Ejemplos:"
+    echo "  ws sync                    # Sync del workspace actual"
+    echo "  ws sync nuba-8400          # Sync de workspace específico"
+    echo "  ws sync --rebase           # Pull con rebase"
+    echo "  ws sync -f                 # Solo fetch"
+    echo ""
+    echo "Alias:"
+    echo "  wsync                      # Shortcut para ws sync"
+}
+
+# =============================================================================
+# Variables y argumentos
+# =============================================================================
+
+WORKSPACE_PATTERN=""
+SYNC_OPTIONS=""
+FETCH_ONLY=false
+
+# Parsear argumentos
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --fetch|-f)
+            FETCH_ONLY=true
+            shift
+            ;;
+        --rebase|-r)
+            SYNC_OPTIONS="--rebase"
+            shift
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        *)
+            if [ -z "$WORKSPACE_PATTERN" ]; then
+                WORKSPACE_PATTERN="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+# =============================================================================
+# Funciones de workspace
+# =============================================================================
+
+detect_workspace() {
+    # Si hay patrón, buscar workspace
+    if [ -n "$WORKSPACE_PATTERN" ]; then
+        WORKSPACE_NAME=$(find_matching_workspace "$WORKSPACE_PATTERN" "$WORKSPACES_DIR")
+        if [ $? -ne 0 ]; then
+            exit 1
+        fi
+    else
+        # Auto-detectar
+        WORKSPACE_NAME=$(detect_current_workspace)
+        if [ -z "$WORKSPACE_NAME" ]; then
+            error "❌ No se especificó workspace y no se pudo detectar automáticamente"
+            echo ""
+            info "💡 Ejecuta desde dentro de un workspace o especifica el nombre:"
+            echo "   ws sync <workspace>"
+            exit 1
+        fi
+        info "🔍 Workspace detectado: $WORKSPACE_NAME"
+    fi
+
+    WORKSPACE_DIR="$WORKSPACES_DIR/$WORKSPACE_NAME"
+    if [ ! -d "$WORKSPACE_DIR" ]; then
+        die "Workspace no existe: $WORKSPACE_NAME"
+    fi
+}
+
+sync_repos() {
+    local repos
+    repos=$(find_repos_in_workspace "$WORKSPACE_DIR")
+
+    if [ -z "$repos" ]; then
+        die "No hay repos en este workspace"
+    fi
+
+    local action="pull"
+    [ "$FETCH_ONLY" = true ] && action="fetch"
+
+    print_header "Sincronizando workspace: $WORKSPACE_NAME"
+    echo ""
+    echo "Acción:    ${COLOR_BOLD}git $action $SYNC_OPTIONS${COLOR_RESET}"
+    echo "Workspace: ${COLOR_CYAN}$WORKSPACE_NAME${COLOR_RESET}"
+    echo ""
+
+    local success_count=0
+    local error_count=0
+    local skip_count=0
+
+    echo "$repos" | while IFS= read -r repo_rel_path; do
+        [ -z "$repo_rel_path" ] && continue
+
+        local repo_path="$WORKSPACE_DIR/$repo_rel_path"
+        echo -n "📦 ${COLOR_CYAN}$repo_rel_path${COLOR_RESET}: "
+
+        # Verificar si tiene cambios sin commitear
+        if git_has_uncommitted_changes "$repo_path"; then
+            echo "${COLOR_YELLOW}⏭️  Saltado (cambios sin commitear)${COLOR_RESET}"
+            ((skip_count++))
+            continue
+        fi
+
+        # Verificar si tiene remoto configurado
+        if ! (cd "$repo_path" && git remote get-url origin >/dev/null 2>&1); then
+            echo "${COLOR_DIM}⏭️  Sin remoto${COLOR_RESET}"
+            ((skip_count++))
+            continue
+        fi
+
+        # Ejecutar fetch o pull
+        local output
+        if [ "$FETCH_ONLY" = true ]; then
+            output=$(cd "$repo_path" && git fetch --all 2>&1)
+        else
+            output=$(cd "$repo_path" && git pull $SYNC_OPTIONS 2>&1)
+        fi
+
+        if [ $? -eq 0 ]; then
+            if echo "$output" | grep -q "Already up to date\|Ya está actualizado"; then
+                echo "${COLOR_DIM}✓ Ya actualizado${COLOR_RESET}"
+            else
+                echo "${COLOR_GREEN}✅ Actualizado${COLOR_RESET}"
+            fi
+            ((success_count++))
+        else
+            echo "${COLOR_RED}❌ Error${COLOR_RESET}"
+            echo "   ${COLOR_DIM}$output${COLOR_RESET}"
+            ((error_count++))
+        fi
+    done
+
+    echo ""
+    echo "${COLOR_DIM}═══════════════════════════════════════════════════${COLOR_RESET}"
+    echo "Resumen: ${COLOR_GREEN}$success_count OK${COLOR_RESET}"
+    [ $skip_count -gt 0 ] && echo "         ${COLOR_YELLOW}$skip_count saltados${COLOR_RESET}"
+    [ $error_count -gt 0 ] && echo "         ${COLOR_RED}$error_count errores${COLOR_RESET}"
+    echo "${COLOR_DIM}═══════════════════════════════════════════════════${COLOR_RESET}"
+}
+
+# =============================================================================
+# Main
+# =============================================================================
+
+detect_workspace
+sync_repos
