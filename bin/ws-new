@@ -37,6 +37,11 @@ if [ -z "$WORKSPACE_NAME" ]; then
     exit 1
 fi
 
+# Validar nombre del workspace
+if ! validate_workspace_name "$WORKSPACE_NAME"; then
+    exit 1
+fi
+
 # Determinar directorio y branch
 WORKSPACE_DIR=$WORKSPACES_DIR/$WORKSPACE_NAME
 BRANCH_NAME=$(get_branch_name "$WORKSPACE_NAME")

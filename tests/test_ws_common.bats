@@ -13,6 +13,74 @@ teardown() {
 }
 
 # =============================================================================
+# Tests para validate_workspace_name()
+# =============================================================================
+
+@test "validate_workspace_name: nombre valido retorna 0" {
+    run validate_workspace_name "mi-workspace"
+    [ "$status" -eq 0 ]
+}
+
+@test "validate_workspace_name: nombre vacio retorna 1" {
+    run validate_workspace_name ""
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"vacío"* ]]
+}
+
+@test "validate_workspace_name: nombre con espacios retorna 1" {
+    run validate_workspace_name "mi workspace"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"espacios"* ]]
+}
+
+@test "validate_workspace_name: nombre muy largo retorna 1" {
+    local long_name=$(printf 'a%.0s' {1..70})
+    run validate_workspace_name "$long_name"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"largo"* ]]
+}
+
+@test "validate_workspace_name: nombre con slash retorna 1" {
+    run validate_workspace_name "mi/workspace"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"no permitidos"* ]]
+}
+
+@test "validate_workspace_name: nombre que empieza con punto retorna 1" {
+    run validate_workspace_name ".hidden"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"punto"* ]]
+}
+
+@test "validate_workspace_name: nombre que empieza con guion retorna 1" {
+    run validate_workspace_name "-invalid"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"guión"* ]]
+}
+
+@test "validate_workspace_name: nombre reservado workspaces retorna 1" {
+    run validate_workspace_name "workspaces"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"reservado"* ]]
+}
+
+@test "validate_workspace_name: nombre reservado repos retorna 1" {
+    run validate_workspace_name "repos"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"reservado"* ]]
+}
+
+@test "validate_workspace_name: master es valido" {
+    run validate_workspace_name "master"
+    [ "$status" -eq 0 ]
+}
+
+@test "validate_workspace_name: develop es valido" {
+    run validate_workspace_name "develop"
+    [ "$status" -eq 0 ]
+}
+
+# =============================================================================
 # Tests para get_branch_name()
 # =============================================================================
 

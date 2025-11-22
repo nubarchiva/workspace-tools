@@ -1,6 +1,51 @@
 #!/bin/bash
 # Funciones compartidas para workspace-tools
 
+# Valida que un nombre de workspace sea válido
+# Uso: validate_workspace_name <nombre>
+# Retorna: 0 si es válido, 1 si no (con mensaje de error)
+validate_workspace_name() {
+    local name="$1"
+
+    # Vacío
+    if [[ -z "$name" ]]; then
+        error "El nombre del workspace no puede estar vacío"
+        return 1
+    fi
+
+    # Muy largo (límite razonable para paths)
+    if [[ ${#name} -gt 64 ]]; then
+        error "El nombre del workspace es demasiado largo (máx 64 caracteres)"
+        return 1
+    fi
+
+    # Espacios
+    if [[ "$name" =~ [[:space:]] ]]; then
+        error "El nombre del workspace no puede contener espacios"
+        return 1
+    fi
+
+    # Caracteres no permitidos en sistemas de archivos
+    if [[ "$name" =~ [/\\:\*\?\"\'\<\>\|] ]]; then
+        error "El nombre contiene caracteres no permitidos: / \\ : * ? \" ' < > |"
+        return 1
+    fi
+
+    # No empezar con punto o guión
+    if [[ "$name" =~ ^[.-] ]]; then
+        error "El nombre no puede empezar con punto o guión"
+        return 1
+    fi
+
+    # Nombres reservados
+    if [[ "$name" == "workspaces" || "$name" == "repos" || "$name" == "tools" ]]; then
+        error "'$name' es un nombre reservado"
+        return 1
+    fi
+
+    return 0
+}
+
 # Función para encontrar workspaces que coincidan con un patrón (búsqueda parcial)
 # Uso: find_matching_workspace <patron> <workspaces_dir>
 # Retorna: nombre exacto del workspace encontrado
