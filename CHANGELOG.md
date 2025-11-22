@@ -16,6 +16,33 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ### Corregido
 - **ws-rename**: Salto de línea en mensaje de confirmación final
 
+## [4.0.0] - 2025-11-25
+
+### Añadido
+- **Infraestructura de tests** con BATS (Bash Automated Testing System)
+  - 67 tests cubriendo: ws-new, ws-add, ws-list, ws-clean, ws-common
+  - Tests automatizados ejecutables con `./tests/run_tests.sh`
+  - Test helpers reutilizables en `tests/test_helper.bash`
+- **Archivo de configuración `~/.wsrc`**
+  - Permite configurar `WORKSPACE_ROOT`, `WORKSPACES_DIR`, `WS_DEBUG`
+  - Ejemplo en `config/wsrc.example`
+  - Prioridad: env vars > .wsrc > derivada de WS_TOOLS > fallback
+- Documentación de configuración en USER_GUIDE.md
+
+### Cambiado
+- **Refactoring mayor: inicialización centralizada**
+  - Nuevo módulo `bin/ws-init.sh` centraliza toda la lógica de inicialización
+  - Todos los scripts migrados para usar `source ws-init.sh`
+  - Elimina ~15-20 líneas de boilerplate duplicado en cada script
+  - Código más limpio y mantenible
+- **`detect_current_workspace()`** ahora respeta `WORKSPACES_DIR` del entorno
+  - Permite testing aislado de la función
+  - Prioridad: WORKSPACES_DIR > WORKSPACE_ROOT > WS_TOOLS > fallback
+
+### Corregido
+- **ws-add**: `WORKSPACES_DIR` se usaba antes de definirse (bug silencioso)
+- **Tests**: Normalización de paths para evitar doble slash con TMPDIR
+
 ## [3.2.0] - 2025-11-20
 
 ### Añadido
