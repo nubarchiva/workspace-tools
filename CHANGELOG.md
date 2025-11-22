@@ -8,13 +8,26 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **CI con GitHub Actions** (`.github/workflows/ci.yml`)
+  - Tests automatizados en Ubuntu y macOS
+  - Análisis estático con ShellCheck
+  - Ejecutado en push y pull requests a main/master/develop
 - **`ws rename <actual> <nuevo>`** (alias: `ws mv`) - Renombra workspaces de forma segura
   - Verificaciones: bloquea si hay cambios sin commitear, advierte sobre commits sin pushear y branches remotas
   - Actualiza automáticamente worktrees (`git worktree repair`) y branches locales
   - Confirmación explícita escribiendo "RENOMBRAR" con resumen completo de cambios
 
+### Cambiado
+- **Manejo de errores estandarizado**: Uso consistente de `die()` para errores fatales
+  - Scripts refactorizados: ws-mvn, ws-git, ws-clean, ws-remove, ws-rename
+  - Simplifica el código: `die "mensaje"` en vez de `error "❌ mensaje"; exit 1`
+
 ### Corregido
 - **ws-rename**: Salto de línea en mensaje de confirmación final
+- **Quoting de variables**: Todas las asignaciones de paths ahora usan comillas dobles
+  - `WORKSPACE_DIR="$WORKSPACES_DIR/$WORKSPACE_NAME"` (antes sin comillas)
+  - Afecta: ws-new, ws-add, ws-switch, ws-mvn, ws-git, ws-clean, ws-remove, ws-repo-path
+  - Previene problemas con nombres de directorios que contengan espacios
 
 ## [4.0.0] - 2025-11-25
 

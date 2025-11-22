@@ -57,12 +57,11 @@ if [ $? -ne 0 ]; then
 fi
 
 # Determinar directorio del workspace
-WORKSPACE_DIR=$WORKSPACES_DIR/$WORKSPACE_NAME
-BRANCH_NAME=$(get_branch_name "$WORKSPACE_NAME")
+WORKSPACE_DIR="$WORKSPACES_DIR/$WORKSPACE_NAME"
+BRANCH_NAME="$(get_branch_name "$WORKSPACE_NAME")"
 
 if [ ! -d "$WORKSPACE_DIR" ]; then
-    error "❌ Workspace no existe: $WORKSPACE_NAME"
-    exit 1
+    die "Workspace no existe: $WORKSPACE_NAME"
 fi
 
 # Mostrar qué se va a eliminar

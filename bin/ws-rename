@@ -58,8 +58,7 @@ fi
 # Verificar que el nuevo nombre no existe
 NEW_DIR="$WORKSPACES_DIR/$NEW_NAME"
 if [ -d "$NEW_DIR" ]; then
-    error "❌ Error: workspace '$NEW_NAME' ya existe"
-    exit 1
+    die "Error: workspace '$NEW_NAME' ya existe"
 fi
 
 # Encontrar repos en el workspace
@@ -374,10 +373,8 @@ echo ""
 
 # 1. Renombrar directorio
 echo "1️⃣  Renombrando directorio..."
-mv "$OLD_DIR" "$NEW_DIR"
-if [ $? -ne 0 ]; then
-    error "❌ Error al renombrar directorio"
-    exit 1
+if ! mv "$OLD_DIR" "$NEW_DIR"; then
+    die "Error al renombrar directorio"
 fi
 success "   ✅ Directorio renombrado"
 

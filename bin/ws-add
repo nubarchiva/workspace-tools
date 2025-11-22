@@ -88,8 +88,8 @@ if [ $? -ne 0 ]; then
 fi
 
 # Determinar directorio y branch del workspace
-WORKSPACE_DIR=$WORKSPACES_DIR/$WORKSPACE_NAME
-BRANCH_NAME=$(get_branch_name "$WORKSPACE_NAME")
+WORKSPACE_DIR="$WORKSPACES_DIR/$WORKSPACE_NAME"
+BRANCH_NAME="$(get_branch_name "$WORKSPACE_NAME")"
 
 if [ ! -d "$WORKSPACE_DIR" ]; then
     error "❌ Workspace no existe: $WORKSPACE_NAME"
@@ -100,8 +100,8 @@ fi
 # Procesar cada repo
 for REPO in "${REPOS[@]}"; do
     # El repo puede estar en subdirectorio (ej: libs/marc4j, tools/workspace-tools)
-    REPO_PATH=$WORKSPACE_ROOT/$REPO
-    WORKTREE_PATH=$WORKSPACE_DIR/$REPO
+    REPO_PATH="$WORKSPACE_ROOT/$REPO"
+    WORKTREE_PATH="$WORKSPACE_DIR/$REPO"
 
     if [ ! -d "$REPO_PATH/.git" ]; then
         warning "⚠️  Repo no encontrado: $REPO_PATH (saltando)"
