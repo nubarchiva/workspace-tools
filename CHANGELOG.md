@@ -48,6 +48,13 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Opciones: -w (palabra completa), -E (regex extendida), --type <ext>
   - Auto-detección de workspace desde directorio actual
   - Shortcut: `wgrep`
+- **Homebrew formula** para instalación en macOS
+  - `brew install --build-from-source ./Formula/workspace-tools.rb`
+  - Instala scripts, completions y documentación
+  - Configura automáticamente bash/zsh completions
+- **`ws --version`** - Muestra versión actual
+  - Archivo VERSION en raíz del proyecto
+  - Soporta: `ws --version`, `ws -v`, `ws version`
 - **CI con GitHub Actions** (`.github/workflows/ci.yml`)
   - Tests automatizados en Ubuntu y macOS
   - Análisis estático con ShellCheck

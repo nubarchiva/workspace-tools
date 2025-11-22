@@ -219,7 +219,17 @@ case $SUBCOMMAND in
         show_help
         exit 0
         ;;
-    
+
+    version|--version|-v|-V)
+        VERSION_FILE="$SCRIPT_DIR/../VERSION"
+        if [ -f "$VERSION_FILE" ]; then
+            echo "workspace-tools $(cat "$VERSION_FILE" | tr -d '\n')"
+        else
+            echo "workspace-tools (versión desconocida)"
+        fi
+        exit 0
+        ;;
+
     *)
         echo "❌ Comando desconocido: $SUBCOMMAND"
         echo ""
