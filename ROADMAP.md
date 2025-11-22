@@ -24,206 +24,89 @@ Este documento describe las mejoras planificadas para Workspace Tools, priorizad
 
 ---
 
-## 🔥 Alto impacto / Alta prioridad
-
-### 1. Sincronización de repos (ws sync)
-**Prioridad:** Alta
-**Esfuerzo:** Bajo
-**Estado:** Propuesto
-
-Ejecuta `git pull` en todos los repos de un workspace simultáneamente, asegurando que todos estén actualizados.
-
-**Beneficios:**
-- Operación muy frecuente (inicio del día, cambio de contexto)
-- Ahorra tiempo vs hacer pull repo por repo
-- Evita trabajar con código desactualizado
-
-**Uso propuesto:**
-```bash
-ws sync feature-123           # pull en todos los repos
-ws sync feature-123 --ff      # pull solo si es fast-forward (más seguro)
-ws sync                       # con detección automática
-```
-
-**Implementación:**
-- Similar a `ws git` pero específico para pull
-- Opción `--ff` para abortar si no es fast-forward
-- Mostrar resumen de cambios por repo
+### Infraestructura de tests
+✅ **v4.0** - Tests automatizados con BATS (Bash Automated Testing System). 78+ tests cubriendo ws-new, ws-add, ws-list, ws-clean, ws-common. Módulo centralizado `ws-init.sh` para inicialización. Archivo de configuración `~/.wsrc`.
 
 ---
 
-### 2. Gestión coordinada de stash (ws stash)
-**Prioridad:** Alta
-**Esfuerzo:** Medio
-**Estado:** Propuesto
-
-Permite hacer stash/pop de cambios en todos los repos del workspace simultáneamente, facilitando el cambio rápido entre workspaces.
-
-**Beneficios:**
-- Fundamental para context switching efectivo
-- Mantiene trabajo sin commitear entre cambios de workspace
-- Evita perder cambios o commitear código incompleto
-
-**Uso propuesto:**
-```bash
-ws stash feature-123          # stash en todos los repos
-ws stash pop feature-123      # pop en todos los repos
-ws stash list feature-123     # lista stashes de todos los repos
-ws stash clear feature-123    # limpia todos los stashes
-```
-
-**Implementación:**
-- Ejecutar git stash en cada repo
-- Trackear qué repos tienen stash activo
-- Opción para hacer stash selectivo (solo repos con cambios)
+### ws sync - Sincronización de repos
+✅ **v4.1** - Ejecuta `git pull` en todos los repos del workspace simultáneamente.
+- `ws sync` - Pull en todos los repos (auto-detección)
+- `ws sync --fetch` - Solo fetch (no merge)
+- `ws sync --rebase` - Pull con rebase
+- Salta repos con cambios sin commitear (no pierde trabajo)
+- Shortcut: `wsync`
 
 ---
 
-### 3. Estado del workspace actual (ws status / ws .)
-**Prioridad:** Media-Alta
-**Esfuerzo:** Bajo
-**Estado:** Propuesto
-
-Muestra información del workspace donde estás sin necesidad de especificar el nombre.
-
-**Beneficios:**
-- Consulta rápida de estado
-- No necesitas recordar el nombre exacto del workspace
-- Vista consolidada de todos los repos
-
-**Uso propuesto:**
-```bash
-ws .              # o 'ws here' o 'ws status'
-```
-
-**Implementación:**
-- Usar detección automática existente
-- Mostrar mismo output que `ws switch <workspace>`
-- Alias simple que llama a ws-switch con auto-detección
+### ws stash - Gestión coordinada de stash
+✅ **v4.1** - Permite hacer stash/pop de cambios en todos los repos del workspace simultáneamente.
+- `ws stash` / `ws stash push "mensaje"` - Stash en repos con cambios
+- `ws stash pop` - Pop del stash más reciente
+- `ws stash list` - Lista stashes de todos los repos
+- `ws stash clear` - Elimina todos los stashes (con confirmación)
+- `ws stash show [n]` - Muestra contenido del stash
+- Shortcut: `wstash`
 
 ---
 
-## 🎯 Medio impacto / Prioridad media
+### ws templates - Templates de workspace
+✅ **v4.1** - Define conjuntos predefinidos de repos para tipos comunes de workspace.
+- `ws templates` / `ws tpl` - Lista templates disponibles
+- `ws templates add <nombre> <repos...>` - Crea template
+- `ws templates show <nombre>` - Muestra repos de un template
+- `ws templates remove <nombre>` - Elimina template
+- `ws new <nombre> --template <tpl>` - Crea workspace desde template
+- Archivo de configuración: `$WORKSPACE_ROOT/.ws-templates`
 
-### 4. Comparación entre workspaces (ws diff)
-**Prioridad:** Media
-**Esfuerzo:** Medio
-**Estado:** Propuesto
+---
 
+### ws grep - Búsqueda multi-repo
+✅ **v4.1** - Busca texto o patrones en todos los repos del workspace simultáneamente.
+- `ws grep "patrón"` - Busca en todos los repos
+- `ws grep -i "todo" --type java` - Case-insensitive, solo archivos .java
+- Opciones: -i, -l, -n, -w, -E, --type
+- Shortcut: `wgrep`
+
+---
+
+### Distribución
+✅ **v4.1** - Herramientas de distribución e instalación.
+- Homebrew formula (`brew install --build-from-source ./Formula/workspace-tools.rb`)
+- `ws --version` / `ws -v` - Muestra versión actual
+- Script de desinstalación interactivo (`uninstall.sh`)
+- CI con GitHub Actions (tests + ShellCheck)
+
+---
+
+## 💡 Ideas para el futuro
+
+Las siguientes funcionalidades están documentadas pero no priorizadas. Se implementarán solo si hay necesidad real:
+
+### ws diff - Comparación entre workspaces
 Compara los commits entre dos workspaces mostrando qué cambios tiene cada uno.
 
-**Beneficios:**
-- Útil para ver divergencias entre features
-- Ayuda a planificar merges
-- Identifica trabajo duplicado
-
-**Uso propuesto:**
 ```bash
 ws diff feature-123 feature-456
 ws diff feature-123 develop      # comparar con develop
 ```
 
-**Implementación:**
-- Comparar commits por repo usando `git log branch1..branch2`
-- Mostrar solo repos con diferencias
-- Opción --summary para vista condensada
-
 ---
 
-### 5. Templates de workspace
-**Prioridad:** Media
-**Esfuerzo:** Medio
-**Estado:** Propuesto
+### ws cleanup - Limpieza automática de workspaces
+Identifica y elimina workspaces viejos o ya mergeados.
 
-Define conjuntos predefinidos de repos para tipos comunes de workspace, acelerando la creación.
-
-**Beneficios:**
-- Acelera creación de workspaces nuevos
-- Estandariza qué repos se usan para cada tipo de tarea
-- Reduce errores al olvidar repos necesarios
-
-**Uso propuesto:**
-```bash
-ws templates                      # lista templates disponibles
-ws templates add frontend "ks-nuba libs/ui modules/portal"
-ws new feature-123 --template frontend
-```
-
-**Implementación:**
-- Archivo de configuración `.ws-templates`
-- Formato simple: `nombre: repo1 repo2 repo3`
-- Merge con repos especificados manualmente
-
----
-
-### 6. Búsqueda multi-repo (ws grep)
-**Prioridad:** Media
-**Esfuerzo:** Bajo
-**Estado:** Propuesto
-
-Busca texto o patrones en todos los repos del workspace simultáneamente.
-
-**Beneficios:**
-- Útil para refactoring cross-repo
-- Encuentra todas las referencias a una clase/método
-- Más rápido que buscar repo por repo
-
-**Uso propuesto:**
-```bash
-ws grep feature-123 "SearchTerm"
-ws grep feature-123 "class Foo" --java
-ws grep "TODO" --author matute
-```
-
-**Implementación:**
-- Wrapper sobre `git grep` en cada repo
-- Soporte para filtros por tipo de archivo
-- Output agregado con contexto de repo
-
----
-
-### 7. Limpieza automática de workspaces (ws cleanup)
-**Prioridad:** Media
-**Esfuerzo:** Medio
-**Estado:** Propuesto
-
-Identifica y elimina workspaces viejos o ya mergeados, manteniendo el espacio limpio.
-
-**Beneficios:**
-- Mantiene organización del espacio de trabajo
-- Libera espacio en disco
-- Evita confusión con workspaces obsoletos
-
-**Uso propuesto:**
 ```bash
 ws cleanup --merged              # elimina workspaces mergeados
 ws cleanup --older-than 30d      # elimina antiguos
 ws cleanup --dry-run             # muestra qué se eliminaría
 ```
 
-**Implementación:**
-- Detectar branches mergeadas en develop/master
-- Verificar fecha de último commit
-- Confirmación interactiva antes de eliminar
-- Opción --force para automatización
-
 ---
 
-## 💡 Bajo impacto / Futuro
-
-### 8. Hooks personalizados
-**Prioridad:** Baja
-**Esfuerzo:** Medio
-**Estado:** Idea
-
+### Hooks personalizados
 Permite ejecutar scripts custom en eventos específicos (pre-push, pre-switch, post-new, etc.).
 
-**Beneficios:**
-- Automatización de tareas repetitivas
-- Validaciones custom antes de operaciones
-- Integración con herramientas externas
-
-**Uso propuesto:**
 ```bash
 # En .ws-hooks/pre-push
 #!/bin/bash
@@ -232,71 +115,13 @@ Permite ejecutar scripts custom en eventos específicos (pre-push, pre-switch, p
 
 ---
 
-### 9. Tracking de sincronización
-**Prioridad:** Baja
-**Esfuerzo:** Bajo
-**Estado:** Idea
-
-Muestra cuándo fue el último pull de cada repo y avisa si el remoto tiene cambios nuevos.
-
-**Beneficios:**
-- Evita trabajar con código desactualizado
-- Identificar repos que necesitan actualización
-
-**Implementación:**
-- Trackear timestamp de último pull en metadata
-- Comparar con remote refs sin hacer fetch completo
-- Advertencia visual en `ws list` si hay cambios remotos
-
----
-
-### 10. Aliases personalizados por workspace
-**Prioridad:** Baja
-**Esfuerzo:** Bajo
-**Estado:** Idea
-
-Permite definir comandos personalizados específicos para cada workspace.
-
-**Beneficios:**
-- Shortcuts para operaciones específicas del proyecto
-- Documentación ejecutable de comandos comunes
-
-**Uso propuesto:**
-```bash
-# En workspace/.ws-config
-aliases:
-  test: "mvn test -Dgroups=integration"
-  deploy-dev: "mvn deploy -Pdev"
-
-# Ejecutar
-ws run test
-ws run deploy-dev
-```
-
----
-
-### 11. Integración con Jira
-**Prioridad:** Baja
-**Esfuerzo:** Alto
-**Estado:** Idea
-
+### Integración con Jira
 Integración con Jira para crear workspaces desde tickets y actualizar estado automáticamente.
 
-**Beneficios:**
-- Workflow integrado entre Jira y código
-- Actualización automática de estado de tickets
-- Prefijos de commit automáticos
-
-**Uso propuesto:**
 ```bash
 ws new NUBA-8123                    # crea workspace y linkea con Jira
 ws commit "fix: bug" --update-jira  # actualiza Jira automáticamente
 ```
-
-**Requisitos:**
-- Configuración de credenciales Jira
-- API de Jira
-- Mapeo de estados workspace -> Jira
 
 ---
 
@@ -321,5 +146,5 @@ Las propuestas de mejora son bienvenidas. Para sugerir una nueva funcionalidad:
 
 ---
 
-**Última actualización:** 19 de noviembre de 2025
-**Versión:** 3.1
+**Última actualización:** 25 de noviembre de 2025
+**Versión:** 4.1
