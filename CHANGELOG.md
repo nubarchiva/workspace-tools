@@ -27,6 +27,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Confirmación explícita escribiendo "RENOMBRAR" con resumen completo de cambios
 
 ### Cambiado
+- **ws-rename refactorizado** para mejorar mantenibilidad
+  - Dividido en funciones pequeñas con responsabilidad única
+  - Usa `git_repo_status()` del módulo ws-git-utils.sh
+  - Eliminado código duplicado (loop de verificación estaba duplicado)
+  - Reducido de 466 a 438 líneas manteniendo toda la funcionalidad
+  - Estructura clara: validación → verificación → resumen → ejecución
 - **Manejo de errores estandarizado**: Uso consistente de `die()` para errores fatales
   - Scripts refactorizados: ws-mvn, ws-git, ws-clean, ws-remove, ws-rename
   - Simplifica el código: `die "mensaje"` en vez de `error "❌ mensaje"; exit 1`
