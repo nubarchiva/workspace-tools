@@ -1,25 +1,10 @@
 #!/bin/bash
 # Renombra un workspace (directorio + branches + worktrees)
 
-# Detectar WORKSPACE_ROOT desde WS_TOOLS o por defecto
-if [ -n "$WS_TOOLS" ]; then
-    WORKSPACE_ROOT="${WS_TOOLS%/tools/workspace-tools}"
-else
-    WORKSPACE_ROOT=~/wrkspc.nubarchiva
-fi
-WORKSPACES_DIR=$WORKSPACE_ROOT/workspaces
+# Inicializacion centralizada
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
+
 REPOS_DIR=$WORKSPACE_ROOT/repos
-
-# Detectar directorio del script (compatible bash/zsh)
-if [ -n "$BASH_SOURCE" ]; then
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-else
-    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-fi
-
-# Cargar funciones compartidas
-source "$SCRIPT_DIR/ws-common.sh"
-source "$SCRIPT_DIR/ws-colors.sh"
 
 OLD_NAME=$1
 NEW_NAME=$2

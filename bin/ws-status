@@ -1,16 +1,8 @@
 #!/bin/bash
 # Muestra el estado del workspace actual o especificado
 
-# Detectar directorio del script (compatible bash/zsh)
-if [ -n "$BASH_SOURCE" ]; then
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-else
-    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-fi
-
-# Cargar funciones compartidas
-source "$SCRIPT_DIR/ws-common.sh"
-source "$SCRIPT_DIR/ws-colors.sh"
+# Inicializacion centralizada
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
 
 # Determinar workspace: si hay argumento usarlo, sino auto-detectar
 WORKSPACE_PATTERN=""
