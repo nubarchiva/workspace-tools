@@ -386,6 +386,14 @@ ws templates add frontend ks-nuba libs/ui   # crear template
 ws templates show frontend             # ver repos de un template
 ws templates remove frontend           # eliminar template
 ws tpl                                 # alias para templates
+
+# Búsqueda multi-repo
+ws grep "patrón"                       # busca en todos los repos
+ws grep -i "todo"                      # case-insensitive
+ws grep --type java "class Foo"        # solo archivos .java
+ws grep -l "deprecated"                # solo nombres de archivo
+ws grep -E "search.*method"            # regex extendida
+wgrep "pattern"                        # shortcut
 ```
 
 ## Shortcuts
@@ -408,11 +416,13 @@ wgt <nombre>       # git status en todos
 wgpa <nombre>      # git pull --all en todos
 wsync <nombre>     # sync (pull) en todos
 wstash             # stash en todos los repos
+wgrep "patrón"     # busca en todos los repos
 
 # Con auto-detección
 wgt                # detecta workspace actual
 wsync              # detecta workspace actual
 wstash             # detecta workspace actual
+wgrep              # detecta workspace actual
 ```
 
 ### Navegación

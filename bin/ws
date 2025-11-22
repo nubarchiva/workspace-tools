@@ -102,6 +102,13 @@ OPERACIONES MULTI-REPO:
       Acciones: push (default), pop, list, clear, show
       Ejemplo: ws stash push "WIP: feature"
 
+  grep <patrón> [workspace] [opciones]
+      Busca texto o patrones en todos los repos
+      Opciones: -i (case-insensitive), -l (solo archivos), --type <ext>
+      Ejemplos:
+        ws grep "SearchTerm"
+        ws grep -i "todo" --type java
+
   templates [acción] [args]
       Gestiona templates predefinidos de repos
       Acciones: list (default), show, add, remove
@@ -145,7 +152,7 @@ fi
 # Función para expandir abreviaturas
 expand_abbreviation() {
     local abbrev=$1
-    local commands="new add remove switch list clean mvn git sync stash templates status rename info help"
+    local commands="new add remove switch list clean mvn git sync stash grep templates status rename info help"
 
     # Aliases predefinidos
     case $abbrev in
@@ -191,7 +198,7 @@ fi
 
 # Mapear subcomandos a scripts
 case $SUBCOMMAND in
-    new|add|remove|switch|list|clean|mvn|git|sync|stash|templates|status|rename|info)
+    new|add|remove|switch|list|clean|mvn|git|sync|stash|grep|templates|status|rename|info)
         SCRIPT_NAME="ws-$SUBCOMMAND"
         SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_NAME"
 

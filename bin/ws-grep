@@ -1,0 +1,215 @@
+#!/bin/bash
+# Busca texto o patrones en todos los repos de un workspace
+
+# Inicializacion centralizada
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
+
+# =============================================================================
+# Funciones
+# =============================================================================
+
+show_help() {
+    echo "Uso: ws grep [opciones] <patrón> [workspace]"
+    echo ""
+    echo "Busca texto o patrones en todos los repos de un workspace."
+    echo ""
+    echo "Opciones:"
+    echo "  -i, --ignore-case    Búsqueda case-insensitive"
+    echo "  -l, --files-only     Solo mostrar nombres de archivo"
+    echo "  -n, --line-number    Mostrar números de línea"
+    echo "  -c, --count          Solo contar coincidencias por archivo"
+    echo "  -w, --word-regexp    Buscar palabras completas"
+    echo "  -E, --extended       Usar expresiones regulares extendidas"
+    echo "  --type <ext>         Filtrar por extensión (java, xml, js, etc.)"
+    echo "  --help, -h           Mostrar esta ayuda"
+    echo ""
+    echo "💡 Si no especificas workspace, se auto-detecta desde el directorio actual"
+    echo ""
+    echo "Ejemplos:"
+    echo "  ws grep \"SearchTerm\"                   # Busca en workspace actual"
+    echo "  ws grep \"class Foo\" feature-123        # Busca en workspace específico"
+    echo "  ws grep -i \"todo\" --type java          # Case-insensitive, solo .java"
+    echo "  ws grep -l \"deprecated\"                # Solo nombres de archivo"
+    echo "  ws grep -E \"search.*method\"            # Regex extendida"
+    echo ""
+    echo "Alias:"
+    echo "  wgrep                                  # Shortcut para ws grep"
+}
+
+# =============================================================================
+# Variables y argumentos
+# =============================================================================
+
+PATTERN=""
+WORKSPACE_PATTERN=""
+GIT_GREP_OPTS=()
+FILE_TYPE=""
+
+# Parsear argumentos
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        -i|--ignore-case)
+            GIT_GREP_OPTS+=("-i")
+            shift
+            ;;
+        -l|--files-only)
+            GIT_GREP_OPTS+=("-l")
+            shift
+            ;;
+        -n|--line-number)
+            GIT_GREP_OPTS+=("-n")
+            shift
+            ;;
+        -c|--count)
+            GIT_GREP_OPTS+=("-c")
+            shift
+            ;;
+        -w|--word-regexp)
+            GIT_GREP_OPTS+=("-w")
+            shift
+            ;;
+        -E|--extended)
+            GIT_GREP_OPTS+=("-E")
+            shift
+            ;;
+        --type)
+            FILE_TYPE="$2"
+            shift 2
+            ;;
+        -*)
+            error "❌ Opción desconocida: $1"
+            show_help
+            exit 1
+            ;;
+        *)
+            if [ -z "$PATTERN" ]; then
+                PATTERN="$1"
+            elif [ -z "$WORKSPACE_PATTERN" ]; then
+                WORKSPACE_PATTERN="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Validar patrón
+if [ -z "$PATTERN" ]; then
+    error "❌ Debes especificar un patrón de búsqueda"
+    echo ""
+    show_help
+    exit 1
+fi
+
+# Configurar filtro de tipo de archivo
+if [ -n "$FILE_TYPE" ]; then
+    # Normalizar extensiones comunes
+    case "$FILE_TYPE" in
+        java) GIT_GREP_OPTS+=("--" "*.java") ;;
+        xml) GIT_GREP_OPTS+=("--" "*.xml") ;;
+        js) GIT_GREP_OPTS+=("--" "*.js" "*.jsx") ;;
+        ts) GIT_GREP_OPTS+=("--" "*.ts" "*.tsx") ;;
+        py) GIT_GREP_OPTS+=("--" "*.py") ;;
+        sh|bash) GIT_GREP_OPTS+=("--" "*.sh" "*.bash") ;;
+        html) GIT_GREP_OPTS+=("--" "*.html" "*.htm") ;;
+        css) GIT_GREP_OPTS+=("--" "*.css" "*.scss" "*.less") ;;
+        json) GIT_GREP_OPTS+=("--" "*.json") ;;
+        yaml|yml) GIT_GREP_OPTS+=("--" "*.yaml" "*.yml") ;;
+        md) GIT_GREP_OPTS+=("--" "*.md") ;;
+        sql) GIT_GREP_OPTS+=("--" "*.sql") ;;
+        *) GIT_GREP_OPTS+=("--" "*.$FILE_TYPE") ;;
+    esac
+fi
+
+# =============================================================================
+# Funciones de workspace
+# =============================================================================
+
+detect_workspace() {
+    if [ -n "$WORKSPACE_PATTERN" ]; then
+        WORKSPACE_NAME=$(find_matching_workspace "$WORKSPACE_PATTERN" "$WORKSPACES_DIR")
+        if [ $? -ne 0 ]; then
+            exit 1
+        fi
+    else
+        WORKSPACE_NAME=$(detect_current_workspace)
+        if [ -z "$WORKSPACE_NAME" ]; then
+            error "❌ No se especificó workspace y no se pudo detectar automáticamente"
+            echo ""
+            info "💡 Ejecuta desde dentro de un workspace o especifica el nombre:"
+            echo "   ws grep \"pattern\" <workspace>"
+            exit 1
+        fi
+        info "🔍 Workspace detectado: $WORKSPACE_NAME"
+    fi
+
+    WORKSPACE_DIR="$WORKSPACES_DIR/$WORKSPACE_NAME"
+    if [ ! -d "$WORKSPACE_DIR" ]; then
+        die "Workspace no existe: $WORKSPACE_NAME"
+    fi
+}
+
+grep_repos() {
+    local repos
+    repos=$(find_repos_in_workspace "$WORKSPACE_DIR")
+
+    if [ -z "$repos" ]; then
+        die "No hay repos en este workspace"
+    fi
+
+    print_header "Buscando: \"$PATTERN\" en $WORKSPACE_NAME"
+    echo ""
+    [ -n "$FILE_TYPE" ] && echo "Tipo: ${COLOR_CYAN}*.$FILE_TYPE${COLOR_RESET}"
+    echo ""
+
+    local has_results=0
+    local repo_count=0
+    local match_count=0
+
+    echo "$repos" | while IFS= read -r repo_rel_path; do
+        [ -z "$repo_rel_path" ] && continue
+
+        local repo_path="$WORKSPACE_DIR/$repo_rel_path"
+
+        # Ejecutar git grep
+        local output
+        output=$(cd "$repo_path" && git grep --color=always "${GIT_GREP_OPTS[@]}" "$PATTERN" 2>/dev/null)
+
+        if [ -n "$output" ]; then
+            has_results=1
+            ((repo_count++))
+
+            echo "📦 ${COLOR_CYAN}$repo_rel_path${COLOR_RESET}"
+            echo "${COLOR_DIM}─────────────────────────────────────────${COLOR_RESET}"
+
+            # Añadir prefijo de ruta relativa al output
+            echo "$output" | sed "s|^|  |"
+
+            echo ""
+
+            # Contar matches
+            local count
+            count=$(echo "$output" | wc -l)
+            match_count=$((match_count + count))
+        fi
+    done
+
+    # Mostrar resumen solo si hay resultados
+    if [ $has_results -eq 0 ]; then
+        info "ℹ️  No se encontraron coincidencias para \"$PATTERN\""
+    else
+        echo "${COLOR_DIM}═══════════════════════════════════════════════════${COLOR_RESET}"
+        echo "Resumen: ${COLOR_GREEN}Encontrado en $repo_count repo(s)${COLOR_RESET}"
+        echo "${COLOR_DIM}═══════════════════════════════════════════════════${COLOR_RESET}"
+    fi
+}
+
+# =============================================================================
+# Main
+# =============================================================================
+
+detect_workspace
+grep_repos

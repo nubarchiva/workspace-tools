@@ -41,6 +41,13 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - `ws new feature-123 --template frontend` - Usa repos del template
   - `ws new feature-123 -t backend libs/extra` - Template + repos adicionales
   - Combina repos del template con repos especificados (sin duplicados)
+- **`ws grep`** - Búsqueda multi-repo de texto o patrones
+  - `ws grep "patrón"` - Busca en todos los repos del workspace actual
+  - `ws grep -i "todo" --type java` - Case-insensitive, solo archivos .java
+  - Opciones: -i (case-insensitive), -l (solo archivos), -n (números de línea)
+  - Opciones: -w (palabra completa), -E (regex extendida), --type <ext>
+  - Auto-detección de workspace desde directorio actual
+  - Shortcut: `wgrep`
 - **CI con GitHub Actions** (`.github/workflows/ci.yml`)
   - Tests automatizados en Ubuntu y macOS
   - Análisis estático con ShellCheck

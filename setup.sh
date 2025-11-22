@@ -68,6 +68,7 @@ wgt() { ws git "$1" status; }
 wgpa() { ws git "$1" pull --all; }
 wsync() { ws sync "$@"; }
 wstash() { ws stash "$@"; }
+wgrep() { ws grep "$@"; }
 
 # Navigation shortcuts para workspaces
 # wscd: Navega a un repo dentro del workspace actual con matching parcial
