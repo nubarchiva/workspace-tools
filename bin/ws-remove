@@ -219,6 +219,14 @@ for repo_rel_path in "${repos_to_process[@]}"; do
         git branch -D "$BRANCH_NAME" 2>/dev/null || echo "     ${COLOR_DIM}ℹ️  Branch ya eliminada o no existe${COLOR_RESET}"
 
         success "  ✅ Eliminado"
+
+        # Eliminar del .ws-build-order si existe
+        BUILD_ORDER_FILE="$WORKSPACE_DIR/.ws-build-order"
+        if [ -f "$BUILD_ORDER_FILE" ]; then
+            # Crear archivo temporal sin la línea del repo
+            grep -v "^${repo_rel_path}$" "$BUILD_ORDER_FILE" > "$BUILD_ORDER_FILE.tmp" 2>/dev/null || true
+            mv "$BUILD_ORDER_FILE.tmp" "$BUILD_ORDER_FILE"
+        fi
     else
         warning "  ⚠️  No se pudo encontrar repo principal"
         rm -rf "$worktree_path"

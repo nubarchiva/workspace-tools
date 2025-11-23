@@ -133,6 +133,16 @@ for repo in "${REPOS[@]}"; do
     fi
 done
 
+# Generar .ws-build-order con el orden de repos especificado
+if [ ${#REPOS[@]} -gt 0 ]; then
+    BUILD_ORDER_FILE="$WORKSPACE_DIR/.ws-build-order"
+    echo "# Orden de compilación para workspace: $WORKSPACE_NAME" > "$BUILD_ORDER_FILE"
+    echo "# Generado automáticamente - puedes modificar el orden" >> "$BUILD_ORDER_FILE"
+    for repo in "${REPOS[@]}"; do
+        echo "$repo" >> "$BUILD_ORDER_FILE"
+    done
+fi
+
 # Copiar configuraciones de IDE y AI assistants
 copy_workspace_config "$WORKSPACE_DIR"
 
