@@ -29,12 +29,12 @@ Uso: ws <comando> [argumentos...]
 
 GESTIÓN DE WORKSPACES:
 
-  new <nombre> [repo1] [repo2] ...
+  new <nombre> [--template <tpl>] [repo1] [repo2] ...
       Crea un workspace nuevo con los repos especificados
       Ejemplos:
         ws new feature-123 repo1 libs/lib1
-        ws new master repo1
-        ws new develop
+        ws new feature-123 --template frontend
+        ws new feature-123 -t backend libs/extra
 
   list [patrón] (ls)
       Lista todos los workspaces activos (opcionalmente filtrados)
@@ -102,6 +102,14 @@ OPERACIONES MULTI-REPO:
       Acciones: push (default), pop, list, clear, show
       Ejemplo: ws stash push "WIP: feature"
 
+  templates [acción] [args]
+      Gestiona templates predefinidos de repos
+      Acciones: list (default), show, add, remove
+      Ejemplos:
+        ws templates                        # lista templates
+        ws templates add frontend ks-nuba libs/ui
+        ws tpl show backend                 # alias
+
 CARACTERÍSTICAS:
 
   • Búsqueda parcial: usa parte del nombre (ej: ws cd fea)
@@ -137,7 +145,7 @@ fi
 # Función para expandir abreviaturas
 expand_abbreviation() {
     local abbrev=$1
-    local commands="new add remove switch list clean mvn git sync stash status rename info help"
+    local commands="new add remove switch list clean mvn git sync stash templates status rename info help"
 
     # Aliases predefinidos
     case $abbrev in
@@ -146,6 +154,7 @@ expand_abbreviation() {
         cd|sw) echo "switch"; return 0 ;;
         mk|create) echo "new"; return 0 ;;
         mv) echo "rename"; return 0 ;;
+        tpl) echo "templates"; return 0 ;;
         .|here) echo "status"; return 0 ;;
         h) echo "help"; return 0 ;;
     esac
@@ -182,7 +191,7 @@ fi
 
 # Mapear subcomandos a scripts
 case $SUBCOMMAND in
-    new|add|remove|switch|list|clean|mvn|git|sync|stash|status|rename|info)
+    new|add|remove|switch|list|clean|mvn|git|sync|stash|templates|status|rename|info)
         SCRIPT_NAME="ws-$SUBCOMMAND"
         SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_NAME"
 

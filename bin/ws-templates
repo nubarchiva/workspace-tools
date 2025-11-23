@@ -1,0 +1,336 @@
+#!/bin/bash
+# Gestión de templates de workspace (conjuntos predefinidos de repos)
+
+# Inicializacion centralizada
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
+
+# =============================================================================
+# Variables
+# =============================================================================
+
+TEMPLATES_FILE="${WS_TEMPLATES_FILE:-$WORKSPACE_ROOT/.ws-templates}"
+
+# =============================================================================
+# Funciones
+# =============================================================================
+
+show_help() {
+    echo "Uso: ws templates [acción] [argumentos]"
+    echo ""
+    echo "Gestiona templates de workspace (conjuntos predefinidos de repos)."
+    echo ""
+    echo "Acciones:"
+    echo "  list                       Lista todos los templates disponibles (default)"
+    echo "  show <nombre>              Muestra repos de un template"
+    echo "  add <nombre> <repos...>    Crea o actualiza un template"
+    echo "  remove <nombre>            Elimina un template"
+    echo ""
+    echo "Opciones:"
+    echo "  --help, -h                 Mostrar esta ayuda"
+    echo ""
+    echo "Ejemplos:"
+    echo "  ws templates                              # Lista templates"
+    echo "  ws templates add frontend ks-nuba libs/ui"
+    echo "  ws templates show frontend"
+    echo "  ws templates remove frontend"
+    echo ""
+    echo "Uso con ws new:"
+    echo "  ws new feature-123 --template frontend"
+    echo "  ws new feature-123 -t frontend libs/extra  # template + repo extra"
+    echo ""
+    echo "Archivo de configuración:"
+    echo "  $TEMPLATES_FILE"
+}
+
+ensure_templates_file() {
+    if [ ! -f "$TEMPLATES_FILE" ]; then
+        # Crear archivo con comentarios de ejemplo
+        cat > "$TEMPLATES_FILE" << 'TEMPLATE_EOF'
+# Workspace Templates
+# Formato: nombre: repo1 repo2 repo3 ...
+#
+# Ejemplos:
+# frontend: ks-nuba libs/ui modules/portal
+# backend: ks-nuba dga-commons libs/marc4j
+# full: ks-nuba dga-commons libs/marc4j modules/docs
+#
+# Uso:
+#   ws new feature-123 --template frontend
+#   ws new feature-123 -t backend libs/extra
+TEMPLATE_EOF
+        info "📝 Creado archivo de templates: $TEMPLATES_FILE"
+    fi
+}
+
+list_templates() {
+    ensure_templates_file
+
+    print_header "Templates de Workspace"
+    echo ""
+
+    local has_templates=0
+
+    while IFS= read -r line; do
+        # Ignorar líneas vacías y comentarios
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+
+        # Parsear nombre: repos
+        if [[ "$line" =~ ^([^:]+):(.+)$ ]]; then
+            local name="${BASH_REMATCH[1]}"
+            local repos="${BASH_REMATCH[2]}"
+
+            # Limpiar espacios
+            name=$(echo "$name" | xargs)
+            repos=$(echo "$repos" | xargs)
+
+            # Contar repos
+            local repo_count
+            repo_count=$(echo "$repos" | wc -w | xargs)
+
+            echo "  ${COLOR_CYAN}$name${COLOR_RESET} (${COLOR_DIM}$repo_count repos${COLOR_RESET})"
+            has_templates=1
+        fi
+    done < "$TEMPLATES_FILE"
+
+    if [ $has_templates -eq 0 ]; then
+        info "ℹ️  No hay templates definidos"
+        echo ""
+        echo "Para crear uno:"
+        echo "  ${COLOR_CYAN}ws templates add <nombre> <repo1> <repo2> ...${COLOR_RESET}"
+        echo ""
+        echo "Ejemplo:"
+        echo "  ${COLOR_CYAN}ws templates add frontend ks-nuba libs/ui${COLOR_RESET}"
+    fi
+
+    echo ""
+    echo "${COLOR_DIM}Archivo: $TEMPLATES_FILE${COLOR_RESET}"
+}
+
+show_template() {
+    local name="$1"
+
+    if [ -z "$name" ]; then
+        error "❌ Debes especificar el nombre del template"
+        exit 1
+    fi
+
+    ensure_templates_file
+
+    local found=0
+
+    while IFS= read -r line; do
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+
+        if [[ "$line" =~ ^([^:]+):(.+)$ ]]; then
+            local template_name="${BASH_REMATCH[1]}"
+            local repos="${BASH_REMATCH[2]}"
+
+            template_name=$(echo "$template_name" | xargs)
+
+            if [ "$template_name" = "$name" ]; then
+                repos=$(echo "$repos" | xargs)
+
+                print_header "Template: $name"
+                echo ""
+                echo "Repos:"
+                for repo in $repos; do
+                    echo "  • ${COLOR_CYAN}$repo${COLOR_RESET}"
+                done
+                echo ""
+                echo "Uso:"
+                echo "  ${COLOR_DIM}ws new feature-123 --template $name${COLOR_RESET}"
+                found=1
+                break
+            fi
+        fi
+    done < "$TEMPLATES_FILE"
+
+    if [ $found -eq 0 ]; then
+        error "❌ Template '$name' no encontrado"
+        echo ""
+        echo "Templates disponibles:"
+        list_templates
+        exit 1
+    fi
+}
+
+add_template() {
+    local name="$1"
+    shift
+    local repos="$*"
+
+    if [ -z "$name" ]; then
+        error "❌ Debes especificar el nombre del template"
+        exit 1
+    fi
+
+    if [ -z "$repos" ]; then
+        error "❌ Debes especificar al menos un repo"
+        exit 1
+    fi
+
+    ensure_templates_file
+
+    # Verificar si ya existe
+    local exists=0
+    while IFS= read -r line; do
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+
+        if [[ "$line" =~ ^([^:]+): ]]; then
+            local template_name="${BASH_REMATCH[1]}"
+            template_name=$(echo "$template_name" | xargs)
+
+            if [ "$template_name" = "$name" ]; then
+                exists=1
+                break
+            fi
+        fi
+    done < "$TEMPLATES_FILE"
+
+    if [ $exists -eq 1 ]; then
+        # Actualizar template existente
+        local temp_file
+        temp_file=$(mktemp)
+
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^([^:]+): ]]; then
+                local template_name="${BASH_REMATCH[1]}"
+                template_name=$(echo "$template_name" | xargs)
+
+                if [ "$template_name" = "$name" ]; then
+                    echo "$name: $repos" >> "$temp_file"
+                else
+                    echo "$line" >> "$temp_file"
+                fi
+            else
+                echo "$line" >> "$temp_file"
+            fi
+        done < "$TEMPLATES_FILE"
+
+        mv "$temp_file" "$TEMPLATES_FILE"
+        success "✅ Template '$name' actualizado"
+    else
+        # Añadir nuevo template
+        echo "$name: $repos" >> "$TEMPLATES_FILE"
+        success "✅ Template '$name' creado"
+    fi
+
+    echo ""
+    echo "Repos: ${COLOR_CYAN}$repos${COLOR_RESET}"
+    echo ""
+    echo "Uso:"
+    echo "  ${COLOR_DIM}ws new feature-123 --template $name${COLOR_RESET}"
+}
+
+remove_template() {
+    local name="$1"
+
+    if [ -z "$name" ]; then
+        error "❌ Debes especificar el nombre del template"
+        exit 1
+    fi
+
+    ensure_templates_file
+
+    # Verificar si existe
+    local exists=0
+    while IFS= read -r line; do
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+
+        if [[ "$line" =~ ^([^:]+): ]]; then
+            local template_name="${BASH_REMATCH[1]}"
+            template_name=$(echo "$template_name" | xargs)
+
+            if [ "$template_name" = "$name" ]; then
+                exists=1
+                break
+            fi
+        fi
+    done < "$TEMPLATES_FILE"
+
+    if [ $exists -eq 0 ]; then
+        error "❌ Template '$name' no encontrado"
+        exit 1
+    fi
+
+    # Eliminar template
+    local temp_file
+    temp_file=$(mktemp)
+
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^([^:]+): ]]; then
+            local template_name="${BASH_REMATCH[1]}"
+            template_name=$(echo "$template_name" | xargs)
+
+            if [ "$template_name" != "$name" ]; then
+                echo "$line" >> "$temp_file"
+            fi
+        else
+            echo "$line" >> "$temp_file"
+        fi
+    done < "$TEMPLATES_FILE"
+
+    mv "$temp_file" "$TEMPLATES_FILE"
+    success "✅ Template '$name' eliminado"
+}
+
+# Función para obtener repos de un template (usada por ws-new)
+get_template_repos() {
+    local name="$1"
+
+    if [ ! -f "$TEMPLATES_FILE" ]; then
+        return 1
+    fi
+
+    while IFS= read -r line; do
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+
+        if [[ "$line" =~ ^([^:]+):(.+)$ ]]; then
+            local template_name="${BASH_REMATCH[1]}"
+            local repos="${BASH_REMATCH[2]}"
+
+            template_name=$(echo "$template_name" | xargs)
+
+            if [ "$template_name" = "$name" ]; then
+                echo "$repos" | xargs
+                return 0
+            fi
+        fi
+    done < "$TEMPLATES_FILE"
+
+    return 1
+}
+
+# =============================================================================
+# Main
+# =============================================================================
+
+ACTION="${1:-list}"
+shift 2>/dev/null || true
+
+case "$ACTION" in
+    --help|-h)
+        show_help
+        exit 0
+        ;;
+    list|ls)
+        list_templates
+        ;;
+    show)
+        show_template "$1"
+        ;;
+    add)
+        add_template "$@"
+        ;;
+    remove|rm|delete)
+        remove_template "$1"
+        ;;
+    # Función interna para ws-new
+    --get)
+        get_template_repos "$1"
+        ;;
+    *)
+        # Si no es una acción conocida, asumir que es nombre de template para mostrar
+        show_template "$ACTION"
+        ;;
+esac

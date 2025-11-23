@@ -30,6 +30,17 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - `ws stash clear` - Elimina todos los stashes (con confirmación)
   - `ws stash show [n]` - Muestra contenido del stash n
   - Auto-detección de workspace desde directorio actual
+- **`ws templates`** - Gestión de templates de workspace (conjuntos predefinidos de repos)
+  - `ws templates` / `ws templates list` - Lista templates disponibles
+  - `ws templates add <nombre> <repos...>` - Crea o actualiza un template
+  - `ws templates show <nombre>` - Muestra repos de un template
+  - `ws templates remove <nombre>` - Elimina un template
+  - Alias: `ws tpl`
+  - Archivo de configuración: `$WORKSPACE_ROOT/.ws-templates`
+- **`ws new --template`** - Crear workspace desde template
+  - `ws new feature-123 --template frontend` - Usa repos del template
+  - `ws new feature-123 -t backend libs/extra` - Template + repos adicionales
+  - Combina repos del template con repos especificados (sin duplicados)
 - **CI con GitHub Actions** (`.github/workflows/ci.yml`)
   - Tests automatizados en Ubuntu y macOS
   - Análisis estático con ShellCheck

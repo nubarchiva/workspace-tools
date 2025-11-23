@@ -5,13 +5,42 @@
 # Inicializacion centralizada
 source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
 
-WORKSPACE_NAME=$1
-shift 2>/dev/null || true
-REPOS=("$@")
+# =============================================================================
+# Parsear argumentos
+# =============================================================================
+
+WORKSPACE_NAME=""
+TEMPLATE_NAME=""
+REPOS=()
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --template|-t)
+            TEMPLATE_NAME="$2"
+            shift 2
+            ;;
+        --help|-h)
+            WORKSPACE_NAME=""
+            break
+            ;;
+        *)
+            if [ -z "$WORKSPACE_NAME" ]; then
+                WORKSPACE_NAME="$1"
+            else
+                REPOS+=("$1")
+            fi
+            shift
+            ;;
+    esac
+done
 
 # Funcion de ayuda
 show_help() {
-    echo "Uso: ws new <nombre> [repo1 repo2 ...]"
+    echo "Uso: ws new <nombre> [opciones] [repo1 repo2 ...]"
+    echo ""
+    echo "Opciones:"
+    echo "  --template, -t <nombre>  Usar template predefinido de repos"
+    echo "  --help, -h               Mostrar esta ayuda"
     echo ""
     echo "Nombres especiales:"
     echo "  master               - Crea workspace de master (branch: master)"
@@ -28,8 +57,16 @@ show_help() {
     echo "  ws new master ks-nuba libs/dspace"
     echo "  ws new develop ks-nuba"
     echo ""
-    echo "💡 Si no especificas repos, se crea el directorio vacío"
+    echo "Con templates:"
+    echo "  ws new feature-123 --template frontend"
+    echo "  ws new feature-123 -t backend libs/extra   # template + repos extra"
+    echo ""
+    echo "💡 Si no especificas repos ni template, se crea el directorio vacío"
     echo "   Luego puedes añadir repos con: ws add <nombre> <repo>"
+    echo ""
+    echo "Gestión de templates:"
+    echo "  ws templates                    # Lista templates disponibles"
+    echo "  ws templates add <nombre> ...   # Crear template"
 }
 
 if [ -z "$WORKSPACE_NAME" ]; then
@@ -40,6 +77,44 @@ fi
 # Validar nombre del workspace
 if ! validate_workspace_name "$WORKSPACE_NAME"; then
     exit 1
+fi
+
+# Si hay template, obtener sus repos
+if [ -n "$TEMPLATE_NAME" ]; then
+    SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]:-$0}")"
+    TEMPLATE_REPOS=$("$SCRIPT_DIR/ws-templates" --get "$TEMPLATE_NAME" 2>/dev/null)
+
+    if [ $? -ne 0 ] || [ -z "$TEMPLATE_REPOS" ]; then
+        error "❌ Template '$TEMPLATE_NAME' no encontrado"
+        echo ""
+        echo "Templates disponibles:"
+        "$SCRIPT_DIR/ws-templates" list
+        exit 1
+    fi
+
+    # Convertir repos del template a array y añadir al principio
+    read -ra TEMPLATE_REPOS_ARRAY <<< "$TEMPLATE_REPOS"
+
+    # Combinar: template repos + repos especificados manualmente (sin duplicados)
+    declare -A seen_repos
+    COMBINED_REPOS=()
+
+    for repo in "${TEMPLATE_REPOS_ARRAY[@]}"; do
+        if [ -z "${seen_repos[$repo]}" ]; then
+            COMBINED_REPOS+=("$repo")
+            seen_repos[$repo]=1
+        fi
+    done
+
+    for repo in "${REPOS[@]}"; do
+        if [ -z "${seen_repos[$repo]}" ]; then
+            COMBINED_REPOS+=("$repo")
+            seen_repos[$repo]=1
+        fi
+    done
+
+    REPOS=("${COMBINED_REPOS[@]}")
+    info "📋 Usando template: ${COLOR_CYAN}$TEMPLATE_NAME${COLOR_RESET}"
 fi
 
 # Determinar directorio y branch

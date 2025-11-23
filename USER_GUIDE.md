@@ -379,6 +379,13 @@ ws stash pop                           # pop en todos los repos
 ws stash list                          # lista stashes de todos los repos
 ws stash clear                         # elimina todos los stashes
 ws stash show                          # muestra contenido del stash
+
+# Templates de workspace
+ws templates                           # lista templates disponibles
+ws templates add frontend ks-nuba libs/ui   # crear template
+ws templates show frontend             # ver repos de un template
+ws templates remove frontend           # eliminar template
+ws tpl                                 # alias para templates
 ```
 
 ## Shortcuts
@@ -778,7 +785,42 @@ wstash                            # equivalente a ws stash
 wstash pop                        # equivalente a ws stash pop
 ```
 
-## Ejemplo 10: Trabajar en Múltiples Features
+## Ejemplo 10: Usar Templates de Workspace
+
+**Contexto:** Crear workspaces rápidamente con conjuntos predefinidos de repos
+
+```bash
+# 1. Crear templates para diferentes tipos de tareas
+ws templates add frontend ks-nuba libs/ui modules/portal
+ws templates add backend ks-nuba dga-commons libs/marc4j
+ws templates add full ks-nuba dga-commons libs/marc4j modules/docs
+
+# 2. Ver templates disponibles
+ws templates                          # lista todos los templates
+ws tpl                                # alias corto
+
+# 3. Crear workspace usando template
+ws new feature-123 --template frontend    # usa repos de "frontend"
+ws new feature-123 -t backend             # alias corto
+
+# 4. Template + repos adicionales
+ws new feature-123 -t frontend libs/extra
+# Combina: ks-nuba libs/ui modules/portal libs/extra
+
+# 5. Ver repos de un template
+ws templates show frontend
+
+# 6. Actualizar template existente
+ws templates add frontend ks-nuba libs/ui libs/new-lib
+
+# 7. Eliminar template
+ws templates remove old-template
+
+# Archivo de configuración: ~/.wrkspc.nubarchiva/.ws-templates
+# Formato: nombre: repo1 repo2 repo3
+```
+
+## Ejemplo 11: Trabajar en Múltiples Features
 
 **Contexto:** Varias features simultáneas
 
@@ -805,7 +847,7 @@ ws status ui-redesign
 ws status libs-update
 ```
 
-## Ejemplo 11: Claude Code Optimizado
+## Ejemplo 12: Claude Code Optimizado
 
 **Contexto:** Maximizar efectividad de IA
 
