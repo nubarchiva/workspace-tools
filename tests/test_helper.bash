@@ -40,11 +40,12 @@ teardown_test_environment() {
 
 # Crear un repo Git de prueba
 # Uso: create_test_repo "nombre" o create_test_repo "subdir/nombre"
+# Nota: Crea branch "master" por defecto para compatibilidad
 create_test_repo() {
     local repo_path="$TEST_WORKSPACE_ROOT/$1"
     mkdir -p "$repo_path"
     cd "$repo_path"
-    git init --quiet
+    git init --quiet --initial-branch=master
     git config user.email "test@test.com"
     git config user.name "Test User"
     # Crear commit inicial para que el repo sea válido

@@ -1,10 +1,5 @@
 #!/usr/bin/env bats
 # Tests para ws-new - Crear workspaces
-#
-# NOTA: Muchos tests estan marcados como skip porque ws-new tiene dependencias
-# fijas (~/wrkspc.nubarchiva) que impiden testing aislado.
-# Estos tests documentan el COMPORTAMIENTO ESPERADO y se habilitaran
-# despues de refactorizar ws-new para aceptar configuracion externa.
 
 load 'test_helper'
 
@@ -25,7 +20,7 @@ run_ws_new() {
 }
 
 # =============================================================================
-# Tests que funcionan (no dependen de rutas fijas)
+# Tests de ayuda y validacion basica
 # =============================================================================
 
 @test "ws-new: sin argumentos muestra ayuda y sale con 1" {
@@ -46,27 +41,29 @@ run_ws_new() {
     [[ "$output" == *"develop"* ]]
 }
 
+@test "ws-new: nombre vacio muestra ayuda" {
+    run run_ws_new ""
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Uso:"* ]]
+}
+
 # =============================================================================
-# Tests de integracion (requieren refactoring de ws-new)
-# Documentan el comportamiento esperado
+# Tests de creacion de workspace
 # =============================================================================
 
 @test "ws-new: crea directorio del workspace" {
-    skip "Requiere que ws-new use WORKSPACE_ROOT del entorno"
     run run_ws_new "test-workspace"
     [ "$status" -eq 0 ]
     [ -d "$TEST_WORKSPACES_DIR/test-workspace" ]
 }
 
 @test "ws-new: workspace sin repos muestra mensaje informativo" {
-    skip "Requiere que ws-new use WORKSPACE_ROOT del entorno"
     run run_ws_new "empty-workspace"
     [ "$status" -eq 0 ]
     [[ "$output" == *"ws add"* ]]
 }
 
 @test "ws-new: crea workspace con un repo" {
-    skip "Requiere que ws-new use WORKSPACE_ROOT del entorno"
     create_test_repo "mi-repo"
 
     run run_ws_new "test-ws" "mi-repo"
@@ -76,7 +73,6 @@ run_ws_new() {
 }
 
 @test "ws-new: crea workspace con multiples repos" {
-    skip "Requiere que ws-new use WORKSPACE_ROOT del entorno"
     create_test_repo "repo-a"
     create_test_repo "repo-b"
 
@@ -87,7 +83,6 @@ run_ws_new() {
 }
 
 @test "ws-new: crea workspace con repo en subdirectorio" {
-    skip "Requiere que ws-new use WORKSPACE_ROOT del entorno"
     create_test_repo "libs/mi-lib"
 
     run run_ws_new "subdir-ws" "libs/mi-lib"
@@ -96,18 +91,28 @@ run_ws_new() {
 }
 
 @test "ws-new: repo inexistente muestra warning pero no falla" {
-    skip "Requiere que ws-new use WORKSPACE_ROOT del entorno"
     run run_ws_new "test-ws" "repo-que-no-existe"
     [ "$status" -eq 0 ]
     [[ "$output" == *"no encontrado"* ]] || [[ "$output" == *"saltando"* ]]
 }
 
+# =============================================================================
+# Tests de branches
+# =============================================================================
+
 @test "ws-new: master usa branch master" {
-    skip "Requiere que ws-new use WORKSPACE_ROOT del entorno"
     create_test_repo "mi-repo"
+
+    # Cambiar el repo principal a otra branch para poder crear worktree en master
+    cd "$TEST_WORKSPACE_ROOT/mi-repo"
+    git checkout -b temp-branch --quiet
+    cd - > /dev/null
 
     run run_ws_new "master" "mi-repo"
     [ "$status" -eq 0 ]
+
+    # Verificar que el worktree existe
+    [ -d "$TEST_WORKSPACES_DIR/master/mi-repo" ]
 
     cd "$TEST_WORKSPACES_DIR/master/mi-repo"
     branch=$(git branch --show-current)
@@ -115,11 +120,14 @@ run_ws_new() {
 }
 
 @test "ws-new: develop usa branch develop" {
-    skip "Requiere que ws-new use WORKSPACE_ROOT del entorno"
     create_test_repo "mi-repo"
+
+    # Crear branch develop si no existe
     cd "$TEST_WORKSPACE_ROOT/mi-repo"
-    git checkout -b develop --quiet
-    git checkout master --quiet
+    if ! git rev-parse --verify develop >/dev/null 2>&1; then
+        git checkout -b develop --quiet
+        git checkout master --quiet
+    fi
     cd - > /dev/null
 
     run run_ws_new "develop" "mi-repo"
@@ -131,7 +139,6 @@ run_ws_new() {
 }
 
 @test "ws-new: feature crea branch feature/nombre" {
-    skip "Requiere que ws-new use WORKSPACE_ROOT del entorno"
     create_test_repo "mi-repo"
 
     run run_ws_new "mi-feature" "mi-repo"
@@ -142,8 +149,11 @@ run_ws_new() {
     [ "$branch" = "feature/mi-feature" ]
 }
 
+# =============================================================================
+# Tests de worktrees
+# =============================================================================
+
 @test "ws-new: crea worktree de git valido" {
-    skip "Requiere que ws-new use WORKSPACE_ROOT del entorno"
     create_test_repo "mi-repo"
 
     run run_ws_new "worktree-test" "mi-repo"
@@ -158,7 +168,6 @@ run_ws_new() {
 }
 
 @test "ws-new: worktree aparece en git worktree list" {
-    skip "Requiere que ws-new use WORKSPACE_ROOT del entorno"
     create_test_repo "mi-repo"
 
     run_ws_new "listed-ws" "mi-repo"
@@ -167,14 +176,4 @@ run_ws_new() {
     run git worktree list
     [ "$status" -eq 0 ]
     [[ "$output" == *"listed-ws"* ]]
-}
-
-# =============================================================================
-# Tests de validacion de entrada (estos SI podemos probar indirectamente)
-# =============================================================================
-
-@test "ws-new: nombre vacio muestra ayuda" {
-    run run_ws_new ""
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"Uso:"* ]]
 }

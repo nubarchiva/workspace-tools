@@ -2,31 +2,14 @@
 # Crea un nuevo workspace
 # Soporta repos en subdirectorios (ej: libs/marc4j, modules/docs, tools/workspace-tools)
 
+# Inicializacion centralizada
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
+
 WORKSPACE_NAME=$1
 shift 2>/dev/null || true
 REPOS=("$@")
 
-# Detectar WORKSPACE_ROOT desde WS_TOOLS o por defecto
-if [ -n "$WS_TOOLS" ]; then
-    WORKSPACE_ROOT="${WS_TOOLS%/tools/workspace-tools}"
-else
-    # Fallback: asumir ubicación estándar
-    WORKSPACE_ROOT=~/wrkspc.nubarchiva
-fi
-WORKSPACES_DIR=$WORKSPACE_ROOT/workspaces
-
-# Detectar directorio del script (compatible bash/zsh)
-if [ -n "$BASH_SOURCE" ]; then
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-else
-    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-fi
-
-# Cargar funciones compartidas
-source "$SCRIPT_DIR/ws-common.sh"
-source "$SCRIPT_DIR/ws-colors.sh"
-
-# Función de ayuda
+# Funcion de ayuda
 show_help() {
     echo "Uso: ws new <nombre> [repo1 repo2 ...]"
     echo ""
@@ -69,7 +52,7 @@ if [ -d "$WORKSPACE_DIR" ]; then
 fi
 
 # Crear directorio del workspace
-mkdir -p $WORKSPACE_DIR
+mkdir -p "$WORKSPACE_DIR"
 
 info "🔨 Creando workspace: ${COLOR_BOLD}$WORKSPACE_NAME${COLOR_RESET} (branch: ${COLOR_CYAN}$BRANCH_NAME${COLOR_RESET})"
 
