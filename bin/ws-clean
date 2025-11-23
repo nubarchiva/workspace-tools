@@ -153,8 +153,7 @@ if [ -d "$WORKSPACE_DIR" ]; then
     # Archivos/directorios que deben ignorarse (creados por workspace-tools)
     # - .idea/, .vscode/, .kiro/, .cursor/: configuración IDE/AI copiada por copy_workspace_config
     # - AI.md, .ai/, docs/: symlinks creados por copy_workspace_config
-    # - .ws-build-order: archivo de orden de compilación
-    ignore_patterns=(".idea" ".vscode" ".kiro" ".cursor" "AI.md" ".ai" "docs" ".ws-build-order")
+    ignore_patterns=(".idea" ".vscode" ".kiro" ".cursor" "AI.md" ".ai" "docs")
 
     # Contar archivos que NO deben ignorarse
     significant_files=0

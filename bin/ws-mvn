@@ -98,7 +98,8 @@ show_help() {
     echo "  • Ignora repos sin pom.xml con un mensaje informativo"
     echo ""
     echo "Orden de compilación:"
-    echo "  Si existe .ws-build-order en el workspace, se usa ese orden."
+    echo "  Busca .ws-build-order (primero en workspace, luego en raíz)."
+    echo "  Solo compila repos que existen en el workspace."
     echo "  Formato del archivo (una línea por repo):"
     echo "    # Comentarios con #"
     echo "    dga-commons"
@@ -150,14 +151,32 @@ echo "Branch:    ${COLOR_CYAN}$BRANCH_NAME${COLOR_RESET}"
 echo "Comando:   ${COLOR_BOLD}mvn $MVN_ARGS${COLOR_RESET}"
 echo ""
 
-# Encontrar todos los repos en el workspace
-# Si existe .ws-build-order, usar ese orden; sino, usar find_repos_in_workspace
-BUILD_ORDER_FILE="$WORKSPACE_DIR/.ws-build-order"
+# Determinar orden de compilación
+# Prioridad: 1) .ws-build-order en el workspace
+#            2) .ws-build-order en WORKSPACE_ROOT
+#            3) find_repos_in_workspace (orden por defecto)
+BUILD_ORDER_FILE=""
+if [ -f "$WORKSPACE_DIR/.ws-build-order" ]; then
+    BUILD_ORDER_FILE="$WORKSPACE_DIR/.ws-build-order"
+elif [ -f "$WORKSPACE_ROOT/.ws-build-order" ]; then
+    BUILD_ORDER_FILE="$WORKSPACE_ROOT/.ws-build-order"
+fi
 
-if [ -f "$BUILD_ORDER_FILE" ]; then
-    # Usar orden definido en el archivo (ignorar líneas vacías y comentarios)
-    repos=$(grep -v '^#' "$BUILD_ORDER_FILE" | grep -v '^$')
-    info "📋 Usando orden de compilación de .ws-build-order"
+if [ -n "$BUILD_ORDER_FILE" ]; then
+    # Usar orden del archivo, pero solo repos que existen en el workspace
+    workspace_repos=$(find_repos_in_workspace "$WORKSPACE_DIR")
+    repos=""
+    while IFS= read -r repo; do
+        # Ignorar comentarios y líneas vacías
+        [[ "$repo" =~ ^# ]] && continue
+        [[ -z "$repo" ]] && continue
+        # Solo incluir si existe en el workspace
+        if echo "$workspace_repos" | grep -q "^${repo}$"; then
+            repos="${repos}${repo}"$'\n'
+        fi
+    done < "$BUILD_ORDER_FILE"
+    repos=$(echo "$repos" | grep -v '^$')
+    info "📋 Usando orden de compilación de $(basename "$BUILD_ORDER_FILE")"
     echo ""
 else
     repos=$(find_repos_in_workspace "$WORKSPACE_DIR")

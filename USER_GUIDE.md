@@ -178,10 +178,13 @@ wmci <nombre>                          # shortcut: clean install
 wmis <nombre>                          # shortcut: install sin tests ni clean
 
 # Orden de compilación personalizado (opcional)
-# Crear archivo .ws-build-order en el workspace con el orden deseado:
+# Crear archivo .ws-build-order en la raíz del proyecto con el orden deseado.
+# Solo se compilan los repos que existen en el workspace.
+# Ejemplo ~/wrkspc.nubarchiva/.ws-build-order:
 #   dga-commons
 #   ks-nuba
 #   modules/diffusion-portal
+#   dph-foto
 
 # Ejecutar Git en todos los repos
 ws git <nombre> status
