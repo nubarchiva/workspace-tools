@@ -196,6 +196,40 @@ ws clean <nombre>
 ws rm <nombre>                         # abreviatura
 ```
 
+## Configuración Personalizada
+
+Por defecto, workspace-tools asume que tu directorio raíz es `~/wrkspc.nubarchiva`. Si necesitas una ubicación diferente, crea un archivo `~/.wsrc`:
+
+```bash
+# Copiar el ejemplo
+cp ~/wrkspc.nubarchiva/tools/workspace-tools/config/wsrc.example ~/.wsrc
+
+# Editar según necesites
+nano ~/.wsrc
+```
+
+### Variables Configurables
+
+```bash
+# ~/.wsrc
+
+# Directorio raíz (donde están los repos)
+WORKSPACE_ROOT="$HOME/mi-proyecto"
+
+# Directorio de workspaces (por defecto $WORKSPACE_ROOT/workspaces)
+WORKSPACES_DIR="$WORKSPACE_ROOT/mis-workspaces"
+
+# Activar modo debug
+WS_DEBUG=1
+```
+
+### Prioridad de Configuración
+
+1. Variables de entorno (útil para testing o uso temporal)
+2. `~/.wsrc` (configuración permanente del usuario)
+3. Derivada de la ubicación de los scripts (`WS_TOOLS/tools/workspace-tools`)
+4. Fallback: `~/wrkspc.nubarchiva`
+
 ## Troubleshooting
 
 ### "Repo no encontrado"

@@ -1,0 +1,52 @@
+# =============================================================================
+# Configuracion de workspace-tools (~/.wsrc)
+# =============================================================================
+#
+# Este archivo es sourced por ws-init.sh al inicio de cada comando ws-*.
+# Copia este archivo a ~/.wsrc y personaliza segun tus necesidades.
+#
+# Prioridad de configuracion:
+#   1. Variables de entorno (para testing o uso temporal)
+#   2. ~/.wsrc (configuracion permanente del usuario)
+#   3. WS_TOOLS/tools/workspace-tools (derivada de ubicacion de scripts)
+#   4. ~/wrkspc.nubarchiva (fallback por defecto)
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Directorio raiz de tu workspace
+# -----------------------------------------------------------------------------
+# Descomenta y ajusta si tu workspace NO esta en la ubicacion por defecto
+# WORKSPACE_ROOT="$HOME/mi-workspace-personalizado"
+
+# -----------------------------------------------------------------------------
+# Directorio donde se crean los workspaces
+# -----------------------------------------------------------------------------
+# Por defecto es $WORKSPACE_ROOT/workspaces
+# Descomenta si necesitas una ubicacion diferente
+# WORKSPACES_DIR="$WORKSPACE_ROOT/mis-workspaces"
+
+# -----------------------------------------------------------------------------
+# Modo debug
+# -----------------------------------------------------------------------------
+# Activa mensajes de debug (util para troubleshooting)
+# WS_DEBUG=1
+
+# -----------------------------------------------------------------------------
+# Ejemplos de configuraciones avanzadas
+# -----------------------------------------------------------------------------
+
+# Ejemplo: workspace root diferente para cada maquina
+# case "$(hostname)" in
+#     mi-mac-trabajo)
+#         WORKSPACE_ROOT="$HOME/trabajo/proyectos"
+#         ;;
+#     mi-mac-personal)
+#         WORKSPACE_ROOT="$HOME/desarrollo"
+#         ;;
+# esac
+
+# Ejemplo: configuracion segun directorio actual
+# if [[ "$PWD" == */proyecto-especial/* ]]; then
+#     WORKSPACE_ROOT="/ruta/especial"
+# fi
