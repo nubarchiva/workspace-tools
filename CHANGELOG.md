@@ -55,6 +55,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - **`ws --version`** - Muestra versión actual
   - Archivo VERSION en raíz del proyecto
   - Soporta: `ws --version`, `ws -v`, `ws version`
+- **Script de desinstalación** (`uninstall.sh`)
+  - Menú interactivo con 4 opciones
+  - Desinstalación completa o solo herramientas
+  - Limpieza de workspaces con verificación de cambios pendientes
+  - Muestra instrucciones manuales
+  - Detecta y advierte sobre workspaces con trabajo sin guardar
 - **CI con GitHub Actions** (`.github/workflows/ci.yml`)
   - Tests automatizados en Ubuntu y macOS
   - Análisis estático con ShellCheck
