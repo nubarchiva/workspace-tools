@@ -2,7 +2,20 @@
 # Limpia un workspace terminado (elimina worktrees pero mantiene branches)
 # Soporta repos en subdirectorios
 
-WORKSPACE_PATTERN=$1
+# Parsear argumentos
+FORCE=false
+WORKSPACE_PATTERN=""
+
+for arg in "$@"; do
+    case $arg in
+        --force|-f)
+            FORCE=true
+            ;;
+        *)
+            WORKSPACE_PATTERN="$arg"
+            ;;
+    esac
+done
 
 # Detectar WORKSPACE_ROOT desde WS_TOOLS o por defecto
 if [ -n "$WS_TOOLS" ]; then
@@ -26,9 +39,12 @@ source "$SCRIPT_DIR/ws-colors.sh"
 
 # Función de ayuda
 show_help() {
-    echo "Uso: ws clean [nombre|patrón]"
+    echo "Uso: ws clean [--force|-f] [nombre|patrón]"
     echo ""
     echo "Elimina los worktrees de un workspace pero mantiene las branches."
+    echo ""
+    echo "Opciones:"
+    echo "  --force, -f    Omitir confirmación"
     echo ""
     echo "💡 Puedes usar coincidencia parcial para el nombre del workspace"
     echo ""
@@ -37,6 +53,8 @@ show_help() {
     echo "  ws clean develop"
     echo "  ws clean nuba-8400"
     echo "  ws clean fac                     # búsqueda parcial"
+    echo "  ws clean -f feature-123          # sin confirmación"
+    echo "  ws rm --force test               # alias con force"
     echo ""
     echo "⚠️  Este comando:"
     echo "  • Elimina los directorios de worktree"
@@ -97,12 +115,15 @@ fi
 echo ""
 echo "Esto eliminará los worktrees pero mantendrá las branches en los repos principales."
 echo ""
-read -p "¿Continuar? (s/n) " -n 1 -r
-echo
 
-if [[ ! $REPLY =~ ^[Ss]$ ]]; then
-    error "❌ Cancelado"
-    exit 1
+if [ "$FORCE" = false ]; then
+    read -p "¿Continuar? (s/n) " -n 1 -r
+    echo
+
+    if [[ ! $REPLY =~ ^[Ss]$ ]]; then
+        error "❌ Cancelado"
+        exit 1
+    fi
 fi
 
 # Eliminar cada worktree
