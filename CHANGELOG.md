@@ -23,6 +23,13 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - `ws sync --rebase` - Pull con rebase
   - Auto-detección de workspace desde directorio actual
   - Salta repos con cambios sin commitear (no pierde trabajo)
+- **`ws stash`** - Gestión coordinada de stash en todos los repos
+  - `ws stash` / `ws stash push "mensaje"` - Stash en repos con cambios
+  - `ws stash pop` - Pop del stash más reciente en todos los repos
+  - `ws stash list` - Lista stashes de todos los repos
+  - `ws stash clear` - Elimina todos los stashes (con confirmación)
+  - `ws stash show [n]` - Muestra contenido del stash n
+  - Auto-detección de workspace desde directorio actual
 - **CI con GitHub Actions** (`.github/workflows/ci.yml`)
   - Tests automatizados en Ubuntu y macOS
   - Análisis estático con ShellCheck

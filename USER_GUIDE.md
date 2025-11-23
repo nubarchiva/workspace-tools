@@ -371,6 +371,14 @@ ws sync <nombre>                       # pull en todos los repos
 ws sync <nombre> --rebase              # pull con rebase
 ws sync <nombre> --fetch               # solo fetch (no merge)
 ws sync                                # auto-detecta workspace actual
+
+# Gestión coordinada de stash
+ws stash                               # push stash en repos con cambios
+ws stash push "mensaje"                # push con mensaje personalizado
+ws stash pop                           # pop en todos los repos
+ws stash list                          # lista stashes de todos los repos
+ws stash clear                         # elimina todos los stashes
+ws stash show                          # muestra contenido del stash
 ```
 
 ## Shortcuts
@@ -392,10 +400,12 @@ wmci               # detecta workspace actual
 wgt <nombre>       # git status en todos
 wgpa <nombre>      # git pull --all en todos
 wsync <nombre>     # sync (pull) en todos
+wstash             # stash en todos los repos
 
 # Con auto-detección
 wgt                # detecta workspace actual
 wsync              # detecta workspace actual
+wstash             # detecta workspace actual
 ```
 
 ### Navegación
@@ -735,7 +745,40 @@ ws sync -r feature-123            # equivalente
 # - Resumen final: OK / saltados / errores
 ```
 
-## Ejemplo 9: Trabajar en Múltiples Features
+## Ejemplo 9: Cambio Rápido de Contexto con Stash
+
+**Contexto:** Necesitas cambiar a otra tarea urgente sin perder tu trabajo actual
+
+```bash
+# 1. Estás trabajando en feature-A con cambios sin commitear
+ws .                              # ver estado actual
+
+# 2. Necesitas cambiar a feature-B urgente
+ws stash push "WIP: implementando login"   # stash en todos los repos
+
+# 3. Cambiar al otro workspace
+ws cd feature-B
+
+# 4. Resolver la urgencia...
+# ...
+
+# 5. Volver a tu trabajo original
+ws cd feature-A
+
+# 6. Recuperar tus cambios
+ws stash pop                      # restaura los cambios
+
+# Otros comandos útiles:
+ws stash list                     # ver qué stashes hay
+ws stash show                     # ver contenido del stash
+ws stash clear                    # limpiar todos los stashes
+
+# Shortcut
+wstash                            # equivalente a ws stash
+wstash pop                        # equivalente a ws stash pop
+```
+
+## Ejemplo 10: Trabajar en Múltiples Features
 
 **Contexto:** Varias features simultáneas
 
@@ -762,7 +805,7 @@ ws status ui-redesign
 ws status libs-update
 ```
 
-## Ejemplo 10: Claude Code Optimizado
+## Ejemplo 11: Claude Code Optimizado
 
 **Contexto:** Maximizar efectividad de IA
 

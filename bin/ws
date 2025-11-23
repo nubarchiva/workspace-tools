@@ -97,6 +97,11 @@ OPERACIONES MULTI-REPO:
       Opciones: --fetch (solo fetch), --rebase (pull con rebase)
       Ejemplo: ws sync feature-123
 
+  stash [acción] [workspace]
+      Gestiona stash coordinado en todos los repos
+      Acciones: push (default), pop, list, clear, show
+      Ejemplo: ws stash push "WIP: feature"
+
 CARACTERÍSTICAS:
 
   • Búsqueda parcial: usa parte del nombre (ej: ws cd fea)
@@ -132,7 +137,7 @@ fi
 # Función para expandir abreviaturas
 expand_abbreviation() {
     local abbrev=$1
-    local commands="new add remove switch list clean mvn git sync status rename info help"
+    local commands="new add remove switch list clean mvn git sync stash status rename info help"
 
     # Aliases predefinidos
     case $abbrev in
@@ -177,7 +182,7 @@ fi
 
 # Mapear subcomandos a scripts
 case $SUBCOMMAND in
-    new|add|remove|switch|list|clean|mvn|git|sync|status|rename|info)
+    new|add|remove|switch|list|clean|mvn|git|sync|stash|status|rename|info)
         SCRIPT_NAME="ws-$SUBCOMMAND"
         SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_NAME"
 

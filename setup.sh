@@ -67,6 +67,7 @@ wmcl() { ws mvn "$1" -T 1C clean; }
 wgt() { ws git "$1" status; }
 wgpa() { ws git "$1" pull --all; }
 wsync() { ws sync "$@"; }
+wstash() { ws stash "$@"; }
 
 # Navigation shortcuts para workspaces
 # wscd: Navega a un repo dentro del workspace actual con matching parcial

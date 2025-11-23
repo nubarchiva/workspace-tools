@@ -1,0 +1,375 @@
+#!/bin/bash
+# Gestión coordinada de stash en todos los repos de un workspace
+
+# Inicializacion centralizada
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
+
+# =============================================================================
+# Funciones
+# =============================================================================
+
+show_help() {
+    echo "Uso: ws stash [acción] [opciones] [nombre|patrón]"
+    echo ""
+    echo "Gestiona stash coordinado en todos los repos de un workspace."
+    echo ""
+    echo "Acciones:"
+    echo "  push [mensaje]   Stash en todos los repos con cambios (default)"
+    echo "  pop              Pop del stash más reciente en todos los repos"
+    echo "  list             Lista stashes de todos los repos"
+    echo "  clear            Elimina todos los stashes de todos los repos"
+    echo "  show [n]         Muestra contenido del stash n (default: 0)"
+    echo ""
+    echo "Opciones:"
+    echo "  --help, -h       Mostrar esta ayuda"
+    echo ""
+    echo "💡 Si no especificas workspace, se auto-detecta desde el directorio actual"
+    echo ""
+    echo "Ejemplos:"
+    echo "  ws stash                          # Push stash en todos (workspace actual)"
+    echo "  ws stash push \"WIP: feature X\"    # Push con mensaje"
+    echo "  ws stash pop                      # Pop en todos los repos"
+    echo "  ws stash list feature-123         # Lista stashes de workspace"
+    echo "  ws stash clear                    # Limpia todos los stashes"
+    echo ""
+    echo "Alias:"
+    echo "  wstash                            # Shortcut para ws stash"
+}
+
+# =============================================================================
+# Variables y argumentos
+# =============================================================================
+
+ACTION=""
+WORKSPACE_PATTERN=""
+STASH_MESSAGE=""
+STASH_INDEX="0"
+
+# Parsear argumentos
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        push|pop|list|clear|show)
+            ACTION="$1"
+            shift
+            ;;
+        -*)
+            error "❌ Opción desconocida: $1"
+            show_help
+            exit 1
+            ;;
+        *)
+            # Determinar si es mensaje, índice, o patrón de workspace
+            if [ -z "$ACTION" ]; then
+                # Sin acción definida, es patrón de workspace
+                WORKSPACE_PATTERN="$1"
+            elif [ "$ACTION" = "push" ] && [ -z "$STASH_MESSAGE" ]; then
+                # Para push, siguiente arg es mensaje
+                STASH_MESSAGE="$1"
+            elif [ "$ACTION" = "show" ] && [[ "$1" =~ ^[0-9]+$ ]]; then
+                # Para show, siguiente arg puede ser índice
+                STASH_INDEX="$1"
+            elif [ -z "$WORKSPACE_PATTERN" ]; then
+                WORKSPACE_PATTERN="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Acción por defecto: push
+[ -z "$ACTION" ] && ACTION="push"
+
+# =============================================================================
+# Funciones de workspace
+# =============================================================================
+
+detect_workspace() {
+    if [ -n "$WORKSPACE_PATTERN" ]; then
+        WORKSPACE_NAME=$(find_matching_workspace "$WORKSPACE_PATTERN" "$WORKSPACES_DIR")
+        if [ $? -ne 0 ]; then
+            exit 1
+        fi
+    else
+        WORKSPACE_NAME=$(detect_current_workspace)
+        if [ -z "$WORKSPACE_NAME" ]; then
+            error "❌ No se especificó workspace y no se pudo detectar automáticamente"
+            echo ""
+            info "💡 Ejecuta desde dentro de un workspace o especifica el nombre:"
+            echo "   ws stash <workspace>"
+            exit 1
+        fi
+        info "🔍 Workspace detectado: $WORKSPACE_NAME"
+    fi
+
+    WORKSPACE_DIR="$WORKSPACES_DIR/$WORKSPACE_NAME"
+    if [ ! -d "$WORKSPACE_DIR" ]; then
+        die "Workspace no existe: $WORKSPACE_NAME"
+    fi
+}
+
+get_repos() {
+    find_repos_in_workspace "$WORKSPACE_DIR"
+}
+
+# =============================================================================
+# Acciones de stash
+# =============================================================================
+
+stash_push() {
+    local repos="$1"
+    local message="${STASH_MESSAGE:-WS stash: $WORKSPACE_NAME}"
+
+    print_header "Stash push: $WORKSPACE_NAME"
+    echo ""
+    echo "Mensaje: ${COLOR_CYAN}$message${COLOR_RESET}"
+    echo ""
+
+    local stash_count=0
+    local skip_count=0
+
+    echo "$repos" | while IFS= read -r repo_rel_path; do
+        [ -z "$repo_rel_path" ] && continue
+
+        local repo_path="$WORKSPACE_DIR/$repo_rel_path"
+        echo -n "📦 ${COLOR_CYAN}$repo_rel_path${COLOR_RESET}: "
+
+        # Verificar si tiene cambios
+        if ! git_has_uncommitted_changes "$repo_path"; then
+            echo "${COLOR_DIM}⏭️  Sin cambios${COLOR_RESET}"
+            ((skip_count++))
+            continue
+        fi
+
+        # Hacer stash
+        local output
+        output=$(cd "$repo_path" && git stash push -m "$message" 2>&1)
+
+        if [ $? -eq 0 ]; then
+            echo "${COLOR_GREEN}✅ Stash creado${COLOR_RESET}"
+            ((stash_count++))
+        else
+            echo "${COLOR_RED}❌ Error${COLOR_RESET}"
+            echo "   ${COLOR_DIM}$output${COLOR_RESET}"
+        fi
+    done
+
+    echo ""
+    echo "${COLOR_DIM}═══════════════════════════════════════════════════${COLOR_RESET}"
+    echo "Resumen: ${COLOR_GREEN}$stash_count stashes creados${COLOR_RESET}"
+    [ $skip_count -gt 0 ] && echo "         ${COLOR_DIM}$skip_count repos sin cambios${COLOR_RESET}"
+    echo "${COLOR_DIM}═══════════════════════════════════════════════════${COLOR_RESET}"
+}
+
+stash_pop() {
+    local repos="$1"
+
+    print_header "Stash pop: $WORKSPACE_NAME"
+    echo ""
+
+    local pop_count=0
+    local skip_count=0
+    local error_count=0
+
+    echo "$repos" | while IFS= read -r repo_rel_path; do
+        [ -z "$repo_rel_path" ] && continue
+
+        local repo_path="$WORKSPACE_DIR/$repo_rel_path"
+        echo -n "📦 ${COLOR_CYAN}$repo_rel_path${COLOR_RESET}: "
+
+        # Verificar si tiene stashes
+        local stash_list
+        stash_list=$(cd "$repo_path" && git stash list 2>/dev/null)
+
+        if [ -z "$stash_list" ]; then
+            echo "${COLOR_DIM}⏭️  Sin stashes${COLOR_RESET}"
+            ((skip_count++))
+            continue
+        fi
+
+        # Hacer pop
+        local output
+        output=$(cd "$repo_path" && git stash pop 2>&1)
+
+        if [ $? -eq 0 ]; then
+            echo "${COLOR_GREEN}✅ Stash aplicado${COLOR_RESET}"
+            ((pop_count++))
+        else
+            echo "${COLOR_RED}❌ Error (conflicto?)${COLOR_RESET}"
+            echo "   ${COLOR_DIM}$output${COLOR_RESET}"
+            ((error_count++))
+        fi
+    done
+
+    echo ""
+    echo "${COLOR_DIM}═══════════════════════════════════════════════════${COLOR_RESET}"
+    echo "Resumen: ${COLOR_GREEN}$pop_count stashes aplicados${COLOR_RESET}"
+    [ $skip_count -gt 0 ] && echo "         ${COLOR_DIM}$skip_count repos sin stashes${COLOR_RESET}"
+    [ $error_count -gt 0 ] && echo "         ${COLOR_RED}$error_count errores${COLOR_RESET}"
+    echo "${COLOR_DIM}═══════════════════════════════════════════════════${COLOR_RESET}"
+}
+
+stash_list() {
+    local repos="$1"
+
+    print_header "Stash list: $WORKSPACE_NAME"
+    echo ""
+
+    local has_stashes=0
+
+    echo "$repos" | while IFS= read -r repo_rel_path; do
+        [ -z "$repo_rel_path" ] && continue
+
+        local repo_path="$WORKSPACE_DIR/$repo_rel_path"
+
+        # Obtener lista de stashes
+        local stash_list
+        stash_list=$(cd "$repo_path" && git stash list 2>/dev/null)
+
+        if [ -n "$stash_list" ]; then
+            has_stashes=1
+            echo "📦 ${COLOR_CYAN}$repo_rel_path${COLOR_RESET}:"
+            echo "$stash_list" | while IFS= read -r stash_entry; do
+                echo "   ${COLOR_DIM}$stash_entry${COLOR_RESET}"
+            done
+            echo ""
+        fi
+    done
+
+    if [ $has_stashes -eq 0 ]; then
+        info "ℹ️  No hay stashes en ningún repo"
+    fi
+}
+
+stash_clear() {
+    local repos="$1"
+
+    print_header "Stash clear: $WORKSPACE_NAME"
+    echo ""
+
+    # Verificar primero si hay stashes
+    local repos_with_stashes=0
+    echo "$repos" | while IFS= read -r repo_rel_path; do
+        [ -z "$repo_rel_path" ] && continue
+        local repo_path="$WORKSPACE_DIR/$repo_rel_path"
+        local stash_list
+        stash_list=$(cd "$repo_path" && git stash list 2>/dev/null)
+        [ -n "$stash_list" ] && ((repos_with_stashes++))
+    done
+
+    if [ $repos_with_stashes -eq 0 ]; then
+        info "ℹ️  No hay stashes que limpiar"
+        return 0
+    fi
+
+    # Confirmar
+    warning "⚠️  Esta acción eliminará TODOS los stashes de todos los repos"
+    echo ""
+    echo -n "¿Continuar? [y/N]: "
+    read -r response
+    if [[ ! "$response" =~ ^[Yy]$ ]]; then
+        echo "Cancelado"
+        return 0
+    fi
+
+    echo ""
+    local clear_count=0
+
+    echo "$repos" | while IFS= read -r repo_rel_path; do
+        [ -z "$repo_rel_path" ] && continue
+
+        local repo_path="$WORKSPACE_DIR/$repo_rel_path"
+
+        # Verificar si tiene stashes
+        local stash_list
+        stash_list=$(cd "$repo_path" && git stash list 2>/dev/null)
+
+        if [ -z "$stash_list" ]; then
+            continue
+        fi
+
+        echo -n "📦 ${COLOR_CYAN}$repo_rel_path${COLOR_RESET}: "
+
+        # Limpiar stashes
+        local output
+        output=$(cd "$repo_path" && git stash clear 2>&1)
+
+        if [ $? -eq 0 ]; then
+            echo "${COLOR_GREEN}✅ Stashes eliminados${COLOR_RESET}"
+            ((clear_count++))
+        else
+            echo "${COLOR_RED}❌ Error${COLOR_RESET}"
+            echo "   ${COLOR_DIM}$output${COLOR_RESET}"
+        fi
+    done
+
+    echo ""
+    success "✅ Stashes limpiados en $clear_count repos"
+}
+
+stash_show() {
+    local repos="$1"
+
+    print_header "Stash show (stash@{$STASH_INDEX}): $WORKSPACE_NAME"
+    echo ""
+
+    echo "$repos" | while IFS= read -r repo_rel_path; do
+        [ -z "$repo_rel_path" ] && continue
+
+        local repo_path="$WORKSPACE_DIR/$repo_rel_path"
+
+        # Verificar si tiene stash en ese índice
+        local stash_exists
+        stash_exists=$(cd "$repo_path" && git stash list | grep -c "stash@{$STASH_INDEX}" 2>/dev/null)
+
+        if [ "$stash_exists" -eq 0 ]; then
+            continue
+        fi
+
+        echo "📦 ${COLOR_CYAN}$repo_rel_path${COLOR_RESET}:"
+        echo "${COLOR_DIM}─────────────────────────────────────────${COLOR_RESET}"
+
+        # Mostrar stash
+        (cd "$repo_path" && git stash show -p "stash@{$STASH_INDEX}" 2>/dev/null | head -50)
+
+        echo ""
+    done
+}
+
+# =============================================================================
+# Main
+# =============================================================================
+
+detect_workspace
+
+repos=$(get_repos)
+
+if [ -z "$repos" ]; then
+    die "No hay repos en este workspace"
+fi
+
+case "$ACTION" in
+    push)
+        stash_push "$repos"
+        ;;
+    pop)
+        stash_pop "$repos"
+        ;;
+    list)
+        stash_list "$repos"
+        ;;
+    clear)
+        stash_clear "$repos"
+        ;;
+    show)
+        stash_show "$repos"
+        ;;
+    *)
+        error "❌ Acción desconocida: $ACTION"
+        show_help
+        exit 1
+        ;;
+esac
