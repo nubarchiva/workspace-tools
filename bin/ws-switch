@@ -98,13 +98,38 @@ echo "$repos" | while read -r repo_rel_path; do
             current_branch=$(git branch --show-current)
             echo "   Branch: ${COLOR_CYAN}$current_branch${COLOR_RESET}"
 
-            # Estado
+            # Estado de cambios locales
             status=$(git status -s)
             if [ -z "$status" ]; then
                 success "   ✅ Sin cambios"
             else
                 warning "   ⚠️  Cambios sin commitear:"
                 git status -s | sed 's/^/      /'
+            fi
+
+            # Verificar commits sin push
+            if git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then
+                # Tiene upstream configurado
+                unpushed=$(git rev-list @{u}..HEAD 2>/dev/null | wc -l | tr -d ' ')
+                if [ "$unpushed" -gt 0 ]; then
+                    warning "   📤 $unpushed commit(s) sin push"
+                fi
+            else
+                # No tiene upstream: comparar con branch base (origin/develop, origin/master, etc.)
+                base_branch=""
+                for branch in origin/develop origin/master develop master; do
+                    if git rev-parse --verify "$branch" >/dev/null 2>&1; then
+                        base_branch="$branch"
+                        break
+                    fi
+                done
+
+                if [ -n "$base_branch" ]; then
+                    unique_count=$(git rev-list ${base_branch}..HEAD 2>/dev/null | wc -l | tr -d ' ')
+                    if [ -n "$unique_count" ] && [ "$unique_count" -gt 0 ]; then
+                        warning "   📤 $unique_count commit(s) sin remoto"
+                    fi
+                fi
             fi
             echo ""
         fi
