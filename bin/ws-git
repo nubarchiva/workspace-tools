@@ -161,7 +161,19 @@ echo "$repos" | while read -r repo_rel_path; do
 
             # Cambiar al directorio del repo y ejecutar Git
             cd "$repo_path"
-            git $GIT_ARGS
+
+            # Detectar si es "push" sin upstream y añadir -u automáticamente
+            ACTUAL_GIT_ARGS="$GIT_ARGS"
+            if [ "$GIT_ARGS" = "push" ]; then
+                # Verificar si hay upstream configurado
+                if ! git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then
+                    current_branch=$(git branch --show-current)
+                    info "   📤 Sin upstream, ejecutando: git push -u origin $current_branch"
+                    ACTUAL_GIT_ARGS="push -u origin $current_branch"
+                fi
+            fi
+
+            git $ACTUAL_GIT_ARGS
 
             # Verificar el resultado
             exit_code=$?
