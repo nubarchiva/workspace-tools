@@ -1,922 +1,574 @@
-# Workspace Tools - Guía de Usuario
+# Workspace Tools - Guía de Referencia
 
-Guía completa para usar Workspace Tools: inicio rápido, referencia de comandos y ejemplos prácticos.
-
----
-
-## 📚 Índice
-
-1. [Inicio Rápido](#inicio-rápido) - Instalar y empezar en 5 minutos
-2. [Referencia Rápida](#referencia-rápida) - Cheatsheet de comandos
-3. [Ejemplos Prácticos](#ejemplos-prácticos) - Casos de uso reales
+Referencia completa de comandos y opciones de Workspace Tools.
 
 ---
 
-# Inicio Rápido
+## Índice
 
-## Instalación (5 minutos)
+1. [Instalación](#instalación)
+2. [Configuración](#configuración)
+3. [Comandos](#comandos)
+4. [Shortcuts](#shortcuts)
+5. [Abreviaturas](#abreviaturas)
+6. [Troubleshooting](#troubleshooting)
 
-### 1. Colocar el repositorio
+---
+
+## Instalación
+
+### Requisitos
+
+- Bash 4.0+ o Zsh 5.0+
+- Git 2.15+ (soporte de worktrees)
+- macOS o Linux
+
+### Instalación Manual
 
 ```bash
-cd ~/wrkspc.nubarchiva/tools
-# Si tienes el tarball:
-tar -xzf workspace-tools.tar.gz
-# O si clonas desde Git:
-git clone <url> workspace-tools
+# 1. Clonar o copiar el repositorio
+git clone <url> /ruta/workspace-tools
+cd /ruta/workspace-tools
 
-cd workspace-tools
-```
-
-### 2. Instalar
-
-```bash
+# 2. Ejecutar instalador
 ./install.sh
+
+# 3. Añadir a ~/.bashrc o ~/.zshrc
+source /ruta/workspace-tools/setup.sh
+
+# 4. Recargar shell
+source ~/.bashrc  # o ~/.zshrc
 ```
 
-Esto:
-- Detecta automáticamente tu estructura
-- Crea el directorio `workspaces/`
-- Configura permisos de los scripts
-
-### 3. Configurar en tu shell (RECOMENDADO)
-
-Añade a tu `~/.bashrc` o `~/.zshrc`:
+### Instalación con Homebrew (macOS)
 
 ```bash
-source ~/wrkspc.nubarchiva/tools/workspace-tools/setup.sh
+brew install --build-from-source ./Formula/workspace-tools.rb
 ```
 
-Luego:
+### Verificar Instalación
+
 ```bash
-source ~/.bashrc  # o source ~/.zshrc
+ws --version
+ws --help
 ```
 
-**Esto configura automáticamente:**
-- Variable `WS_TOOLS`
-- Comando `ws` en el PATH
-- Shortcuts: `wmcis`, `wmci`, `wscd`
-- Autocompletado (bash o zsh según tu shell)
+---
 
-## Primer Uso (2 minutos)
+## Configuración
 
-### Crear tu primer workspace
+### Archivo ~/.wsrc
+
+Crea `~/.wsrc` para configuración personalizada:
 
 ```bash
-# Crear workspace para feature
-ws new test ks-nuba libs/marc4j
-
-# O crear workspace en master/develop
-ws new master ks-nuba
-ws new develop ks-nuba libs/marc4j
-```
-
-### Ver lo que creaste
-
-```bash
-ws list
-# o con abreviatura:
-ws ls
-```
-
-### Navegar al workspace
-
-```bash
-# Cambiar al directorio del workspace (ambos hacen lo mismo con setup.sh)
-ws cd test                      # cambia al workspace
-ws switch test                  # cambia al workspace (equivalente)
-
-# Ver estado del workspace actual
-cd ~/workspaces/test/ks-nuba
-ws .              # atajo ultra-corto
-ws status         # equivalente
-
-# Opción 4: Navegar entre repos (desde dentro del workspace)
-wscd ks           # navega a ks-nuba
-wscd libs         # navega a libs/marc4j (si coincide)
-wscd .            # navega a raíz del workspace
-```
-
-### Trabajar en el workspace
-
-```bash
-# Abrir con tu editor
-claude-code .
-# o
-code .
-```
-
-### Hacer cambios
-
-```bash
-cd ks-nuba
-# ... hacer cambios ...
-git commit -am "feat: mi cambio"
-git push origin feature/test
-
-cd ../libs/marc4j
-# ... hacer cambios ...
-git commit -am "feat: actualizar librería"
-git push origin feature/test
-```
-
-### Limpiar cuando termines
-
-```bash
-ws clean test
-# o con abreviatura:
-ws rm test
-```
-
-## Comandos Esenciales
-
-```bash
-# Crear workspace
-ws new <nombre> [repo1] [repo2]...
-ws n <nombre> [repos...]              # abreviatura
-
-# Ver todos los workspaces
-ws list
-ws ls                                  # abreviatura
-ws ls 8089                             # filtrar por patrón
-
-# Ver estado del workspace actual
-ws .                                   # atajo ultra-corto
-ws status                              # desde dentro del workspace
-ws status <nombre>                     # especificar workspace
-
-# Ver información del workspace (sin cambiar directorio)
-ws info <nombre>                       # muestra info completa
-
-# Cambiar a workspace
-ws cd <nombre>                         # cambia automáticamente
-ws cd <nombre parcial>                 # búsqueda parcial
-
-# Navegar entre repos (desde dentro del workspace)
-wscd <patrón>                          # busca repo y navega
-wscd                                   # menú de repos
-wscd .                                 # raíz del workspace
-
-# Ver detalle (equivalente a ws info, pero con cd funciona como ws cd)
-ws switch <nombre>
-
-# Renombrar workspace
-ws rename <actual> <nuevo>
-ws mv <actual> <nuevo>                 # alias
-
-# Añadir repos
-ws add <nombre> <repo1> [repo2]...
-ws a <nombre> <repos...>               # abreviatura
-
-# Eliminar repos de workspace
-ws remove <nombre> <repo1> [repo2]...
-
-# Ejecutar Maven en todos los repos
-ws mvn <nombre> clean install
-wmcis <nombre>                         # shortcut: clean install sin tests
-wmci <nombre>                          # shortcut: clean install
-wmis <nombre>                          # shortcut: install sin tests ni clean
-
-# Orden de compilación personalizado (opcional)
-# Crear archivo .ws-build-order en la raíz del proyecto con el orden deseado.
-# Solo se compilan los repos que existen en el workspace.
-# Ejemplo ~/wrkspc.nubarchiva/.ws-build-order:
-#   dga-commons
-#   ks-nuba
-#   modules/diffusion-portal
-#   dph-foto
-
-# Ejecutar Git en todos los repos
-ws git <nombre> status
-wgt <nombre>                           # shortcut: status
-wgpa <nombre>                          # shortcut: pull --all
-
-# Limpiar
-ws clean <nombre>
-ws rm <nombre>                         # abreviatura
-```
-
-## Configuración Personalizada
-
-Por defecto, workspace-tools asume que tu directorio raíz es `~/wrkspc.nubarchiva`. Si necesitas una ubicación diferente, crea un archivo `~/.wsrc`:
-
-```bash
-# Copiar el ejemplo
-cp ~/wrkspc.nubarchiva/tools/workspace-tools/config/wsrc.example ~/.wsrc
-
-# Editar según necesites
-nano ~/.wsrc
-```
-
-### Variables Configurables
-
-```bash
-# ~/.wsrc
-
-# Directorio raíz (donde están los repos)
+# Directorio raíz del proyecto (donde están los repos)
 WORKSPACE_ROOT="$HOME/mi-proyecto"
 
-# Directorio de workspaces (por defecto $WORKSPACE_ROOT/workspaces)
-WORKSPACES_DIR="$WORKSPACE_ROOT/mis-workspaces"
+# Directorio donde crear workspaces (opcional)
+WORKSPACES_DIR="$WORKSPACE_ROOT/workspaces"
 
-# Activar modo debug
+# Modo debug (opcional)
 WS_DEBUG=1
 ```
 
 ### Prioridad de Configuración
 
-1. Variables de entorno (útil para testing o uso temporal)
-2. `~/.wsrc` (configuración permanente del usuario)
-3. Derivada de la ubicación de los scripts (`WS_TOOLS/tools/workspace-tools`)
-4. Fallback: `~/wrkspc.nubarchiva`
+1. Variables de entorno (para uso temporal)
+2. `~/.wsrc` (configuración permanente)
+3. Derivada de ubicación de scripts
+4. Fallback por defecto
 
-## Troubleshooting
+### Archivo de Templates
 
-### "Repo no encontrado"
-Verifica la ruta:
-```bash
-cd ~/wrkspc.nubarchiva
-ls libs/marc4j/.git   # Debe existir
+Los templates se guardan en `$WORKSPACE_ROOT/.ws-templates`:
+
+```
+frontend: app libs/ui modules/portal
+backend: api libs/common libs/db
+full: app api libs/common libs/ui
 ```
 
-### Ver todos los repos disponibles
-```bash
-cd ~/wrkspc.nubarchiva
-find . -maxdepth 3 -name ".git" -type d | sed 's|/.git||' | sed 's|^\./||'
-```
+### Orden de Compilación Maven
 
-### Autocompletado no funciona
-Verifica que hayas cargado setup.sh:
-```bash
-source ~/wrkspc.nubarchiva/tools/workspace-tools/setup.sh
+Crea `$WORKSPACE_ROOT/.ws-build-order` para definir orden de compilación:
+
+```
+libs/common
+libs/utils
+app
+api
 ```
 
 ---
 
-# Referencia Rápida
+## Comandos
 
-## Comandos Básicos
+### ws new
 
-### Crear Workspaces
+Crea un nuevo workspace.
+
 ```bash
-# Feature (crea branch feature/<nombre>)
-ws new <nombre> ks-nuba dga-commons
-ws new <nombre> libs/marc4j modules/docs
-ws new <nombre> ks-nuba libs/marc4j modules/docs
-
-# Master/Develop (usa esas branches)
-ws new master ks-nuba libs/dspace
-ws new develop ks-nuba libs/marc4j modules/docs
-
-# Workspace vacío (añadir repos después)
-ws new <nombre>
-
-# Abreviaturas
-ws n <nombre> ks-nuba           # new
-ws mk <nombre> libs/marc4j      # new
+ws new <nombre> [repos...]
+ws new <nombre> --template <template> [repos...]
 ```
 
-### Añadir Repos
+**Opciones:**
+- `--template, -t <nombre>`: Usar repos de un template predefinido
+
+**Comportamiento de branches:**
+- `master` o `develop`: Usa esas branches existentes
+- Otros nombres: Crea branch `feature/<nombre>`
+
+**Ejemplos:**
 ```bash
-# Añadir un repo
-ws add <nombre> ks-nuba
-
-# Añadir múltiples repos
-ws add <nombre> dga-commons libs/marc4j modules/docs
-
-# Con búsqueda parcial
-ws add fac libs/marc4j          # encuentra workspace con "fac"
-
-# Abreviatura
-ws a <nombre> <repos...>        # add
+ws new feature-123 app libs/common
+ws new feature-123 --template frontend
+ws new feature-123 -t backend libs/extra
+ws new develop app api                    # usa branch develop
 ```
 
-### Eliminar Repos
-```bash
-# Eliminar uno o varios repos del workspace
-ws remove <nombre> ks-nuba
-ws remove <nombre> libs/marc4j modules/docs
+---
 
-# Con verificaciones de seguridad (cambios pendientes, commits sin pushear)
+### ws add
+
+Añade repos a un workspace existente.
+
+```bash
+ws add <workspace> <repo1> [repo2...]
 ```
 
-### Navegación
+**Ejemplos:**
 ```bash
-# Ver info del workspace (SIN cambiar directorio)
-ws info <nombre>
-ws info fac                     # búsqueda parcial
-
-# Cambiar al workspace
-ws cd <nombre>
-ws cd fac                       # búsqueda parcial
-
-# Ver estado del workspace actual
-ws .                            # atajo ultra-corto
-ws status                       # equivalente
-ws here                         # alias
-
-# Navegar entre repos (desde dentro del workspace)
-wscd ks                         # navega a repo que contiene "ks"
-wscd                            # menú interactivo
-wscd .                          # raíz del workspace
-wscd ..                         # nivel arriba
-
-# Ver detalle (equivalente a ws info, pero con cd funciona como ws cd)
-ws switch <nombre>
+ws add feature-123 libs/utils
+ws add feature-123 libs/ui modules/api
 ```
 
-### Renombrar
-```bash
-# Renombrar workspace completo
-ws rename old-name new-name
-ws mv old-name new-name         # alias
+---
 
-# Verificaciones exhaustivas:
-# - Bloquea si hay cambios sin commitear
-# - Advierte sobre commits sin pushear
-# - Advierte sobre branches remotas
-# - Confirmación explícita escribiendo "RENOMBRAR"
+### ws remove
+
+Elimina repos de un workspace.
+
+```bash
+ws remove <workspace> <repo1> [repo2...]
 ```
 
-### Listar y Limpiar
+**Verificaciones de seguridad:**
+- Advierte si hay cambios sin commitear
+- Advierte si hay commits sin pushear
+
+**Ejemplos:**
 ```bash
-# Listar todos
-ws list
-ws ls                           # abreviatura
-
-# Filtrar workspaces
-ws ls 8089                      # solo los que contienen "8089"
-ws ls NUBA                      # solo los que contienen "NUBA"
-
-# Limpiar workspace
-ws clean <nombre>
-ws clean fac                    # búsqueda parcial
-ws rm <nombre>                  # abreviatura
-ws del <nombre>                 # abreviatura
+ws remove feature-123 libs/utils
 ```
 
-### Operaciones Multi-Repo
+---
+
+### ws list
+
+Lista todos los workspaces.
+
 ```bash
-# Maven en todos los repos
-ws mvn <nombre> clean install
-ws mvn <nombre> test
-
-# Git en todos los repos
-ws git <nombre> status
-ws git <nombre> pull --all
-ws git <nombre> log --oneline -5
-
-# Sincronizar repos con remoto
-ws sync <nombre>                       # pull en todos los repos
-ws sync <nombre> --rebase              # pull con rebase
-ws sync <nombre> --fetch               # solo fetch (no merge)
-ws sync                                # auto-detecta workspace actual
-
-# Gestión coordinada de stash
-ws stash                               # push stash en repos con cambios
-ws stash push "mensaje"                # push con mensaje personalizado
-ws stash pop                           # pop en todos los repos
-ws stash list                          # lista stashes de todos los repos
-ws stash clear                         # elimina todos los stashes
-ws stash show                          # muestra contenido del stash
-
-# Templates de workspace
-ws templates                           # lista templates disponibles
-ws templates add frontend ks-nuba libs/ui   # crear template
-ws templates show frontend             # ver repos de un template
-ws templates remove frontend           # eliminar template
-ws tpl                                 # alias para templates
-
-# Búsqueda multi-repo
-ws grep "patrón"                       # busca en todos los repos
-ws grep -i "todo"                      # case-insensitive
-ws grep --type java "class Foo"        # solo archivos .java
-ws grep -l "deprecated"                # solo nombres de archivo
-ws grep -E "search.*method"            # regex extendida
-wgrep "pattern"                        # shortcut
+ws list [patrón]
+ws ls [patrón]
 ```
+
+**Ejemplos:**
+```bash
+ws list                # todos
+ws ls                  # alias
+ws ls 8089             # filtrar por "8089"
+ws ls feature          # filtrar por "feature"
+```
+
+**Información mostrada:**
+- Nombre del workspace
+- Número de repos
+- Branch
+- Indicadores de cambios pendientes
+
+---
+
+### ws switch / ws cd
+
+Muestra información del workspace y opcionalmente cambia de directorio.
+
+```bash
+ws switch <workspace>
+ws cd <workspace>
+```
+
+**Diferencia:**
+- `ws switch`: Solo muestra información
+- `ws cd`: Muestra información Y cambia al directorio (requiere setup.sh)
+
+**Ejemplos:**
+```bash
+ws switch feature-123
+ws cd feat              # búsqueda parcial
+```
+
+---
+
+### ws status
+
+Muestra estado del workspace actual.
+
+```bash
+ws status [workspace]
+ws .
+ws here
+```
+
+**Ejemplos:**
+```bash
+ws .                    # workspace actual (auto-detección)
+ws status               # equivalente
+ws status feature-123   # workspace específico
+```
+
+---
+
+### ws info
+
+Muestra información del workspace sin cambiar directorio.
+
+```bash
+ws info <workspace>
+```
+
+---
+
+### ws rename
+
+Renombra un workspace.
+
+```bash
+ws rename <nombre-actual> <nombre-nuevo>
+ws mv <nombre-actual> <nombre-nuevo>
+```
+
+**Verificaciones:**
+- Bloquea si hay cambios sin commitear
+- Advierte sobre commits sin pushear
+- Advierte sobre branches remotas
+- Requiere confirmación escribiendo "RENOMBRAR"
+
+**Acciones automáticas:**
+- Renombra directorio
+- Repara worktrees (`git worktree repair`)
+- Renombra branches locales
+
+---
+
+### ws clean
+
+Elimina un workspace.
+
+```bash
+ws clean <workspace>
+ws rm <workspace>
+ws del <workspace>
+```
+
+**Verificaciones:**
+- Advierte si hay cambios sin commitear
+- Advierte si hay commits sin pushear
+- Requiere confirmación
+
+---
+
+### ws git
+
+Ejecuta comando Git en todos los repos del workspace.
+
+```bash
+ws git <workspace> <comando> [args...]
+```
+
+**Ejemplos:**
+```bash
+ws git feature-123 status
+ws git feature-123 pull --all
+ws git feature-123 log --oneline -5
+ws git feature-123 push origin feature/feature-123
+```
+
+---
+
+### ws mvn
+
+Ejecuta Maven en todos los repos del workspace (que tengan pom.xml).
+
+```bash
+ws mvn <workspace> <args...>
+```
+
+**Características:**
+- Ejecución paralela con `-T 1C`
+- Resumen de tiempos por proyecto
+- Respeta orden de `.ws-build-order` si existe
+
+**Ejemplos:**
+```bash
+ws mvn feature-123 clean install
+ws mvn feature-123 test
+ws mvn feature-123 clean install -DskipTests
+```
+
+---
+
+### ws sync
+
+Sincroniza todos los repos con el remoto.
+
+```bash
+ws sync [workspace] [opciones]
+```
+
+**Opciones:**
+- `--fetch, -f`: Solo fetch (no merge)
+- `--rebase, -r`: Pull con rebase
+
+**Comportamiento:**
+- Salta repos con cambios sin commitear
+- Salta repos sin remoto configurado
+- Muestra resumen de resultados
+
+**Ejemplos:**
+```bash
+ws sync                 # workspace actual, pull normal
+ws sync feature-123     # workspace específico
+ws sync --fetch         # solo fetch
+ws sync --rebase        # pull con rebase
+```
+
+---
+
+### ws stash
+
+Gestión coordinada de stash en todos los repos.
+
+```bash
+ws stash [acción] [workspace] [mensaje]
+```
+
+**Acciones:**
+- `push` (default): Stash en repos con cambios
+- `pop`: Restaurar último stash
+- `list`: Listar stashes de todos los repos
+- `clear`: Eliminar todos los stashes
+- `show [n]`: Mostrar contenido del stash
+
+**Ejemplos:**
+```bash
+ws stash                           # push en workspace actual
+ws stash push "WIP: login"         # push con mensaje
+ws stash pop                       # restaurar
+ws stash list                      # ver stashes
+ws stash show                      # contenido del último
+ws stash clear                     # limpiar (con confirmación)
+```
+
+---
+
+### ws grep
+
+Busca texto en todos los repos del workspace.
+
+```bash
+ws grep <patrón> [workspace] [opciones]
+```
+
+**Opciones:**
+- `-i`: Case-insensitive
+- `-l`: Solo nombres de archivo
+- `-n`: Mostrar números de línea
+- `-w`: Palabra completa
+- `-E`: Regex extendida
+- `--type <ext>`: Filtrar por extensión (java, js, py, etc.)
+
+**Ejemplos:**
+```bash
+ws grep "TODO"                     # workspace actual
+ws grep -i "searchterm"            # case-insensitive
+ws grep --type java "class Foo"    # solo archivos .java
+ws grep -l "deprecated"            # solo nombres de archivo
+ws grep -E "get.*User"             # regex
+```
+
+---
+
+### ws templates
+
+Gestión de templates de workspace.
+
+```bash
+ws templates [acción] [args...]
+ws tpl [acción] [args...]
+```
+
+**Acciones:**
+- `list` (default): Listar templates
+- `add <nombre> <repos...>`: Crear/actualizar template
+- `show <nombre>`: Mostrar repos de un template
+- `remove <nombre>`: Eliminar template
+
+**Ejemplos:**
+```bash
+ws templates                       # listar
+ws tpl                             # alias
+ws templates add frontend app libs/ui
+ws templates show frontend
+ws templates remove old-template
+```
+
+---
+
+### wscd
+
+Navega entre repos del workspace actual.
+
+```bash
+wscd [patrón]
+```
+
+**Comportamiento:**
+- Sin argumento: Menú interactivo
+- Con patrón: Busca repo que coincida (case-insensitive)
+- `.`: Raíz del workspace
+- `..`: Nivel arriba
+
+**Ejemplos:**
+```bash
+wscd                    # menú de repos
+wscd app                # ir a repo "app"
+wscd lib                # ir a repo que contiene "lib"
+wscd .                  # raíz del workspace
+```
+
+---
 
 ## Shortcuts
 
-### Maven
-```bash
-wmcis <nombre>     # clean install -DskipTests
-wmis <nombre>      # install -DskipTests (sin clean)
-wmci <nombre>      # clean install
-wmcl <nombre>      # clean
+Definidos en `setup.sh`:
 
-# Con auto-detección (desde dentro del workspace)
-wmcis              # detecta workspace actual
-wmci               # detecta workspace actual
-```
+### Maven
+
+| Shortcut | Comando |
+|----------|---------|
+| `wmcis [ws]` | `ws mvn clean install -DskipTests -Denforcer.skip` |
+| `wmis [ws]` | `ws mvn install -DskipTests -Denforcer.skip` |
+| `wmci [ws]` | `ws mvn clean install` |
+| `wmcl [ws]` | `ws mvn clean` |
 
 ### Git
-```bash
-wgt <nombre>       # git status en todos
-wgpa <nombre>      # git pull --all en todos
-wsync <nombre>     # sync (pull) en todos
-wstash             # stash en todos los repos
-wgrep "patrón"     # busca en todos los repos
 
-# Con auto-detección
-wgt                # detecta workspace actual
-wsync              # detecta workspace actual
-wstash             # detecta workspace actual
-wgrep              # detecta workspace actual
+| Shortcut | Comando |
+|----------|---------|
+| `wgt [ws]` | `ws git status` |
+| `wgpa [ws]` | `ws git pull --all` |
+| `wsync [ws]` | `ws sync` |
+| `wstash` | `ws stash` |
+| `wgrep` | `ws grep` |
+
+**Nota:** Si no se especifica workspace, usan auto-detección.
+
+---
+
+## Abreviaturas
+
+### Comandos
+
+| Abreviatura | Comando |
+|-------------|---------|
+| `n`, `mk`, `create` | `new` |
+| `a` | `add` |
+| `ls` | `list` |
+| `cd`, `sw` | `switch` |
+| `rm`, `del` | `clean` |
+| `mv` | `rename` |
+| `.`, `here` | `status` |
+| `tpl` | `templates` |
+| `h` | `help` |
+
+### Expansión Automática
+
+Cualquier prefijo único de comando se expande automáticamente:
+
+```bash
+ws l        # → ws list
+ws sy       # → ws sync
+ws sta      # → ws stash (o status si es más único)
 ```
 
-### Navegación
-```bash
-wscd <patrón>      # navega a repo con matching parcial
-wscd               # menú interactivo de repos
-wscd .             # raíz del workspace
-wscd ..            # nivel arriba
-```
-
-## Abreviaturas de Comandos
-
-```bash
-# Automáticas (cualquier prefijo único)
-ws n <nombre> <repos...>        # new
-ws a <nombre> <repos...>        # add
-ws l                            # list
-ws c <nombre>                   # clean
-
-# Predefinidas
-ws ls                           # list
-ws cd <nombre>                  # switch + cambiar directorio
-ws rm <nombre>                  # clean
-ws del <nombre>                 # clean
-ws mv <old> <new>               # rename
-ws mk <nombre> <repos...>       # new
-ws .                            # status (actual workspace)
-ws here                         # status (actual workspace)
-```
-
-## Búsqueda Parcial
+### Búsqueda Parcial de Workspaces
 
 Todos los comandos soportan coincidencia parcial case-insensitive:
 
 ```bash
-ws cd nuba                      # busca 'nuba' en workspaces
-ws add fac libs/marc4j          # busca 'fac' en workspaces
-ws rm test                      # busca 'test' en workspaces
-wscd marc                       # busca 'marc' en repos del workspace actual
+ws cd feat          # encuentra "feature-123"
+ws add api lib      # encuentra workspace "api-redesign"
 ```
 
-Si hay múltiples coincidencias, se muestra un menú interactivo.
-
-## Especificar Repos
-
-Siempre usa rutas relativas desde la raíz:
-
-```bash
-# ✅ Correcto
-ws new test ks-nuba              # Repo en raíz
-ws new test libs/marc4j          # Repo en libs/
-ws new test modules/docs         # Repo en modules/
-ws new test tools/otro-tool      # Repo en tools/
-
-# ❌ Incorrecto
-ws new test marc4j               # Falta "libs/"
-ws new test docs                 # Falta "modules/"
-```
-
-## Workflows Típicos
-
-### Feature con Múltiples Repos
-```bash
-# 1. Crear
-ws new full ks-nuba libs/marc4j modules/docs
-
-# 2. Cambiar al workspace
-ws cd full
-
-# 3. Trabajar
-claude-code .
-
-# 4. Commits
-cd ks-nuba && git commit -am "feat: main changes"
-cd ../libs/marc4j && git commit -am "feat: lib changes"
-
-# 5. Limpiar
-ws clean full
-```
-
-### Añadir Repos Dinámicamente
-```bash
-# Empezar con uno
-ws new dynamic ks-nuba
-
-# Añadir según necesites
-ws add dyn libs/marc4j           # búsqueda parcial "dyn" → "dynamic"
-ws add dynamic modules/docs
-
-# Ver qué tienes
-ws . o ws status
-```
-
-### Hotfix en Librería
-```bash
-# Solo la librería
-ws new master libs/marc4j
-
-# Cambiar y trabajar
-ws cd master
-cd libs/marc4j
-# fix, commit, push
-
-# Limpiar
-ws clean master
-```
+Si hay múltiples coincidencias, muestra menú interactivo.
 
 ---
 
-# Ejemplos Prácticos
+## Troubleshooting
 
-## Ejemplo 1: Feature Simple (Código + Librería)
+### "Repo no encontrado"
 
-**Contexto:** Actualizar integración MARC
+Verificar que la ruta es correcta y relativa a WORKSPACE_ROOT:
 
 ```bash
-# 1. Crear workspace
-ws new marc-update ks-nuba libs/marc4j
+# Correcto
+ws add feature-123 libs/common
 
-# 2. Navegar
-ws cd marc-update
-
-# 3. Trabajar en código principal
-cd ks-nuba
-# ... hacer cambios ...
-git commit -am "feat: Update MARC integration"
-git push origin feature/marc-update
-
-# 4. Trabajar en librería
-cd ../libs/marc4j
-# ... actualizar librería ...
-git commit -am "feat: Support MARC 21 updates"
-git push origin feature/marc-update
-
-# 5. Verificar estado
-ws .                            # ver estado completo
-
-# 6. Limpiar
-ws clean marc-update
+# Incorrecto
+ws add feature-123 common        # falta "libs/"
 ```
 
-## Ejemplo 2: Desarrollo Incremental
-
-**Contexto:** No sabes qué repos necesitarás
+### Listar repos disponibles
 
 ```bash
-# 1. Empezar con workspace vacío o mínimo
-ws new explore ks-nuba
-
-# 2. Trabajar y descubrir necesidad de librería
-ws cd explore
-# ... revisar código ...
-
-# 3. Añadir librería
-ws add explore libs/marc4j
-
-# 4. Navegar entre repos fácilmente
-wscd ks                         # ir a ks-nuba
-wscd marc                       # ir a libs/marc4j
-wscd .                          # ir a raíz
-
-# 5. Descubrir necesidad de módulo
-ws add explore modules/docs
-
-# 6. Ver estructura final
-ws status explore
+cd $WORKSPACE_ROOT
+find . -maxdepth 3 -name ".git" -type d | sed 's|/.git||' | sed 's|^\./||' | sort
 ```
 
-## Ejemplo 3: Feature Solo con Librerías
+### Autocompletado no funciona
 
-**Contexto:** Actualizar varias librerías
+Verificar que setup.sh está cargado:
 
 ```bash
-# 1. Solo librerías
-ws new libs-update libs/marc4j libs/dspace libs/foo-commonj
-
-# 2. Navegar
-ws cd libs-update
-
-# 3. Estructura resultante:
-# workspaces/libs-update/
-# └── libs/
-#     ├── marc4j/
-#     ├── dspace/
-#     └── foo-commonj/
-
-# 4. Trabajar en todas
-wscd marc                       # navega a libs/marc4j
-# ... cambios ...
-wscd dspace                     # navega a libs/dspace
-# ... cambios ...
-
-# 5. Commit y push en todas
-ws git libs-update add .
-ws git libs-update commit -m "feat: update libs"
-ws git libs-update push origin feature/libs-update
+source /ruta/workspace-tools/setup.sh
 ```
 
-## Ejemplo 4: Feature Completa (Multi-nivel)
+### ws cd no cambia directorio
 
-**Contexto:** Gran feature que toca todo
+`ws cd` requiere que `setup.sh` esté cargado (define la función shell).
+
+### Ver configuración actual
 
 ```bash
-# 1. Crear con todos los repos necesarios
-ws new search-rewrite \
-    ks-nuba \
-    dga-commons \
-    libs/marc4j \
-    libs/foo-commonj \
-    modules/metadata-entities \
-    modules/docs
-
-# 2. Ver estructura
-ws status search-rewrite
-
-# 3. Abrir todo con Claude Code
-ws cd search-rewrite
-claude-code .
-
-# 4. Navegar entre repos
-wscd ks                         # ks-nuba
-wscd marc                       # libs/marc4j
-wscd metadata                   # modules/metadata-entities
-wscd .                          # raíz
-
-# 5. Ejecutar Maven en todos
-wmci search-rewrite            # o simplemente wmci (con auto-detección)
-
-# 6. Ver estado de todos
-ws .
-
-# 7. Push en todos
-ws git search-rewrite push origin feature/search-rewrite
+echo "WORKSPACE_ROOT: $WORKSPACE_ROOT"
+echo "WORKSPACES_DIR: $WORKSPACES_DIR"
+echo "WS_TOOLS: $WS_TOOLS"
 ```
 
-## Ejemplo 5: Hotfix Urgente
-
-**Contexto:** Bug crítico en librería
+### Activar modo debug
 
 ```bash
-# 1. Crear workspace de master
-ws new master libs/marc4j
-
-# 2. Fix rápido
-ws cd master
-cd libs/marc4j
-# ... hacer fix ...
-git commit -am "fix: Critical MARC parsing bug"
-git push origin master
-
-# 3. Limpiar
-ws clean master
-```
-
-## Ejemplo 6: Integración en Develop
-
-**Contexto:** Integrar múltiples features
-
-```bash
-# 1. Crear workspace de develop
-ws new develop \
-    ks-nuba \
-    dga-commons \
-    libs/marc4j \
-    modules/metadata-entities
-
-# 2. Navegar
-ws cd develop
-
-# 3. Merge de features
-wscd ks
-git merge feature/search-rewrite
-git merge feature/ui-update
-
-wscd marc
-git merge feature/marc-upgrade
-
-# 4. Testing integral
-ws .                            # ver estado
-
-# 5. Ejecutar tests
-wmci develop                    # Maven en todos
-
-# 6. Push de todo
-ws git develop push origin develop
-```
-
-## Ejemplo 7: Renombrar Workspace
-
-**Contexto:** Cambiar nombre de workspace (ej: nuevo número de ticket)
-
-```bash
-# 1. Verificar estado actual
-ws status old-name
-
-# 2. Renombrar (con verificaciones exhaustivas)
-ws rename old-name new-name
-
-# El comando verifica:
-# - ✅ Sin cambios sin commitear (bloqueante)
-# - ⚠️  Commits sin pushear (warning)
-# - ⚠️  Branches remotas (warning)
-# - Pide confirmación escribiendo "RENOMBRAR"
-
-# 3. Verificar resultado
-ws status new-name
-
-# 4. Tareas post-renombrado (si aplica):
-# - Push commits locales
-# - Reconfigurar tracking de branches remotas
-```
-
-## Ejemplo 8: Sincronizar Workspace con Remoto
-
-**Contexto:** Actualizar todos los repos antes de empezar a trabajar
-
-```bash
-# 1. Sincronizar workspace actual (desde dentro del workspace)
-ws sync                           # pull en todos los repos
-
-# 2. Sincronizar workspace específico
-ws sync feature-123               # pull en todos los repos
-
-# 3. Solo fetch (ver cambios sin mergear)
-ws sync --fetch                   # fetch en todos
-ws sync -f feature-123            # equivalente
-
-# 4. Pull con rebase (mantiene historial lineal)
-ws sync --rebase                  # pull --rebase en todos
-ws sync -r feature-123            # equivalente
-
-# Comportamiento:
-# - ⏭️ Salta repos con cambios sin commitear (no pierde trabajo)
-# - ⏭️ Salta repos sin remoto configurado
-# - ✅/✓ Muestra éxito o "Ya actualizado"
-# - ❌ Muestra errores con detalle
-# - Resumen final: OK / saltados / errores
-```
-
-## Ejemplo 9: Cambio Rápido de Contexto con Stash
-
-**Contexto:** Necesitas cambiar a otra tarea urgente sin perder tu trabajo actual
-
-```bash
-# 1. Estás trabajando en feature-A con cambios sin commitear
-ws .                              # ver estado actual
-
-# 2. Necesitas cambiar a feature-B urgente
-ws stash push "WIP: implementando login"   # stash en todos los repos
-
-# 3. Cambiar al otro workspace
-ws cd feature-B
-
-# 4. Resolver la urgencia...
-# ...
-
-# 5. Volver a tu trabajo original
-ws cd feature-A
-
-# 6. Recuperar tus cambios
-ws stash pop                      # restaura los cambios
-
-# Otros comandos útiles:
-ws stash list                     # ver qué stashes hay
-ws stash show                     # ver contenido del stash
-ws stash clear                    # limpiar todos los stashes
-
-# Shortcut
-wstash                            # equivalente a ws stash
-wstash pop                        # equivalente a ws stash pop
-```
-
-## Ejemplo 10: Usar Templates de Workspace
-
-**Contexto:** Crear workspaces rápidamente con conjuntos predefinidos de repos
-
-```bash
-# 1. Crear templates para diferentes tipos de tareas
-ws templates add frontend ks-nuba libs/ui modules/portal
-ws templates add backend ks-nuba dga-commons libs/marc4j
-ws templates add full ks-nuba dga-commons libs/marc4j modules/docs
-
-# 2. Ver templates disponibles
-ws templates                          # lista todos los templates
-ws tpl                                # alias corto
-
-# 3. Crear workspace usando template
-ws new feature-123 --template frontend    # usa repos de "frontend"
-ws new feature-123 -t backend             # alias corto
-
-# 4. Template + repos adicionales
-ws new feature-123 -t frontend libs/extra
-# Combina: ks-nuba libs/ui modules/portal libs/extra
-
-# 5. Ver repos de un template
-ws templates show frontend
-
-# 6. Actualizar template existente
-ws templates add frontend ks-nuba libs/ui libs/new-lib
-
-# 7. Eliminar template
-ws templates remove old-template
-
-# Archivo de configuración: ~/.wrkspc.nubarchiva/.ws-templates
-# Formato: nombre: repo1 repo2 repo3
-```
-
-## Ejemplo 11: Trabajar en Múltiples Features
-
-**Contexto:** Varias features simultáneas
-
-```bash
-# Feature 1: Solo código principal
-ws new ui-redesign ks-nuba
-
-# Feature 2: Solo librerías
-ws new libs-update libs/marc4j libs/dspace
-
-# Feature 3: Código + librería específica
-ws new marc-integration ks-nuba libs/marc4j
-
-# Listar todo
-ws ls
-
-# Cambiar entre ellas
-ws cd ui                        # búsqueda parcial → ui-redesign
-ws cd libs                      # búsqueda parcial → libs-update
-ws cd marc                      # búsqueda parcial → marc-integration
-
-# Ver estado de cualquiera
-ws status ui-redesign
-ws status libs-update
-```
-
-## Ejemplo 12: Claude Code Optimizado
-
-**Contexto:** Maximizar efectividad de IA
-
-```bash
-# 1. Crear workspace estructurado
-ws new ai-cataloging \
-    ks-nuba \
-    libs/marc4j \
-    modules/metadata-entities
-
-# 2. Navegar y trabajar
-ws cd ai-cataloging
-
-# 3. Abrir con Claude Code
-claude-code .
-# Claude ve estructura clara con contexto
-```
-
-## Tips y Mejores Prácticas
-
-### ✅ Hacer
-- Usar rutas completas: `libs/marc4j`, no `marc4j`
-- Usar `ws cd` para navegar automáticamente
-- Usar `wscd` para navegar entre repos
-- Usar búsqueda parcial para ahorrar tiempo
-- Commitear antes de limpiar
-- Usar `ws .` para ver estado rápido
-- Usar shortcuts: `wmci`, `wgt`, `wscd`
-
-### ❌ Evitar
-- Usar solo nombre de repo sin path
-- Eliminar directorios manualmente
-- Trabajar en repos/ directamente
-- Olvidar push antes de cleanup
-
-## Listar Repos Disponibles
-
-```bash
-cd ~/wrkspc.nubarchiva
-
-# Todo junto
-find . -maxdepth 3 -name ".git" -type d | \
-    sed 's|/.git||' | sed 's|^\./||' | sort
-
-# Por nivel
-echo "=== Raíz ==="
-ls -d */.git 2>/dev/null | sed 's|/.git||'
-
-echo "=== libs/ ==="
-ls -d libs/*/.git 2>/dev/null | sed 's|/.git||'
-
-echo "=== modules/ ==="
-ls -d modules/*/.git 2>/dev/null | sed 's|/.git||'
+export WS_DEBUG=1
+ws list
 ```
 
 ---
 
 ## Ver También
 
-- **README.md** - Documentación técnica completa
-- **ROADMAP.md** - Mejoras planificadas
-- **CHANGELOG.md** - Historial de cambios
+- **[README.md](README.md)** - Introducción y uso rápido
+- **[CHANGELOG.md](CHANGELOG.md)** - Historial de cambios
+- **[ROADMAP.md](ROADMAP.md)** - Funcionalidades implementadas y futuras
+- **[NUBARCHIVA.md](NUBARCHIVA.md)** - Ejemplos específicos para nubarchiva

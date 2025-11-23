@@ -2,98 +2,98 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Shell](https://img.shields.io/badge/Shell-Bash%20%7C%20Zsh-green.svg)](https://www.gnu.org/software/bash/)
+[![Version](https://img.shields.io/badge/version-4.1.0-blue.svg)](CHANGELOG.md)
 
-Sistema de gestión de workspaces con Git worktrees para desarrollo paralelo en múltiples repositorios.
+**Gestión de workspaces con Git worktrees para desarrollo paralelo en proyectos multi-repositorio.**
 
-## Características
+## El Problema
 
-- ✅ Workspaces aislados para master, develop y features
-- ✅ Un cambio afecta a múltiples repos simultáneamente
-- ✅ Soporte para repos en subdirectorios (`libs/*`, `modules/*`, `tools/*`)
-- ✅ Ejecutar Maven/Git en todos los repos del workspace
-- ✅ Añadir repos dinámicamente según necesites
-- ✅ Múltiples features en paralelo sin conflictos
-- ✅ Comando unificado con abreviaturas intuitivas
-- ✅ Búsqueda parcial de workspaces
-- ✅ Autocompletado inteligente (bash y zsh)
-- ✅ `ws cd` cambia automáticamente de directorio
-- ✅ Shortcuts para operaciones comunes (Maven, Git)
+¿Trabajas con múltiples repositorios que forman parte del mismo proyecto? ¿Necesitas desarrollar features que tocan varios repos a la vez? ¿Cambias frecuentemente entre branches de diferentes tickets?
 
-## Estructura de Workspace
-
+El flujo tradicional es tedioso:
+```bash
+cd repo1 && git checkout -b feature/ticket-123
+cd ../repo2 && git checkout -b feature/ticket-123
+cd ../libs/common && git checkout -b feature/ticket-123
+# ... repetir para cada repo
 ```
-~/workspace/                    # Tu directorio raíz (configurable)
-├── repo1/                      # Repositorio Git
-├── repo2/                      # Repositorio Git
-├── libs/                       # Contenedor de repos
-│   ├── lib1/                   # Repositorio Git
-│   └── lib2/                   # Repositorio Git
-├── modules/                    # Contenedor de repos
-│   ├── module1/                # Repositorio Git
-│   └── module2/                # Repositorio Git
-├── tools/                      # Contenedor de repos
-│   └── workspace-tools/        # Este repo
-│       ├── bin/                # Scripts
-│       ├── completions/        # Autocompletado
-│       ├── setup.sh            # Configuración
-│       └── README.md
-└── workspaces/                 # Se crea automáticamente
-    ├── master/
-    ├── develop/
-    └── feature-123/            # Ejemplo de workspace
+
+Y peor aún, mantener múltiples features en paralelo requiere hacer checkout constantemente, perdiendo contexto y tiempo.
+
+## La Solución
+
+Workspace Tools usa **Git worktrees** para crear copias de trabajo aisladas de tus repos. Cada workspace es un directorio con todos los repos necesarios, cada uno en su propia branch.
+
+```bash
+# Crear workspace con 3 repos en un comando
+ws new ticket-123 app backend libs/common
+
+# Resultado: directorio aislado con los 3 repos en branch feature/ticket-123
+# workspaces/ticket-123/
+# ├── app/           → branch feature/ticket-123
+# ├── backend/       → branch feature/ticket-123
+# └── libs/common/   → branch feature/ticket-123
 ```
+
+**Beneficios:**
+- Múltiples features en paralelo sin conflictos
+- Cambio instantáneo entre workspaces (sin git checkout)
+- Compilar/testear todos los repos con un comando
+- Sin duplicar repos (worktrees comparten el .git)
 
 ## Instalación
 
-### Paso 1: Clonar el repositorio
+### Opción 1: Manual
 
 ```bash
-cd ~/workspace/tools  # o donde prefieras
-git clone https://github.com/your-org/workspace-tools.git
+# Clonar en tu directorio de herramientas
+git clone https://github.com/tu-org/workspace-tools.git
 cd workspace-tools
 ./install.sh
+
+# Añadir a tu shell (~/.bashrc o ~/.zshrc)
+source /ruta/a/workspace-tools/setup.sh
 ```
 
-### Paso 2: Configurar tu Shell
-
-Añade a tu `~/.bashrc` o `~/.zshrc`:
+### Opción 2: Homebrew (macOS)
 
 ```bash
-source ~/workspace/tools/workspace-tools/setup.sh
+brew install --build-from-source ./Formula/workspace-tools.rb
 ```
 
-Después ejecuta:
+### Configuración (opcional)
+
+Crea `~/.wsrc` para personalizar rutas:
+
 ```bash
-source ~/.bashrc  # o source ~/.zshrc
+# Directorio raíz donde están tus repos
+WORKSPACE_ROOT="$HOME/projects/my-project"
 ```
-
-**¿Qué hace setup.sh?**
-- ✅ Exporta variable `WS_TOOLS`
-- ✅ Añade `ws` al PATH
-- ✅ Carga función `ws cd` (cambia automáticamente de directorio)
-- ✅ Habilita autocompletado (bash o zsh según tu shell)
-- ✅ Define shortcuts para Maven y Git
 
 ## Uso Rápido
 
 ```bash
 # Crear workspace
-ws new feature-123 repo1 libs/lib1
+ws new feature-123 app backend libs/common
 
 # Listar workspaces
 ws list
 
-# Cambiar a workspace (¡cambia automáticamente de directorio!)
+# Cambiar a workspace (cambia de directorio automáticamente)
 ws cd feature-123
 
-# Añadir repo a workspace
-ws add feature-123 modules/module1
+# Ver estado del workspace actual
+ws .
 
-# Ejecutar Maven en todos los repos
+# Añadir más repos
+ws add feature-123 libs/utils
+
+# Ejecutar comandos en todos los repos
+ws git feature-123 status
 ws mvn feature-123 clean install
 
-# Ejecutar Git en todos los repos
-ws git feature-123 status
+# Sincronizar con remoto
+ws sync
 
 # Limpiar workspace
 ws clean feature-123
@@ -103,235 +103,110 @@ ws clean feature-123
 
 ### Gestión de Workspaces
 
-| Comando | Descripción | Ejemplo |
-|---------|-------------|---------|
-| `ws new` | Crear workspace | `ws new feature-123 repo1 libs/lib1` |
-| `ws add` | Añadir repo a workspace | `ws add feature-123 modules/module1` |
-| `ws list` | Listar workspaces | `ws list` o `ws ls` |
-| `ws info` | Ver información del workspace | `ws info feature-123` |
-| `ws cd` | Cambiar a workspace | `ws cd feature-123` |
-| `ws status` | Ver estado del workspace actual | `ws .` o `ws status` |
-| `ws rename` | Renombrar workspace | `ws rename old-name new-name` o `ws mv old-name new-name` |
-| `ws clean` | Limpiar workspace | `ws clean feature-123` o `ws rm feature-123` |
+| Comando | Descripción |
+|---------|-------------|
+| `ws new <nombre> [repos...]` | Crear workspace |
+| `ws list` / `ws ls` | Listar workspaces |
+| `ws cd <nombre>` | Cambiar a workspace |
+| `ws .` / `ws status` | Estado del workspace actual |
+| `ws add <nombre> <repos...>` | Añadir repos |
+| `ws remove <nombre> <repos...>` | Quitar repos |
+| `ws rename <old> <new>` | Renombrar workspace |
+| `ws clean <nombre>` | Eliminar workspace |
 
 ### Operaciones Multi-Repo
 
-| Comando | Descripción | Ejemplo |
-|---------|-------------|---------|
-| `ws mvn` | Maven en todos los repos | `ws mvn feature-123 clean install` |
-| `ws git` | Git en todos los repos | `ws git feature-123 status` |
+| Comando | Descripción |
+|---------|-------------|
+| `ws git <nombre> <cmd>` | Git en todos los repos |
+| `ws mvn <nombre> <args>` | Maven en todos los repos |
+| `ws sync [--fetch\|--rebase]` | Sincronizar con remoto |
+| `ws stash [push\|pop\|list]` | Stash coordinado |
+| `ws grep <patrón>` | Buscar en todos los repos |
 
-### Shortcuts Maven
-
-| Shortcut | Equivalente | Descripción |
-|----------|------------|-------------|
-| `wmcis <workspace>` | `ws mvn <workspace> -T 1C clean install -DskipTests=true -Denforcer.skip=true` | Clean install sin tests |
-| `wmis <workspace>` | `ws mvn <workspace> -T 1C install -DskipTests=true -Denforcer.skip=true` | Install sin tests (sin clean) |
-| `wmci <workspace>` | `ws mvn <workspace> -T 1C clean install` | Clean install |
-| `wmcl <workspace>` | `ws mvn <workspace> -T 1C clean` | Clean |
-
-### Shortcuts Git
-
-| Shortcut | Equivalente | Descripción |
-|----------|-------------|-------------|
-| `wgt <workspace>` | `ws git <workspace> status` | Status en todos los repos |
-| `wgpa <workspace>` | `ws git <workspace> pull --all` | Pull all en todos los repos |
-
-### Shortcuts de Navegación
-
-| Shortcut | Descripción | Ejemplo |
-|----------|-------------|---------|
-| `wscd [pattern]` | Navega a un repo del workspace actual con matching parcial | `wscd ks` → navega a ks-nuba |
-| `wscd` | Sin argumentos: muestra menú de repos y navega al seleccionado | `wscd` → selecciona de lista |
-| `wscd .` | Navega a la raíz del workspace | `wscd .` |
-
-**Características:**
-- Matching parcial case-insensitive: `wscd nuba` encuentra `ks-nuba`
-- Menú de selección si hay múltiples coincidencias
-- Auto-detecta el workspace actual
-- Solo funciona desde dentro de un workspace
-
-## Ejemplos de Uso
-
-### Crear feature con múltiples repos
+### Templates
 
 ```bash
-ws new feature-auth repo1 libs/auth modules/security
+# Definir conjuntos de repos reutilizables
+ws templates add frontend app libs/ui
+ws templates add backend api libs/common
 
-# Estructura creada:
-# workspaces/feature-auth/
-# ├── repo1/
-# ├── libs/
-# │   └── auth/
-# └── modules/
-#     └── security/
+# Crear workspace desde template
+ws new ticket-456 --template frontend
 ```
 
-### Ejecutar Maven en todos los proyectos
+### Navegación
 
 ```bash
-# Compilar todos los proyectos
-ws mvn feature-auth clean install
-
-# O usar el shortcut
-wmci feature-auth
-
-# Con resumen de tiempos al final:
-# ═══════════════════════════════════════════════════
-# Resumen de ejecución:
-# ═══════════════════════════════════════════════════
-#   • repo1                                    45.2s
-#   • libs/auth                                12.3s
-#   • modules/security                         8.7s
-# ───────────────────────────────────────────────────
-#   Total: 66.2s
+# Navegar entre repos del workspace actual
+wscd app          # ir a repo "app"
+wscd              # menú interactivo
+wscd .            # raíz del workspace
 ```
 
-### Ver estado Git de todos los repos
+## Shortcuts
 
-```bash
-# Ver status de todos los repos
-ws git feature-auth status
+| Shortcut | Equivalente |
+|----------|-------------|
+| `wmcis` | `ws mvn clean install -DskipTests` |
+| `wmci` | `ws mvn clean install` |
+| `wgt` | `ws git status` |
+| `wsync` | `ws sync` |
+| `wstash` | `ws stash` |
+| `wgrep` | `ws grep` |
 
-# O usar el shortcut
-wgt feature-auth
+## Características
 
-# Salida:
-# ════════════════════════════════════════════════════
-# ▶ repo1
-# ════════════════════════════════════════════════════
-# On branch feature/feature-auth
-# nothing to commit, working tree clean
-#
-# ════════════════════════════════════════════════════
-# ▶ libs/auth
-# ════════════════════════════════════════════════════
-# On branch feature/feature-auth
-# Changes not staged for commit:
-#   modified:   src/main/java/Auth.java
+- **Aislamiento**: Cada workspace es independiente
+- **Eficiencia**: Worktrees no duplican el repo completo
+- **Multi-repo**: Opera en todos los repos con un comando
+- **Búsqueda parcial**: `ws cd feat` encuentra `feature-123`
+- **Auto-detección**: Detecta el workspace actual automáticamente
+- **Templates**: Define conjuntos de repos reutilizables
+- **Autocompletado**: Soporte para bash y zsh
+
+## Estructura de Proyecto Soportada
+
 ```
-
-### Workflow típico
-
-```bash
-# 1. Crear feature
-ws new api-redesign repo1 libs/api
-
-# 2. Cambiar al workspace
-ws cd api-redesign
-
-# 3. Compilar y verificar
-wmci api-redesign
-
-# 4. Hacer cambios y compilar
-# ... editar archivos ...
-wmci api-redesign
-
-# 5. Ver cambios en todos los repos
-wgt api-redesign
-
-# 6. Commitear en cada repo
-cd repo1 && git commit -am "feat: new API design"
-cd ../libs/api && git commit -am "feat: update API lib"
-
-# 7. Push
-ws git api-redesign push origin feature/api-redesign
-
-# 8. Limpiar cuando termines
-ws clean api-redesign
+~/project/                    # Tu proyecto (WORKSPACE_ROOT)
+├── app/                      # Repo principal
+├── backend/                  # Otro repo
+├── libs/                     # Directorio de librerías
+│   ├── common/               # Repo
+│   └── utils/                # Repo
+├── modules/                  # Directorio de módulos
+│   └── api/                  # Repo
+└── workspaces/               # Creado por workspace-tools
+    ├── feature-123/          # Un workspace
+    └── feature-456/          # Otro workspace
 ```
-
-## Abreviaturas y Búsqueda Parcial
-
-### Abreviaturas de comandos
-
-```bash
-# Automáticas (cualquier prefijo único)
-ws n feature-123 repo1      # ws new
-ws a feature-123 libs/lib1  # ws add
-ws l                        # ws list
-
-# Predefinidas
-ws ls                       # ws list
-ws cd feature-123           # ws switch
-ws rm feature-123           # ws clean
-```
-
-### Búsqueda parcial de workspaces
-
-No necesitas escribir el nombre completo:
-
-```bash
-ws cd fea       # busca 'fea' en workspaces
-ws add auth ... # busca 'auth' en workspaces
-```
-
-Si hay múltiples coincidencias, se mostrará un menú interactivo.
-
-## Branches
-
-| Workspace | Branch Name | Descripción |
-|-----------|------------|-------------|
-| `master` | `master` | Usa branch existente |
-| `develop` | `develop` | Usa branch existente |
-| Otros (ej: `feature-123`) | `feature/feature-123` | Crea branch automáticamente |
-
-## Configuración Avanzada
-
-### Personalizar el directorio raíz
-
-Por defecto, se detecta automáticamente desde `WS_TOOLS`. Para especificar un directorio diferente:
-
-```bash
-# En setup.sh o tu shell rc
-export WS_TOOLS=~/my-custom-workspace/tools/workspace-tools
-```
-
-### Copiar configuraciones al crear workspaces
-
-El sistema copia automáticamente configuraciones de IDE/AI al crear workspaces:
-- `.idea/` (IntelliJ IDEA)
-- `.cursor/` (Cursor AI)
-- Symlinks a `AI.md`, `.ai/`, `docs/`
 
 ## Compatibilidad
 
-- **Bash** 4.0+
-- **Zsh** 5.0+
-- **macOS** y **Linux**
+- **Shells**: Bash 4.0+, Zsh 5.0+
+- **OS**: macOS, Linux
+- **Git**: 2.15+ (para worktrees)
 
-## Documentación Adicional
+## Documentación
 
-- **[USER_GUIDE.md](USER_GUIDE.md)** - Guía de usuario completa (inicio rápido, referencia, ejemplos)
+- **[USER_GUIDE.md](USER_GUIDE.md)** - Referencia completa de comandos
+- **[CHANGELOG.md](CHANGELOG.md)** - Historial de cambios
+- **[ROADMAP.md](ROADMAP.md)** - Funcionalidades implementadas y futuras
+- **[NUBARCHIVA.md](NUBARCHIVA.md)** - Ejemplos para proyecto nubarchiva
 
 ## Contribuir
 
-Las contribuciones son bienvenidas. Por favor:
+Las contribuciones son bienvenidas:
 
 1. Fork el repositorio
-2. Crea una branch para tu feature (`git checkout -b feature/amazing-feature`)
-3. Commit tus cambios (`git commit -m 'feat: add amazing feature'`)
-4. Push a la branch (`git push origin feature/amazing-feature`)
-5. Abre un Pull Request
-
-### Convenciones de commits
-
-Usamos [Conventional Commits](https://www.conventionalcommits.org/):
-
-```
-feat: nueva funcionalidad
-fix: corrección de bug
-docs: cambios en documentación
-refactor: refactorización de código
-test: añadir o modificar tests
-chore: tareas de mantenimiento
-```
+2. Crea una branch (`git checkout -b feature/nueva-funcionalidad`)
+3. Commit con [Conventional Commits](https://www.conventionalcommits.org/)
+4. Push y abre un Pull Request
 
 ## Licencia
 
-Este proyecto está licenciado bajo la Licencia Apache 2.0 - ver el archivo [LICENSE](LICENSE) para más detalles.
+[Apache License 2.0](LICENSE)
 
 ---
 
-**Versión:** 3.0
-**Fecha:** 19 de noviembre de 2025
+**Versión:** 4.1.0 | **Actualizado:** Noviembre 2025
