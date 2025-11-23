@@ -47,13 +47,11 @@ run_ws_add() {
 # =============================================================================
 
 @test "ws-add: workspace inexistente falla" {
-    skip "Requiere que ws-add use WORKSPACE_ROOT del entorno"
     run run_ws_add "no-existe" "mi-repo"
     [ "$status" -ne 0 ]
 }
 
 @test "ws-add: anade repo a workspace existente" {
-    skip "Requiere que ws-add use WORKSPACE_ROOT del entorno"
     # Crear workspace y repo
     mkdir -p "$TEST_WORKSPACES_DIR/mi-workspace"
     create_test_repo "mi-repo"
@@ -64,7 +62,6 @@ run_ws_add() {
 }
 
 @test "ws-add: anade multiples repos" {
-    skip "Requiere que ws-add use WORKSPACE_ROOT del entorno"
     mkdir -p "$TEST_WORKSPACES_DIR/multi"
     create_test_repo "repo-a"
     create_test_repo "repo-b"
@@ -76,7 +73,6 @@ run_ws_add() {
 }
 
 @test "ws-add: repo en subdirectorio mantiene estructura" {
-    skip "Requiere que ws-add use WORKSPACE_ROOT del entorno"
     mkdir -p "$TEST_WORKSPACES_DIR/subdir-test"
     create_test_repo "libs/mi-lib"
 
@@ -86,7 +82,6 @@ run_ws_add() {
 }
 
 @test "ws-add: busqueda parcial de workspace funciona" {
-    skip "Requiere que ws-add use WORKSPACE_ROOT del entorno"
     mkdir -p "$TEST_WORKSPACES_DIR/NUBA-8400-feature"
     create_test_repo "mi-repo"
 
@@ -96,7 +91,6 @@ run_ws_add() {
 }
 
 @test "ws-add: repo inexistente muestra warning" {
-    skip "Requiere que ws-add use WORKSPACE_ROOT del entorno"
     mkdir -p "$TEST_WORKSPACES_DIR/warning-test"
 
     run run_ws_add "warning-test" "repo-fantasma"
@@ -105,7 +99,6 @@ run_ws_add() {
 }
 
 @test "ws-add: crea worktree en la branch correcta" {
-    skip "Requiere que ws-add use WORKSPACE_ROOT del entorno"
     mkdir -p "$TEST_WORKSPACES_DIR/feature-123"
     create_test_repo "mi-repo"
 
@@ -118,7 +111,6 @@ run_ws_add() {
 }
 
 @test "ws-add: repo ya existente muestra warning" {
-    skip "Requiere que ws-add use WORKSPACE_ROOT del entorno"
     mkdir -p "$TEST_WORKSPACES_DIR/duplicate-test"
     create_test_repo "mi-repo"
 
@@ -131,12 +123,19 @@ run_ws_add() {
 }
 
 @test "ws-add: auto-deteccion de workspace funciona" {
-    skip "Requiere que ws-add use WORKSPACE_ROOT del entorno"
     mkdir -p "$TEST_WORKSPACES_DIR/auto-detect"
     create_test_repo "nuevo-repo"
 
     # Ejecutar desde dentro del workspace
-    cd "$TEST_WORKSPACES_DIR/auto-detect"
-    run run_ws_add "nuevo-repo"
-    [ "$status" -eq 0 ]
+    # Usamos subshell con cd para preservar el directorio de trabajo
+    result=$(
+        cd "$TEST_WORKSPACES_DIR/auto-detect"
+        WORKSPACE_ROOT="$TEST_WORKSPACE_ROOT" \
+        WORKSPACES_DIR="$TEST_WORKSPACES_DIR" \
+        WS_TOOLS="$WS_TOOLS_ROOT" \
+        "$WS_TOOLS_ROOT/bin/ws-add" "nuevo-repo" 2>&1
+        echo "EXIT_CODE:$?"
+    )
+    local exit_code=$(echo "$result" | grep "EXIT_CODE:" | cut -d: -f2)
+    [ "$exit_code" -eq 0 ]
 }

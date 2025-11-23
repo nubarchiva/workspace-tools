@@ -179,14 +179,17 @@ copy_workspace_config() {
 detect_current_workspace() {
     local current_dir="$(pwd)"
 
-    # Detectar WORKSPACE_ROOT desde WS_TOOLS o por defecto
-    local workspace_root
-    if [ -n "$WS_TOOLS" ]; then
-        workspace_root="${WS_TOOLS%/tools/workspace-tools}"
+    # Usar WORKSPACES_DIR si ya esta definida, sino calcular
+    local workspaces_dir
+    if [ -n "$WORKSPACES_DIR" ]; then
+        workspaces_dir="$WORKSPACES_DIR"
+    elif [ -n "$WORKSPACE_ROOT" ]; then
+        workspaces_dir="$WORKSPACE_ROOT/workspaces"
+    elif [ -n "$WS_TOOLS" ]; then
+        workspaces_dir="${WS_TOOLS%/tools/workspace-tools}/workspaces"
     else
-        workspace_root=~/wrkspc.nubarchiva
+        workspaces_dir=~/wrkspc.nubarchiva/workspaces
     fi
-    local workspaces_dir="$workspace_root/workspaces"
 
     # Verificar si estamos dentro de un workspace
     # Los workspaces están en $workspaces_dir/<nombre>/...

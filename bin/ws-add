@@ -2,16 +2,8 @@
 # Añade uno o más repos a un workspace existente
 # Soporta repos en subdirectorios (ej: libs/marc4j, modules/docs, tools/*)
 
-# Detectar directorio del script (compatible bash/zsh)
-if [ -n "$BASH_SOURCE" ]; then
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-else
-    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-fi
-
-# Cargar funciones compartidas ANTES de usarlas
-source "$SCRIPT_DIR/ws-common.sh"
-source "$SCRIPT_DIR/ws-colors.sh"
+# Inicializacion centralizada
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
 
 # Determinar workspace y repos
 # Prioridad: 1) Workspace explícito si $1 coincide con uno existente
@@ -69,14 +61,6 @@ else
         REPOS=("$@")
     fi
 fi
-
-# Detectar WORKSPACE_ROOT
-if [ -n "$WS_TOOLS" ]; then
-    WORKSPACE_ROOT="${WS_TOOLS%/tools/workspace-tools}"
-else
-    WORKSPACE_ROOT=~/wrkspc.nubarchiva
-fi
-WORKSPACES_DIR=$WORKSPACE_ROOT/workspaces
 
 if [ ${#REPOS[@]} -eq 0 ]; then
     echo "Uso: ws add <nombre|patrón> <repo1> [repo2] [repo3] ..."

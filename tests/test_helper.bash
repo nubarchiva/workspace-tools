@@ -14,7 +14,10 @@ export TEST_WORKSPACES_DIR=""
 # Crear entorno de prueba aislado
 setup_test_environment() {
     # Crear directorio temporal único para este test
-    TEST_TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/ws-test.XXXXXX")
+    # Nota: normalizamos el path para evitar dobles slashes (TMPDIR puede tener trailing /)
+    local tmpdir="${TMPDIR:-/tmp}"
+    tmpdir="${tmpdir%/}"  # Eliminar trailing slash si existe
+    TEST_TEMP_DIR=$(mktemp -d "${tmpdir}/ws-test.XXXXXX")
     TEST_WORKSPACE_ROOT="$TEST_TEMP_DIR/workspace"
     TEST_WORKSPACES_DIR="$TEST_WORKSPACE_ROOT/workspaces"
 
