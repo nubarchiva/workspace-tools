@@ -47,14 +47,12 @@ run_ws_list() {
 # =============================================================================
 
 @test "ws-list: sin workspaces muestra mensaje apropiado" {
-    skip "Requiere que ws-list use WORKSPACE_ROOT del entorno"
     run run_ws_list
     [ "$status" -eq 0 ]
     [[ "$output" == *"No hay workspaces"* ]] || [[ "$output" == *"ws new"* ]]
 }
 
 @test "ws-list: muestra workspace existente" {
-    skip "Requiere que ws-list use WORKSPACE_ROOT del entorno"
     mkdir -p "$TEST_WORKSPACES_DIR/mi-workspace"
 
     run run_ws_list
@@ -63,7 +61,6 @@ run_ws_list() {
 }
 
 @test "ws-list: muestra multiples workspaces" {
-    skip "Requiere que ws-list use WORKSPACE_ROOT del entorno"
     mkdir -p "$TEST_WORKSPACES_DIR/workspace-a"
     mkdir -p "$TEST_WORKSPACES_DIR/workspace-b"
 
@@ -74,7 +71,6 @@ run_ws_list() {
 }
 
 @test "ws-list: muestra branch de cada workspace" {
-    skip "Requiere que ws-list use WORKSPACE_ROOT del entorno"
     mkdir -p "$TEST_WORKSPACES_DIR/mi-feature"
 
     run run_ws_list
@@ -83,7 +79,6 @@ run_ws_list() {
 }
 
 @test "ws-list: master muestra branch master" {
-    skip "Requiere que ws-list use WORKSPACE_ROOT del entorno"
     mkdir -p "$TEST_WORKSPACES_DIR/master"
 
     run run_ws_list
@@ -92,7 +87,6 @@ run_ws_list() {
 }
 
 @test "ws-list: filtra por patron parcial" {
-    skip "Requiere que ws-list use WORKSPACE_ROOT del entorno"
     mkdir -p "$TEST_WORKSPACES_DIR/NUBA-8400-feature"
     mkdir -p "$TEST_WORKSPACES_DIR/otro-workspace"
 
@@ -103,7 +97,6 @@ run_ws_list() {
 }
 
 @test "ws-list: muestra conteo de repos" {
-    skip "Requiere que ws-list use WORKSPACE_ROOT del entorno"
     mkdir -p "$TEST_WORKSPACES_DIR/con-repos"
 
     # Crear repo dentro del workspace
@@ -118,7 +111,6 @@ run_ws_list() {
 }
 
 @test "ws-list: muestra total de workspaces" {
-    skip "Requiere que ws-list use WORKSPACE_ROOT del entorno"
     mkdir -p "$TEST_WORKSPACES_DIR/ws-1"
     mkdir -p "$TEST_WORKSPACES_DIR/ws-2"
     mkdir -p "$TEST_WORKSPACES_DIR/ws-3"
@@ -129,7 +121,6 @@ run_ws_list() {
 }
 
 @test "ws-list: filtro sin coincidencias muestra mensaje" {
-    skip "Requiere que ws-list use WORKSPACE_ROOT del entorno"
     mkdir -p "$TEST_WORKSPACES_DIR/mi-workspace"
 
     run run_ws_list "inexistente"
