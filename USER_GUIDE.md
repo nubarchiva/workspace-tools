@@ -177,6 +177,12 @@ wmcis <nombre>                         # shortcut: clean install sin tests
 wmci <nombre>                          # shortcut: clean install
 wmis <nombre>                          # shortcut: install sin tests ni clean
 
+# Orden de compilación personalizado (opcional)
+# Crear archivo .ws-build-order en el workspace con el orden deseado:
+#   dga-commons
+#   ks-nuba
+#   modules/diffusion-portal
+
 # Ejecutar Git en todos los repos
 ws git <nombre> status
 wgt <nombre>                           # shortcut: status

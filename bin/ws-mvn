@@ -96,6 +96,14 @@ show_help() {
     echo "  • Ejecuta 'mvn <args> -f <repo>/pom.xml' en cada proyecto"
     echo "  • Se detiene en el primer error"
     echo "  • Ignora repos sin pom.xml con un mensaje informativo"
+    echo ""
+    echo "Orden de compilación:"
+    echo "  Si existe .ws-build-order en el workspace, se usa ese orden."
+    echo "  Formato del archivo (una línea por repo):"
+    echo "    # Comentarios con #"
+    echo "    dga-commons"
+    echo "    ks-nuba"
+    echo "    modules/diffusion-portal"
 }
 
 # Si no se especificó workspace, intentar detectar automáticamente
@@ -143,7 +151,17 @@ echo "Comando:   ${COLOR_BOLD}mvn $MVN_ARGS${COLOR_RESET}"
 echo ""
 
 # Encontrar todos los repos en el workspace
-repos=$(find_repos_in_workspace "$WORKSPACE_DIR")
+# Si existe .ws-build-order, usar ese orden; sino, usar find_repos_in_workspace
+BUILD_ORDER_FILE="$WORKSPACE_DIR/.ws-build-order"
+
+if [ -f "$BUILD_ORDER_FILE" ]; then
+    # Usar orden definido en el archivo (ignorar líneas vacías y comentarios)
+    repos=$(grep -v '^#' "$BUILD_ORDER_FILE" | grep -v '^$')
+    info "📋 Usando orden de compilación de .ws-build-order"
+    echo ""
+else
+    repos=$(find_repos_in_workspace "$WORKSPACE_DIR")
+fi
 
 if [ -z "$repos" ] || [ "$repos" = "" ]; then
     error "❌ No hay repos en este workspace"
