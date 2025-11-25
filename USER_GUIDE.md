@@ -19,9 +19,21 @@ Referencia completa de comandos y opciones de Workspace Tools.
 
 ### Requisitos
 
-- Bash 4.0+ o Zsh 5.0+
-- Git 2.15+ (soporte de worktrees)
-- macOS o Linux
+| Componente | Versión | Obligatorio | Notas |
+|------------|---------|-------------|-------|
+| Bash | 4.0+ | Sí | Los scripts en `bin/` usan `#!/bin/bash` |
+| Git | 2.15+ | Sí | Worktrees requieren esta versión |
+| Zsh | 5.0+ | No | Solo si usas Zsh como shell interactivo |
+| OS | macOS / Linux | Sí | Windows no soportado |
+
+**Importante:** Aunque uses Zsh como shell interactivo, **Bash 4.0+ debe estar instalado** en el sistema porque todos los scripts lo usan.
+
+**macOS:** Viene con Bash 3.2 por defecto. Instala Bash 4+ con:
+```bash
+brew install bash
+```
+
+La verificación de versiones se realiza automáticamente en `install.sh` y `setup.sh`.
 
 ### Instalación Manual
 

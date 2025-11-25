@@ -181,11 +181,21 @@ wscd .            # raíz del workspace
     └── feature-456/          # Otro workspace
 ```
 
-## Compatibilidad
+## Requisitos
 
-- **Shells**: Bash 4.0+, Zsh 5.0+
-- **OS**: macOS, Linux
-- **Git**: 2.15+ (para worktrees)
+| Componente | Versión mínima | Notas |
+|------------|----------------|-------|
+| **Bash** | 4.0+ | Requerido (los scripts usan `#!/bin/bash`) |
+| **Git** | 2.15+ | Requerido para worktrees |
+| **Zsh** | 5.0+ | Opcional, para usar como shell interactivo |
+| **OS** | macOS / Linux | Windows no soportado |
+
+**Nota sobre macOS:** macOS incluye Bash 3.2 por defecto (por licencia GPL). Para usar workspace-tools necesitas instalar Bash 4+:
+```bash
+brew install bash
+```
+
+La verificación de versiones se realiza automáticamente en `install.sh` y `setup.sh`.
 
 ## Documentación
 

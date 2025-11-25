@@ -1,11 +1,150 @@
 #!/bin/bash
 # Script de instalación para workspace-tools
 
+# Colores (si el terminal los soporta)
+if [[ -t 1 ]]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[0;33m'
+    CYAN='\033[0;36m'
+    RESET='\033[0m'
+else
+    RED='' GREEN='' YELLOW='' CYAN='' RESET=''
+fi
+
 echo "════════════════════════════════════════════════════"
 echo "  Workspace Tools - Instalación"
-echo "  Versión 2.1"
+echo "  Versión 4.1"
 echo "════════════════════════════════════════════════════"
 echo ""
+
+# ══════════════════════════════════════════════════════════════
+# Verificación de requisitos del sistema
+# ══════════════════════════════════════════════════════════════
+
+echo "📋 Verificando requisitos del sistema..."
+echo ""
+
+REQUIREMENTS_MET=true
+
+# Verificar Bash (requerido para los scripts)
+check_bash_version() {
+    local bash_path
+    local bash_version
+    local bash_major
+    local bash_minor
+
+    # Buscar bash
+    if command -v bash &> /dev/null; then
+        bash_path=$(command -v bash)
+        bash_version=$(bash --version | head -n1 | grep -oE '[0-9]+\.[0-9]+' | head -n1)
+        bash_major=${bash_version%%.*}
+        bash_minor=${bash_version#*.}
+
+        if [[ $bash_major -gt 4 ]] || [[ $bash_major -eq 4 && $bash_minor -ge 0 ]]; then
+            echo -e "   ${GREEN}✓${RESET} Bash $bash_version ($bash_path)"
+            return 0
+        else
+            echo -e "   ${RED}✗${RESET} Bash $bash_version - Se requiere 4.0+"
+            echo -e "     ${YELLOW}Los scripts requieren Bash 4.0+ para arrays asociativos${RESET}"
+            return 1
+        fi
+    else
+        echo -e "   ${RED}✗${RESET} Bash no encontrado - Requerido"
+        return 1
+    fi
+}
+
+# Verificar Git
+check_git_version() {
+    local git_version
+    local git_major
+    local git_minor
+
+    if command -v git &> /dev/null; then
+        git_version=$(git --version | grep -oE '[0-9]+\.[0-9]+' | head -n1)
+        git_major=${git_version%%.*}
+        git_minor=${git_version#*.}
+
+        if [[ $git_major -gt 2 ]] || [[ $git_major -eq 2 && $git_minor -ge 15 ]]; then
+            echo -e "   ${GREEN}✓${RESET} Git $git_version"
+            return 0
+        else
+            echo -e "   ${RED}✗${RESET} Git $git_version - Se requiere 2.15+"
+            echo -e "     ${YELLOW}Git worktrees requieren Git 2.15+${RESET}"
+            return 1
+        fi
+    else
+        echo -e "   ${RED}✗${RESET} Git no encontrado - Requerido"
+        return 1
+    fi
+}
+
+# Verificar shell del usuario (informativo)
+check_user_shell() {
+    local user_shell=$(basename "$SHELL")
+    local shell_version
+
+    case "$user_shell" in
+        bash)
+            shell_version=$(bash --version | head -n1 | grep -oE '[0-9]+\.[0-9]+' | head -n1)
+            local major=${shell_version%%.*}
+            if [[ $major -ge 4 ]]; then
+                echo -e "   ${GREEN}✓${RESET} Shell: Bash $shell_version"
+            else
+                echo -e "   ${YELLOW}⚠${RESET} Shell: Bash $shell_version"
+                echo -e "     ${YELLOW}Bash 4.0+ recomendado para setup.sh${RESET}"
+            fi
+            ;;
+        zsh)
+            shell_version=$(zsh --version | grep -oE '[0-9]+\.[0-9]+' | head -n1)
+            local major=${shell_version%%.*}
+            if [[ $major -ge 5 ]]; then
+                echo -e "   ${GREEN}✓${RESET} Shell: Zsh $shell_version"
+            else
+                echo -e "   ${YELLOW}⚠${RESET} Shell: Zsh $shell_version"
+                echo -e "     ${YELLOW}Zsh 5.0+ recomendado para setup.sh${RESET}"
+            fi
+            ;;
+        *)
+            echo -e "   ${YELLOW}⚠${RESET} Shell: $user_shell (no probado)"
+            echo -e "     ${YELLOW}Funciones de navegación requieren bash/zsh${RESET}"
+            ;;
+    esac
+}
+
+# Ejecutar verificaciones
+if ! check_bash_version; then
+    REQUIREMENTS_MET=false
+fi
+
+if ! check_git_version; then
+    REQUIREMENTS_MET=false
+fi
+
+check_user_shell
+
+echo ""
+
+if [[ "$REQUIREMENTS_MET" != "true" ]]; then
+    echo -e "${RED}════════════════════════════════════════════════════${RESET}"
+    echo -e "${RED}  ✗ Requisitos no cumplidos${RESET}"
+    echo -e "${RED}════════════════════════════════════════════════════${RESET}"
+    echo ""
+    echo "Por favor, instala las versiones requeridas antes de continuar."
+    echo ""
+    echo "En macOS puedes actualizar Bash con:"
+    echo "  brew install bash"
+    echo ""
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Requisitos del sistema verificados${RESET}"
+echo ""
+
+# ══════════════════════════════════════════════════════════════
+# Instalación
+# ══════════════════════════════════════════════════════════════
 
 # Detectar directorio de instalación (2 niveles arriba)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -167,10 +306,9 @@ echo "     ./bin/ws list"
 echo "     ./bin/ws clean test"
 echo ""
 echo "4. Ver documentación:"
-echo "   README.md       - Guía completa"
-echo "   QUICKSTART.md   - Inicio rápido"
-echo "   CHEATSHEET.md   - Referencia rápida"
-echo "   EJEMPLOS.md     - Casos de uso prácticos"
+echo "   README.md       - Introducción y uso rápido"
+echo "   USER_GUIDE.md   - Referencia completa de comandos"
+echo "   NUBARCHIVA.md   - Ejemplos para proyecto nubarchiva"
 echo ""
 echo "════════════════════════════════════════════════════"
 echo ""
