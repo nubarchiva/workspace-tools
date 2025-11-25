@@ -146,6 +146,8 @@ echo "$repos" | while read -r repo_rel_path; do
 done
 
 # Eliminar directorio del workspace (y sus subdirectorios vacíos)
+WORKSPACE_FULLY_REMOVED=true
+
 if [ -d "$WORKSPACE_DIR" ]; then
     # Eliminar directorios vacíos recursivamente
     find "$WORKSPACE_DIR" -type d -empty -delete 2>/dev/null || true
@@ -153,15 +155,17 @@ if [ -d "$WORKSPACE_DIR" ]; then
     # Archivos/directorios que deben ignorarse (creados por workspace-tools)
     # - .idea/, .vscode/, .kiro/, .cursor/: configuración IDE/AI copiada por copy_workspace_config
     # - AI.md, .ai/, docs/: symlinks creados por copy_workspace_config
-    ignore_patterns=(".idea" ".vscode" ".kiro" ".cursor" "AI.md" ".ai" "docs")
+    # - README.md: puede ser creado automáticamente
+    ignore_patterns=(".idea" ".vscode" ".kiro" ".cursor" "AI.md" ".ai" "docs" "README.md")
 
     # Contar archivos que NO deben ignorarse
     significant_files=0
     all_files=()
+    significant_file_list=()
 
     # Leer todos los archivos en el directorio
     while IFS= read -r file; do
-        all_files+=("$file")
+        [ -n "$file" ] && all_files+=("$file")
     done < <(ls -A "$WORKSPACE_DIR" 2>/dev/null)
 
     # Contar archivos significativos (que no están en la lista de ignorados)
@@ -176,6 +180,7 @@ if [ -d "$WORKSPACE_DIR" ]; then
 
         if [ "$should_ignore" = false ]; then
             ((significant_files++))
+            significant_file_list+=("$file")
         fi
     done
 
@@ -184,30 +189,31 @@ if [ -d "$WORKSPACE_DIR" ]; then
         rm -rf "$WORKSPACE_DIR"
     else
         # Hay archivos del usuario, no eliminar
-        echo ""
-        warning "⚠️  El workspace tiene archivos adicionales del usuario. No se eliminó el directorio."
-        echo "   Revisa: $WORKSPACE_DIR"
-        echo "   Archivos restantes:"
-        for file in "${all_files[@]}"; do
-            is_ignored=false
-            for pattern in "${ignore_patterns[@]}"; do
-                if [ "$file" = "$pattern" ]; then
-                    is_ignored=true
-                    break
-                fi
-            done
-            if [ "$is_ignored" = false ]; then
-                echo "      • $file"
-            fi
-        done
+        WORKSPACE_FULLY_REMOVED=false
     fi
 fi
 
+# Mensaje final coherente según el resultado
 echo ""
-success "✅ Workspace limpiado: $WORKSPACE_NAME"
+if [ "$WORKSPACE_FULLY_REMOVED" = true ]; then
+    success "✅ Workspace eliminado completamente: $WORKSPACE_NAME"
+else
+    warning "⚠️  Workspace parcialmente limpiado: $WORKSPACE_NAME"
+    echo ""
+    echo "   El directorio NO se eliminó porque contiene archivos/directorios adicionales:"
+    for file in "${significant_file_list[@]}"; do
+        echo "      • $file"
+    done
+    echo ""
+    echo "   Ubicación: $WORKSPACE_DIR"
+    echo ""
+    echo "   Si son worktrees que no se detectaron correctamente, elimínalos manualmente:"
+    echo "      rm -rf \"$WORKSPACE_DIR\""
+fi
+
 echo ""
-info "💡 La branch se mantiene en los repos principales:"
+info "💡 Las branches se mantienen en los repos principales:"
 echo "   Branch: ${COLOR_CYAN}$BRANCH_NAME${COLOR_RESET}"
 echo ""
-echo "Para ver branches en un repo:"
-echo "  ${COLOR_DIM}cd $WORKSPACE_ROOT/<repo> && git branch -a${COLOR_RESET}"
+echo "Para eliminar la branch de un repo:"
+echo "  ${COLOR_DIM}cd $WORKSPACE_ROOT/<repo> && git branch -d $BRANCH_NAME${COLOR_RESET}"
