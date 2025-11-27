@@ -98,6 +98,44 @@ echo "$repos" | while read -r repo_rel_path; do
                     warning "   📤 $unpushed commit(s) sin remoto"
                 fi
             fi
+
+            # Estado respecto a develop (solo si no es master/develop)
+            if [[ "$WORKSPACE_NAME" != "master" && "$WORKSPACE_NAME" != "develop" ]]; then
+                # Determinar branch base (develop o master)
+                base_branch=""
+                if git rev-parse --verify "origin/develop" >/dev/null 2>&1; then
+                    base_branch="origin/develop"
+                elif git rev-parse --verify "develop" >/dev/null 2>&1; then
+                    base_branch="develop"
+                elif git rev-parse --verify "origin/master" >/dev/null 2>&1; then
+                    base_branch="origin/master"
+                elif git rev-parse --verify "master" >/dev/null 2>&1; then
+                    base_branch="master"
+                fi
+
+                if [ -n "$base_branch" ]; then
+                    # Hacer fetch silencioso para tener refs actualizadas
+                    git fetch origin --quiet 2>/dev/null || true
+
+                    # Commits en mi branch que no están en base (pendientes de merge)
+                    ahead=$(git rev-list --count "$base_branch..$current_branch" 2>/dev/null || echo "0")
+
+                    # Commits en base que no están en mi branch (necesito actualizar)
+                    behind=$(git rev-list --count "$current_branch..$base_branch" 2>/dev/null || echo "0")
+
+                    base_name="${base_branch#origin/}"
+
+                    if [ "$ahead" -gt 0 ] && [ "$behind" -gt 0 ]; then
+                        echo "   🔀 ${COLOR_YELLOW}$ahead commit(s) para merge a $base_name${COLOR_RESET}, ${COLOR_MAGENTA}$behind nuevo(s) en $base_name${COLOR_RESET}"
+                    elif [ "$ahead" -gt 0 ]; then
+                        echo "   🔀 ${COLOR_YELLOW}$ahead commit(s) pendiente(s) de merge a $base_name${COLOR_RESET}"
+                    elif [ "$behind" -gt 0 ]; then
+                        echo "   ⬇️  ${COLOR_MAGENTA}$base_name tiene $behind commit(s) nuevo(s)${COLOR_RESET}"
+                    else
+                        echo "   ${COLOR_DIM}↔️  Sincronizado con $base_name${COLOR_RESET}"
+                    fi
+                fi
+            fi
             echo ""
         fi
     fi
