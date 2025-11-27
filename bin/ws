@@ -232,8 +232,7 @@ case $SUBCOMMAND in
 
     *)
         echo "❌ Comando desconocido: $SUBCOMMAND"
-        echo ""
-        show_help
+        echo "   Usa 'ws help' para ver los comandos disponibles"
         exit 1
         ;;
 esac
