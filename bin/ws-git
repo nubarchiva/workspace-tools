@@ -143,18 +143,38 @@ echo "$repos" | while read -r repo_rel_path; do
             # Cambiar al directorio del repo y ejecutar Git
             cd "$repo_path"
 
-            # Detectar si es "push" sin upstream y añadir -u automáticamente
+            # Detectar si es "push" y manejar casos especiales
             ACTUAL_GIT_ARGS="$GIT_ARGS"
-            if [ "$GIT_ARGS" = "push" ]; then
+            SKIP_PUSH=false
+
+            if [[ "$GIT_ARGS" == "push"* ]]; then
+                current_branch=$(git branch --show-current)
+
                 # Verificar si hay upstream configurado
                 if ! git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then
-                    current_branch=$(git branch --show-current)
-                    info "   📤 Sin upstream, ejecutando: git push -u origin $current_branch"
-                    ACTUAL_GIT_ARGS="push -u origin $current_branch"
+                    # Sin upstream: verificar si hay commits locales que subir
+                    # Comparamos con la branch base (develop o master)
+                    base_branch="develop"
+                    if ! git rev-parse --verify "$base_branch" >/dev/null 2>&1; then
+                        base_branch="master"
+                    fi
+
+                    # Contar commits en la branch actual que no están en base
+                    commits_ahead=$(git rev-list --count "$base_branch..$current_branch" 2>/dev/null || echo "0")
+
+                    if [ "$commits_ahead" -eq 0 ]; then
+                        echo "   ${COLOR_DIM}⏭️  Sin commits nuevos, omitiendo push (no se crea branch remota vacía)${COLOR_RESET}"
+                        SKIP_PUSH=true
+                    else
+                        info "   📤 Sin upstream ($commits_ahead commits), ejecutando: git push -u origin $current_branch"
+                        ACTUAL_GIT_ARGS="push -u origin $current_branch"
+                    fi
                 fi
             fi
 
-            git $ACTUAL_GIT_ARGS
+            if [ "$SKIP_PUSH" = false ]; then
+                git $ACTUAL_GIT_ARGS
+            fi
 
             # Verificar el resultado
             exit_code=$?
