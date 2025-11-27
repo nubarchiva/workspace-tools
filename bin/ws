@@ -57,7 +57,7 @@ GESTIÓN DE WORKSPACES:
         ws rename feature-123 feature-456
         ws mv old-name new-name        # alias corto
 
-  status [workspace] (., here)
+  status [workspace] (st, ., here)
       Muestra el estado del workspace actual (auto-detecta)
       Ejemplos:
         ws status                      # desde dentro de un workspace
@@ -162,7 +162,7 @@ expand_abbreviation() {
         mk|create) echo "new"; return 0 ;;
         mv) echo "rename"; return 0 ;;
         tpl) echo "templates"; return 0 ;;
-        .|here) echo "status"; return 0 ;;
+        .|here|st) echo "status"; return 0 ;;
         h) echo "help"; return 0 ;;
     esac
 
