@@ -14,13 +14,69 @@ else
 fi
 echo ""
 
+# Función para calcular estado de sincronización con develop de un repo
+# Retorna: "ahead:behind" (ej: "3:5" = 3 commits para merge, 5 nuevos en develop)
+get_sync_status() {
+    local repo_path=$1
+    local current_branch=$(git -C "$repo_path" branch --show-current 2>/dev/null)
+
+    # Determinar branch base
+    local base_branch=""
+    if git -C "$repo_path" rev-parse --verify "origin/develop" >/dev/null 2>&1; then
+        base_branch="origin/develop"
+    elif git -C "$repo_path" rev-parse --verify "develop" >/dev/null 2>&1; then
+        base_branch="develop"
+    elif git -C "$repo_path" rev-parse --verify "origin/master" >/dev/null 2>&1; then
+        base_branch="origin/master"
+    elif git -C "$repo_path" rev-parse --verify "master" >/dev/null 2>&1; then
+        base_branch="master"
+    else
+        echo "0:0"
+        return
+    fi
+
+    local ahead=$(git -C "$repo_path" rev-list --count "$base_branch..$current_branch" 2>/dev/null || echo "0")
+    local behind=$(git -C "$repo_path" rev-list --count "$current_branch..$base_branch" 2>/dev/null || echo "0")
+
+    echo "$ahead:$behind"
+}
+
 # Función para mostrar workspace
 show_workspace() {
     local name=$1
     local path=$2
     local branch=$(get_branch_name "$name")
 
-    echo "🔹 ${COLOR_BOLD_CYAN}$name${COLOR_RESET} ${COLOR_DIM}(branch: ${COLOR_CYAN}$branch${COLOR_RESET}${COLOR_DIM})${COLOR_RESET}"
+    # Calcular estado de sincronización global del workspace
+    local sync_indicator=""
+    if [[ "$name" != "master" && "$name" != "develop" ]]; then
+        local total_ahead=0
+        local total_behind=0
+        local repos_for_sync=$(find_repos_in_workspace "$path")
+
+        while read -r repo_rel_path; do
+            if [ -n "$repo_rel_path" ]; then
+                local worktree_path="$path/$repo_rel_path"
+                if [ -d "$worktree_path" ]; then
+                    local sync_status=$(get_sync_status "$worktree_path")
+                    local ahead=${sync_status%:*}
+                    local behind=${sync_status#*:}
+                    ((total_ahead += ahead))
+                    ((total_behind += behind))
+                fi
+            fi
+        done <<< "$repos_for_sync"
+
+        if [ $total_ahead -gt 0 ] && [ $total_behind -gt 0 ]; then
+            sync_indicator=" ${COLOR_YELLOW}↑$total_ahead${COLOR_RESET} ${COLOR_MAGENTA}↓$total_behind${COLOR_RESET}"
+        elif [ $total_ahead -gt 0 ]; then
+            sync_indicator=" ${COLOR_YELLOW}↑$total_ahead${COLOR_RESET}"
+        elif [ $total_behind -gt 0 ]; then
+            sync_indicator=" ${COLOR_MAGENTA}↓$total_behind${COLOR_RESET}"
+        fi
+    fi
+
+    echo "🔹 ${COLOR_BOLD_CYAN}$name${COLOR_RESET}${sync_indicator} ${COLOR_DIM}(branch: ${COLOR_CYAN}$branch${COLOR_RESET}${COLOR_DIM})${COLOR_RESET}"
 
     # Encontrar repos (incluyendo subdirectorios)
     local repos=$(find_repos_in_workspace "$path")
