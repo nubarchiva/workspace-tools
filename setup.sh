@@ -130,7 +130,6 @@ wmcl() { ws mvn "$1" -T 1C clean; }
 # Git shortcuts para workspaces
 wgt() { ws git "$1" status; }
 wgpa() { ws git "$1" pull --all; }
-wsync() { ws sync "$@"; }
 wstash() { ws stash "$@"; }
 wgrep() { ws grep "$@"; }
 

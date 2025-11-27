@@ -331,29 +331,31 @@ ws mvn feature-123 clean install -DskipTests
 
 ---
 
-### ws sync
+### ws update
 
-Sincroniza todos los repos con el remoto.
+Actualiza la branch de trabajo con lo último de develop (merge o rebase).
 
 ```bash
-ws sync [workspace] [opciones]
+ws update [workspace] [opciones]
 ```
 
 **Opciones:**
-- `--fetch, -f`: Solo fetch (no merge)
-- `--rebase, -r`: Pull con rebase
+- `--rebase, -r`: Usar rebase en lugar de merge
+- `--from, -f <branch>`: Especificar branch base (default: develop o master)
 
 **Comportamiento:**
+- Hace fetch del remoto primero
+- Usa origin/develop si existe, sino develop local
+- Fallback a master si no existe develop
 - Salta repos con cambios sin commitear
-- Salta repos sin remoto configurado
-- Muestra resumen de resultados
+- Se detiene si hay conflictos
 
 **Ejemplos:**
 ```bash
-ws sync                 # workspace actual, pull normal
-ws sync feature-123     # workspace específico
-ws sync --fetch         # solo fetch
-ws sync --rebase        # pull con rebase
+ws update                 # merge develop en workspace actual
+ws update --rebase        # rebase sobre develop
+ws update feature-123     # workspace específico
+ws update -r --from main  # rebase sobre main
 ```
 
 ---
@@ -438,6 +440,33 @@ ws templates remove old-template
 
 ---
 
+### ws origins
+
+Ejecuta comandos en todos los repos origen (en WORKSPACE_ROOT).
+
+```bash
+ws origins <subcomando> [args...]
+```
+
+**Subcomandos:**
+- `git <args>`: Ejecuta git en todos los repos origen
+- `list`: Lista todos los repos origen detectados
+
+**Comportamiento:**
+- Opera sobre los repos principales (donde está el .git)
+- Excluye el directorio workspaces/
+- Útil para actualizar repos en develop/master
+
+**Ejemplos:**
+```bash
+ws origins git pull         # pull en todos los repos origen
+ws origins git status       # status de todos
+ws origins git fetch        # fetch en todos
+ws origins list             # listar repos detectados
+```
+
+---
+
 ### wscd
 
 Navega entre repos del workspace actual.
@@ -481,7 +510,6 @@ Definidos en `setup.sh`:
 |----------|---------|
 | `wgt [ws]` | `ws git status` |
 | `wgpa [ws]` | `ws git pull --all` |
-| `wsync [ws]` | `ws sync` |
 | `wstash` | `ws stash` |
 | `wgrep` | `ws grep` |
 
@@ -511,7 +539,7 @@ Cualquier prefijo único de comando se expande automáticamente:
 
 ```bash
 ws l        # → ws list
-ws sy       # → ws sync
+ws up       # → ws update
 ws sta      # → ws stash (o status si es más único)
 ```
 

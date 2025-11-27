@@ -17,12 +17,19 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - `git_get_base_branch()` - Encuentra branch base (origin/develop, etc.)
   - `git_repo_status()` - Estado completo en formato parseable
   - Refactorizados para usar el módulo: ws-list, ws-switch, ws-clean, ws-remove
-- **`ws sync`** - Sincroniza todos los repos con el remoto
-  - `ws sync` - Pull en todos los repos del workspace actual
-  - `ws sync --fetch` - Solo fetch (no merge)
-  - `ws sync --rebase` - Pull con rebase
+- **`ws update`** - Actualiza la branch de trabajo con lo último de develop
+  - `ws update` - Merge develop en todos los repos del workspace actual
+  - `ws update --rebase` - Rebase sobre develop
+  - `ws update --from main` - Especificar branch base
   - Auto-detección de workspace desde directorio actual
   - Salta repos con cambios sin commitear (no pierde trabajo)
+  - Se detiene si hay conflictos, mostrando instrucciones claras
+- **`ws origins`** - Ejecuta comandos en todos los repos origen (WORKSPACE_ROOT)
+  - `ws origins git pull` - Pull en todos los repos origen
+  - `ws origins git status` - Status de todos los repos origen
+  - `ws origins list` - Lista repos origen detectados
+  - Excluye automáticamente el directorio workspaces/
+  - Útil para actualizar repos en develop/master
 - **`ws stash`** - Gestión coordinada de stash en todos los repos
   - `ws stash` / `ws stash push "mensaje"` - Stash en repos con cambios
   - `ws stash pop` - Pop del stash más reciente en todos los repos
@@ -69,6 +76,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Verificaciones: bloquea si hay cambios sin commitear, advierte sobre commits sin pushear y branches remotas
   - Actualiza automáticamente worktrees (`git worktree repair`) y branches locales
   - Confirmación explícita escribiendo "RENOMBRAR" con resumen completo de cambios
+
+### Mejorado
+- **Autocompletado actualizado** (bash y zsh)
+  - Añadidos todos los comandos nuevos: update, origins, stash, grep, templates, status, rename, info, remove
+  - Añadidos aliases: ls, cd, rm, mv, st, tpl
+  - Completado de templates en `ws new --template`
+  - Completado de acciones de stash, templates y origins
+  - Sugerencias de opciones para update, grep
+  - Completado de goals Maven y comandos Git comunes
 
 ### Cambiado
 - **ws-rename refactorizado** para mejorar mantenibilidad

@@ -92,8 +92,8 @@ ws add feature-123 libs/utils
 ws git feature-123 status
 ws mvn feature-123 clean install
 
-# Sincronizar con remoto
-ws sync
+# Actualizar con develop
+ws update
 
 # Limpiar workspace
 ws clean feature-123
@@ -120,9 +120,10 @@ ws clean feature-123
 |---------|-------------|
 | `ws git <nombre> <cmd>` | Git en todos los repos |
 | `ws mvn <nombre> <args>` | Maven en todos los repos |
-| `ws sync [--fetch\|--rebase]` | Sincronizar con remoto |
+| `ws update [--rebase]` | Merge/rebase de develop |
 | `ws stash [push\|pop\|list]` | Stash coordinado |
 | `ws grep <patrón>` | Buscar en todos los repos |
+| `ws origins git <cmd>` | Git en repos origen |
 
 ### Templates
 
@@ -151,7 +152,6 @@ wscd .            # raíz del workspace
 | `wmcis` | `ws mvn clean install -DskipTests` |
 | `wmci` | `ws mvn clean install` |
 | `wgt` | `ws git status` |
-| `wsync` | `ws sync` |
 | `wstash` | `ws stash` |
 | `wgrep` | `ws grep` |
 

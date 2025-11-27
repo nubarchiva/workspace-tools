@@ -29,13 +29,23 @@ Este documento describe las mejoras planificadas para Workspace Tools, priorizad
 
 ---
 
-### ws sync - Sincronización de repos
-✅ **v4.1** - Ejecuta `git pull` en todos los repos del workspace simultáneamente.
-- `ws sync` - Pull en todos los repos (auto-detección)
-- `ws sync --fetch` - Solo fetch (no merge)
-- `ws sync --rebase` - Pull con rebase
+### ws update - Actualización con develop
+✅ **v4.2** - Actualiza la branch de trabajo con lo último de develop (merge o rebase).
+- `ws update` - Merge develop en todos los repos (auto-detección)
+- `ws update --rebase` - Rebase sobre develop
+- `ws update --from main` - Especificar branch base
 - Salta repos con cambios sin commitear (no pierde trabajo)
-- Shortcut: `wsync`
+- Se detiene si hay conflictos, mostrando instrucciones claras
+
+---
+
+### ws origins - Operaciones en repos origen
+✅ **v4.2** - Ejecuta comandos en todos los repos origen (WORKSPACE_ROOT).
+- `ws origins git pull` - Pull en todos los repos origen
+- `ws origins git status` - Status de todos los repos origen
+- `ws origins list` - Lista repos detectados
+- Excluye automáticamente el directorio workspaces/
+- Útil para actualizar repos en develop/master sin crear workspace
 
 ---
 

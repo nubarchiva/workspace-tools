@@ -92,10 +92,13 @@ OPERACIONES MULTI-REPO:
       Ejecuta Git en todos los repos del workspace
       Ejemplo: ws git feature-123 status
 
-  sync [workspace] [--fetch|-f] [--rebase|-r]
-      Sincroniza todos los repos con el remoto (git pull)
-      Opciones: --fetch (solo fetch), --rebase (pull con rebase)
-      Ejemplo: ws sync feature-123
+  update [workspace] [--rebase|-r]
+      Actualiza la branch de trabajo con lo último de develop
+      Opciones: --rebase (usar rebase en lugar de merge)
+      Ejemplos:
+        ws update                      # merge develop en workspace actual
+        ws update --rebase             # rebase sobre develop
+        ws update NUBA-1234            # actualizar workspace específico
 
   stash [acción] [workspace]
       Gestiona stash coordinado en todos los repos
@@ -116,6 +119,19 @@ OPERACIONES MULTI-REPO:
         ws templates                        # lista templates
         ws templates add frontend ks-nuba libs/ui
         ws tpl show backend                 # alias
+
+REPOS ORIGEN:
+
+  origins git <comando> [args]
+      Ejecuta Git en todos los repos origen (WORKSPACE_ROOT)
+      Útil para actualizar repos en develop/master
+      Ejemplos:
+        ws origins git pull                 # pull en todos los repos origen
+        ws origins git status               # status de todos
+        ws origins git fetch                # fetch en todos
+
+  origins list
+      Lista todos los repos origen detectados
 
 CARACTERÍSTICAS:
 
@@ -152,7 +168,7 @@ fi
 # Función para expandir abreviaturas
 expand_abbreviation() {
     local abbrev=$1
-    local commands="new add remove switch list clean mvn git sync stash grep templates status rename info help"
+    local commands="new add remove switch list clean mvn git update stash grep templates status rename info origins help"
 
     # Aliases predefinidos
     case $abbrev in
@@ -198,7 +214,7 @@ fi
 
 # Mapear subcomandos a scripts
 case $SUBCOMMAND in
-    new|add|remove|switch|list|clean|mvn|git|sync|stash|grep|templates|status|rename|info)
+    new|add|remove|switch|list|clean|mvn|git|update|stash|grep|templates|status|rename|info|origins)
         SCRIPT_NAME="ws-$SUBCOMMAND"
         SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_NAME"
 

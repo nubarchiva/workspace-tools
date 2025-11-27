@@ -1,0 +1,253 @@
+#!/bin/bash
+# Actualiza la branch de trabajo con lo último de develop/master
+# Hace merge o rebase de la branch base en todos los repos del workspace
+
+# Inicializacion centralizada
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
+
+# Función de ayuda
+show_help() {
+    echo "Uso: ws update [workspace] [opciones]"
+    echo ""
+    echo "Actualiza la branch de trabajo con lo último de develop (o master)."
+    echo "Ejecuta merge o rebase en todos los repos del workspace."
+    echo ""
+    echo "Opciones:"
+    echo "  --rebase, -r       Usar rebase en lugar de merge"
+    echo "  --from, -f BRANCH  Especificar branch base (default: develop o master)"
+    echo ""
+    echo "Ejemplos:"
+    echo "  ws update                    # merge develop en workspace actual"
+    echo "  ws update --rebase           # rebase sobre develop"
+    echo "  ws update NUBA-1234          # actualizar workspace específico"
+    echo "  ws update -r --from main     # rebase sobre main"
+    echo ""
+    echo "Comportamiento:"
+    echo "  • Hace fetch del remoto primero"
+    echo "  • Usa origin/develop si existe, sino develop local"
+    echo "  • Fallback a master si no existe develop"
+    echo "  • Salta repos con cambios sin commitear"
+    echo "  • Se detiene si hay conflictos"
+}
+
+# Opciones
+USE_REBASE=false
+WORKSPACE_PATTERN=""
+BASE_BRANCH=""
+
+# Parsear argumentos
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --rebase|-r)
+            USE_REBASE=true
+            shift
+            ;;
+        --from|-f)
+            BASE_BRANCH="$2"
+            shift 2
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        *)
+            if [ -z "$WORKSPACE_PATTERN" ]; then
+                WORKSPACE_PATTERN="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Auto-detectar workspace si no se especificó
+if [ -z "$WORKSPACE_PATTERN" ]; then
+    WORKSPACE_PATTERN=$(detect_current_workspace 2>/dev/null || true)
+    if [ -z "$WORKSPACE_PATTERN" ]; then
+        error "❌ No se especificó workspace y no se pudo detectar automáticamente"
+        echo ""
+        show_help
+        exit 1
+    fi
+    info "🔍 Workspace detectado: $WORKSPACE_PATTERN"
+fi
+
+# Buscar workspace que coincida
+WORKSPACE_NAME=$(find_matching_workspace "$WORKSPACE_PATTERN" "$WORKSPACES_DIR")
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+
+WORKSPACE_DIR="$WORKSPACES_DIR/$WORKSPACE_NAME"
+BRANCH_NAME="$(get_branch_name "$WORKSPACE_NAME")"
+
+if [ ! -d "$WORKSPACE_DIR" ]; then
+    die "Workspace no existe: $WORKSPACE_NAME"
+fi
+
+# No tiene sentido actualizar master o develop
+if [[ "$WORKSPACE_NAME" == "master" || "$WORKSPACE_NAME" == "develop" ]]; then
+    error "❌ No tiene sentido actualizar $WORKSPACE_NAME con sí mismo"
+    echo ""
+    info "💡 Usa 'ws git pull' para sincronizar con el remoto"
+    exit 1
+fi
+
+# Determinar operación
+if [ "$USE_REBASE" = true ]; then
+    OPERATION="rebase"
+    OPERATION_VERB="Rebaseando"
+    OPERATION_PAST="rebaseado"
+else
+    OPERATION="merge"
+    OPERATION_VERB="Mergeando"
+    OPERATION_PAST="mergeado"
+fi
+
+print_header "Actualizar workspace: $WORKSPACE_NAME"
+echo ""
+echo "Workspace: ${COLOR_CYAN}$WORKSPACE_NAME${COLOR_RESET}"
+echo "Branch:    ${COLOR_CYAN}$BRANCH_NAME${COLOR_RESET}"
+echo "Operación: ${COLOR_BOLD}$OPERATION${COLOR_RESET}"
+echo ""
+
+# Encontrar repos
+repos=$(find_repos_in_workspace "$WORKSPACE_DIR")
+
+if [ -z "$repos" ]; then
+    die "No hay repos en este workspace"
+fi
+
+# Contadores
+total=0
+updated=0
+skipped=0
+conflicts=0
+
+# Procesar cada repo
+echo "$repos" | while read -r repo_rel_path; do
+    if [ -n "$repo_rel_path" ]; then
+        ((total++))
+        repo_path="$WORKSPACE_DIR/$repo_rel_path"
+
+        print_separator_with_title "${COLOR_CYAN}$repo_rel_path${COLOR_RESET}"
+
+        cd "$repo_path" || continue
+
+        # Verificar cambios sin commitear
+        if git_has_uncommitted_changes "$repo_path"; then
+            warning "⏭️  Saltado (cambios sin commitear)"
+            echo "$skipped" > /tmp/ws_update_skipped_$$
+            skipped=$(($(cat /tmp/ws_update_skipped_$$ 2>/dev/null || echo 0) + 1))
+            echo "$skipped" > /tmp/ws_update_skipped_$$
+            echo ""
+            continue
+        fi
+
+        # Hacer fetch primero
+        echo "   ${COLOR_DIM}Fetching...${COLOR_RESET}"
+        git fetch origin --quiet 2>/dev/null || true
+
+        # Determinar branch base para este repo
+        local_base="$BASE_BRANCH"
+        if [ -z "$local_base" ]; then
+            if git rev-parse --verify "origin/develop" >/dev/null 2>&1; then
+                local_base="origin/develop"
+            elif git rev-parse --verify "develop" >/dev/null 2>&1; then
+                local_base="develop"
+            elif git rev-parse --verify "origin/master" >/dev/null 2>&1; then
+                local_base="origin/master"
+            elif git rev-parse --verify "master" >/dev/null 2>&1; then
+                local_base="master"
+            else
+                warning "⏭️  Saltado (no se encontró branch base)"
+                echo ""
+                continue
+            fi
+        fi
+
+        # Verificar si hay algo que actualizar
+        current_branch=$(git branch --show-current)
+        behind=$(git rev-list --count "$current_branch..$local_base" 2>/dev/null || echo "0")
+
+        if [ "$behind" -eq 0 ]; then
+            success "✓ Ya actualizado con ${local_base#origin/}"
+            echo ""
+            continue
+        fi
+
+        echo "   ${COLOR_DIM}$OPERATION_VERB $behind commit(s) de ${local_base#origin/}...${COLOR_RESET}"
+
+        # Ejecutar merge o rebase
+        if [ "$USE_REBASE" = true ]; then
+            if git rebase "$local_base" 2>&1; then
+                success "✅ Rebaseado correctamente"
+                echo "$updated" > /tmp/ws_update_updated_$$
+                updated=$(($(cat /tmp/ws_update_updated_$$ 2>/dev/null || echo 0) + 1))
+                echo "$updated" > /tmp/ws_update_updated_$$
+            else
+                error "❌ Conflictos en rebase"
+                echo ""
+                echo "   Para resolver:"
+                echo "   ${COLOR_DIM}cd $repo_path${COLOR_RESET}"
+                echo "   ${COLOR_DIM}# resolver conflictos${COLOR_RESET}"
+                echo "   ${COLOR_DIM}git rebase --continue${COLOR_RESET}"
+                echo ""
+                echo "   Para abortar:"
+                echo "   ${COLOR_DIM}git rebase --abort${COLOR_RESET}"
+                echo ""
+                echo "$conflicts" > /tmp/ws_update_conflicts_$$
+                conflicts=$(($(cat /tmp/ws_update_conflicts_$$ 2>/dev/null || echo 0) + 1))
+                echo "$conflicts" > /tmp/ws_update_conflicts_$$
+                # Abortar el rebase para dejar el repo en estado limpio
+                git rebase --abort 2>/dev/null || true
+                exit 1
+            fi
+        else
+            if git merge "$local_base" --no-edit 2>&1; then
+                success "✅ Mergeado correctamente"
+                echo "$updated" > /tmp/ws_update_updated_$$
+                updated=$(($(cat /tmp/ws_update_updated_$$ 2>/dev/null || echo 0) + 1))
+                echo "$updated" > /tmp/ws_update_updated_$$
+            else
+                error "❌ Conflictos en merge"
+                echo ""
+                echo "   Para resolver:"
+                echo "   ${COLOR_DIM}cd $repo_path${COLOR_RESET}"
+                echo "   ${COLOR_DIM}# resolver conflictos${COLOR_RESET}"
+                echo "   ${COLOR_DIM}git add . && git commit${COLOR_RESET}"
+                echo ""
+                echo "   Para abortar:"
+                echo "   ${COLOR_DIM}git merge --abort${COLOR_RESET}"
+                echo ""
+                echo "$conflicts" > /tmp/ws_update_conflicts_$$
+                conflicts=$(($(cat /tmp/ws_update_conflicts_$$ 2>/dev/null || echo 0) + 1))
+                echo "$conflicts" > /tmp/ws_update_conflicts_$$
+                # Abortar el merge para dejar el repo en estado limpio
+                git merge --abort 2>/dev/null || true
+                exit 1
+            fi
+        fi
+        echo ""
+    fi
+done
+
+# Leer contadores finales
+updated=$(cat /tmp/ws_update_updated_$$ 2>/dev/null || echo 0)
+skipped=$(cat /tmp/ws_update_skipped_$$ 2>/dev/null || echo 0)
+conflicts=$(cat /tmp/ws_update_conflicts_$$ 2>/dev/null || echo 0)
+rm -f /tmp/ws_update_*_$$ 2>/dev/null
+
+# Resumen
+echo ""
+if [ "$conflicts" -gt 0 ]; then
+    error "❌ Actualización detenida por conflictos"
+    echo ""
+    echo "Resumen: $updated $OPERATION_PAST, $skipped saltados, $conflicts con conflictos"
+    exit 1
+else
+    success "✅ Workspace actualizado"
+    if [ "$skipped" -gt 0 ]; then
+        echo ""
+        warning "⚠️  $skipped repo(s) saltados por tener cambios sin commitear"
+    fi
+fi

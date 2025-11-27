@@ -1,0 +1,158 @@
+#!/bin/bash
+# Ejecuta comandos en todos los repos origen (en WORKSPACE_ROOT)
+# Útil para actualizar los repos principales que están en develop/master
+
+# Inicializacion centralizada
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
+
+# Función de ayuda
+show_help() {
+    echo "Uso: ws origins <comando> [argumentos...]"
+    echo ""
+    echo "Ejecuta comandos en todos los repos origen (en WORKSPACE_ROOT)."
+    echo "Los repos origen son los que contienen el .git principal,"
+    echo "desde donde se crean los worktrees."
+    echo ""
+    echo "Subcomandos:"
+    echo "  git <args>     Ejecuta git en todos los repos origen"
+    echo "  list           Lista todos los repos origen detectados"
+    echo ""
+    echo "Ejemplos:"
+    echo "  ws origins git pull        # pull en todos los repos origen"
+    echo "  ws origins git status      # status de todos los repos origen"
+    echo "  ws origins git fetch       # fetch en todos los repos origen"
+    echo "  ws origins list            # listar repos detectados"
+    echo ""
+    echo "Nota: Los repos origen normalmente están en branch develop o master."
+}
+
+# Función para encontrar repos origen en WORKSPACE_ROOT
+# Excluye el directorio workspaces/
+find_origin_repos() {
+    local root_dir="$1"
+    local workspaces_dir="$2"
+
+    # Buscar .git hasta 3 niveles, excluyendo workspaces/
+    find "$root_dir" -maxdepth 4 -name ".git" -type d 2>/dev/null | \
+        grep -v "$workspaces_dir" | \
+        grep -v "/workspaces/" | \
+        sed "s|$root_dir/||" | \
+        sed 's|/.git||' | \
+        sort
+}
+
+# Verificar argumentos
+if [ -z "$1" ]; then
+    show_help
+    exit 0
+fi
+
+SUBCOMMAND="$1"
+shift
+
+case "$SUBCOMMAND" in
+    git)
+        if [ -z "$1" ]; then
+            error "❌ Debes especificar un comando git"
+            echo ""
+            echo "Ejemplos:"
+            echo "  ws origins git pull"
+            echo "  ws origins git status"
+            exit 1
+        fi
+
+        GIT_ARGS="$@"
+
+        print_header "Ejecutando Git en repos origen"
+        echo ""
+        echo "Directorio: ${COLOR_CYAN}$WORKSPACE_ROOT${COLOR_RESET}"
+        echo "Comando:    ${COLOR_BOLD}git $GIT_ARGS${COLOR_RESET}"
+        echo ""
+
+        # Encontrar repos origen
+        repos=$(find_origin_repos "$WORKSPACE_ROOT" "$WORKSPACES_DIR")
+
+        if [ -z "$repos" ]; then
+            die "No se encontraron repos en $WORKSPACE_ROOT"
+        fi
+
+        # Contadores
+        success_count=0
+        error_count=0
+
+        # Ejecutar en cada repo
+        echo "$repos" | while read -r repo_rel_path; do
+            if [ -n "$repo_rel_path" ]; then
+                repo_path="$WORKSPACE_ROOT/$repo_rel_path"
+
+                if [ -d "$repo_path/.git" ]; then
+                    print_separator_with_title "${COLOR_CYAN}$repo_rel_path${COLOR_RESET}"
+
+                    cd "$repo_path" || continue
+
+                    # Mostrar branch actual
+                    current_branch=$(git branch --show-current 2>/dev/null || echo "detached")
+                    echo "   ${COLOR_DIM}Branch: $current_branch${COLOR_RESET}"
+                    echo ""
+
+                    # Ejecutar comando git
+                    if git $GIT_ARGS; then
+                        ((success_count++))
+                    else
+                        ((error_count++))
+                        echo ""
+                        warning "⚠️  Error en $repo_rel_path"
+                    fi
+
+                    echo ""
+                fi
+            fi
+        done
+
+        echo "${COLOR_DIM}═══════════════════════════════════════════════════${COLOR_RESET}"
+        success "✅ Completado"
+        ;;
+
+    list|ls)
+        print_header "Repos origen en WORKSPACE_ROOT"
+        echo ""
+        echo "Directorio: ${COLOR_CYAN}$WORKSPACE_ROOT${COLOR_RESET}"
+        echo ""
+
+        repos=$(find_origin_repos "$WORKSPACE_ROOT" "$WORKSPACES_DIR")
+
+        if [ -z "$repos" ]; then
+            echo "  ${COLOR_DIM}(No se encontraron repos)${COLOR_RESET}"
+            exit 0
+        fi
+
+        count=0
+        echo "$repos" | while read -r repo_rel_path; do
+            if [ -n "$repo_rel_path" ]; then
+                repo_path="$WORKSPACE_ROOT/$repo_rel_path"
+                ((count++))
+
+                # Obtener branch actual
+                if [ -d "$repo_path/.git" ]; then
+                    current_branch=$(git -C "$repo_path" branch --show-current 2>/dev/null || echo "?")
+                    echo "  📦 ${COLOR_CYAN}$repo_rel_path${COLOR_RESET} ${COLOR_DIM}($current_branch)${COLOR_RESET}"
+                fi
+            fi
+        done
+
+        echo ""
+        repo_count=$(echo "$repos" | grep -v '^$' | wc -l | tr -d ' ')
+        echo "${COLOR_DIM}Total: $repo_count repos${COLOR_RESET}"
+        ;;
+
+    help|--help|-h)
+        show_help
+        ;;
+
+    *)
+        error "❌ Subcomando desconocido: $SUBCOMMAND"
+        echo ""
+        show_help
+        exit 1
+        ;;
+esac
