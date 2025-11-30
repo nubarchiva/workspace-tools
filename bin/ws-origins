@@ -4,6 +4,7 @@
 
 # Inicializacion centralizada
 source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-git-utils.sh"
 
 # Función de ayuda
 show_help() {
@@ -180,10 +181,37 @@ case "$SUBCOMMAND" in
                 repo_path="$WORKSPACE_ROOT/$repo_rel_path"
                 ((count++))
 
-                # Obtener branch actual
+                # Obtener branch actual y estado
                 if [ -d "$repo_path/.git" ]; then
                     current_branch=$(git -C "$repo_path" branch --show-current 2>/dev/null || echo "?")
-                    echo "  📦 ${COLOR_CYAN}$repo_rel_path${COLOR_RESET} ${COLOR_DIM}($current_branch)${COLOR_RESET}"
+
+                    # Construir línea de estado
+                    status_info=""
+
+                    # Cambios sin commitear
+                    uncommitted=$(git_count_uncommitted_changes "$repo_path")
+                    if [ "$uncommitted" -gt 0 ]; then
+                        status_info="${COLOR_YELLOW}⚠️ $uncommitted sin commitear${COLOR_RESET}"
+                    fi
+
+                    # Commits sin push
+                    if git_has_upstream "$repo_path"; then
+                        unpushed=$(git_count_unpushed_commits "$repo_path")
+                        if [ "$unpushed" -gt 0 ]; then
+                            if [ -n "$status_info" ]; then
+                                status_info="$status_info, ${COLOR_YELLOW}📤 $unpushed sin push${COLOR_RESET}"
+                            else
+                                status_info="${COLOR_YELLOW}📤 $unpushed sin push${COLOR_RESET}"
+                            fi
+                        fi
+                    fi
+
+                    # Mostrar línea
+                    if [ -n "$status_info" ]; then
+                        echo "  📦 ${COLOR_CYAN}$repo_rel_path${COLOR_RESET} ${COLOR_DIM}($current_branch)${COLOR_RESET} $status_info"
+                    else
+                        echo "  📦 ${COLOR_CYAN}$repo_rel_path${COLOR_RESET} ${COLOR_DIM}($current_branch)${COLOR_RESET}"
+                    fi
                 fi
             fi
         done
