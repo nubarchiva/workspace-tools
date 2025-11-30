@@ -15,7 +15,7 @@ Este documento describe las mejoras planificadas para Workspace Tools, priorizad
 ---
 
 ### wscd - Navegación rápida entre repos
-✅ **v3.2** - Navega entre repos del workspace actual con matching parcial y menú interactivo. `wscd app` en lugar de `cd ../../../my-app`. Soporta `wscd .` (raíz) y `wscd ..` (arriba).
+✅ **v3.2** - Navega entre repos del workspace actual con matching parcial y menú interactivo. `wscd app` en lugar de `cd ../../../app`. Soporta `wscd .` (raíz) y `wscd ..` (arriba).
 
 ---
 
@@ -86,6 +86,15 @@ Este documento describe las mejoras planificadas para Workspace Tools, priorizad
 - `ws --version` / `ws -v` - Muestra versión actual
 - Script de desinstalación interactivo (`uninstall.sh`)
 - CI con GitHub Actions (tests + ShellCheck)
+- Instalador rediseñado para usuarios externos (configuración interactiva)
+
+---
+
+### .wsignore
+✅ **v4.1** - Excluye repos de operaciones `ws origins`.
+- Archivo `$WORKSPACE_ROOT/.wsignore`
+- Un repo por línea, comentarios con `#`
+- Útil para excluir repos externos del pull masivo
 
 ---
 
@@ -129,7 +138,7 @@ Permite ejecutar scripts custom en eventos específicos (pre-push, pre-switch, p
 Integración con Jira para crear workspaces desde tickets y actualizar estado automáticamente.
 
 ```bash
-ws new TICKET-123                   # crea workspace y linkea con Jira
+ws new NUBA-8123                    # crea workspace y linkea con Jira
 ws commit "fix: bug" --update-jira  # actualiza Jira automáticamente
 ```
 
@@ -156,5 +165,5 @@ Las propuestas de mejora son bienvenidas. Para sugerir una nueva funcionalidad:
 
 ---
 
-**Última actualización:** 25 de noviembre de 2025
-**Versión:** 4.1
+**Última actualización:** 30 de noviembre de 2025
+**Versión:** 4.1.0

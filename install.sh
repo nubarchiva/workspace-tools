@@ -1,5 +1,11 @@
 #!/bin/bash
 # Script de instalación para workspace-tools
+#
+# Uso:
+#   ./install.sh              # Instalación interactiva
+#   ./install.sh --help       # Mostrar ayuda
+
+set -e
 
 # Colores (si el terminal los soporta)
 if [[ -t 1 ]]; then
@@ -7,55 +13,70 @@ if [[ -t 1 ]]; then
     GREEN='\033[0;32m'
     YELLOW='\033[0;33m'
     CYAN='\033[0;36m'
+    BOLD='\033[1m'
     RESET='\033[0m'
 else
-    RED='' GREEN='' YELLOW='' CYAN='' RESET=''
+    RED='' GREEN='' YELLOW='' CYAN='' BOLD='' RESET=''
 fi
 
-echo "════════════════════════════════════════════════════"
-echo "  Workspace Tools - Instalación"
-echo "  Versión 4.1"
-echo "════════════════════════════════════════════════════"
-echo ""
+# Directorio donde está este script (donde se clonó workspace-tools)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ══════════════════════════════════════════════════════════════
-# Verificación de requisitos del sistema
+# Funciones de ayuda
 # ══════════════════════════════════════════════════════════════
 
-echo "📋 Verificando requisitos del sistema..."
-echo ""
+show_help() {
+    cat << 'EOF'
+Workspace Tools - Instalador
 
-REQUIREMENTS_MET=true
+Uso:
+  ./install.sh              Instalación interactiva
+  ./install.sh --help       Mostrar esta ayuda
 
-# Verificar Bash (requerido para los scripts)
+El instalador:
+  1. Verifica requisitos del sistema (Bash 4+, Git 2.15+)
+  2. Configura permisos de ejecución
+  3. Te pregunta dónde está tu proyecto (WORKSPACE_ROOT)
+  4. Crea/actualiza ~/.wsrc con la configuración
+  5. Muestra instrucciones para configurar tu shell
+
+Después de instalar, añade a tu ~/.bashrc o ~/.zshrc:
+  source /ruta/a/workspace-tools/setup.sh
+
+Para más información: https://github.com/nubarchiva/workspace-tools
+EOF
+    exit 0
+}
+
+# ══════════════════════════════════════════════════════════════
+# Verificación de requisitos
+# ══════════════════════════════════════════════════════════════
+
 check_bash_version() {
     local bash_path
     local bash_version
     local bash_major
-    local bash_minor
 
-    # Buscar bash
     if command -v bash &> /dev/null; then
         bash_path=$(command -v bash)
         bash_version=$(bash --version | head -n1 | grep -oE '[0-9]+\.[0-9]+' | head -n1)
         bash_major=${bash_version%%.*}
-        bash_minor=${bash_version#*.}
 
-        if [[ $bash_major -gt 4 ]] || [[ $bash_major -eq 4 && $bash_minor -ge 0 ]]; then
+        if [[ $bash_major -ge 4 ]]; then
             echo -e "   ${GREEN}✓${RESET} Bash $bash_version ($bash_path)"
             return 0
         else
             echo -e "   ${RED}✗${RESET} Bash $bash_version - Se requiere 4.0+"
-            echo -e "     ${YELLOW}Los scripts requieren Bash 4.0+ para arrays asociativos${RESET}"
+            echo -e "     ${YELLOW}En macOS: brew install bash${RESET}"
             return 1
         fi
     else
-        echo -e "   ${RED}✗${RESET} Bash no encontrado - Requerido"
+        echo -e "   ${RED}✗${RESET} Bash no encontrado"
         return 1
     fi
 }
 
-# Verificar Git
 check_git_version() {
     local git_version
     local git_major
@@ -75,45 +96,165 @@ check_git_version() {
             return 1
         fi
     else
-        echo -e "   ${RED}✗${RESET} Git no encontrado - Requerido"
+        echo -e "   ${RED}✗${RESET} Git no encontrado"
         return 1
     fi
 }
 
-# Verificar shell del usuario (informativo)
 check_user_shell() {
     local user_shell=$(basename "$SHELL")
     local shell_version
+    local major
 
     case "$user_shell" in
         bash)
             shell_version=$(bash --version | head -n1 | grep -oE '[0-9]+\.[0-9]+' | head -n1)
-            local major=${shell_version%%.*}
+            major=${shell_version%%.*}
             if [[ $major -ge 4 ]]; then
                 echo -e "   ${GREEN}✓${RESET} Shell: Bash $shell_version"
             else
-                echo -e "   ${YELLOW}⚠${RESET} Shell: Bash $shell_version"
-                echo -e "     ${YELLOW}Bash 4.0+ recomendado para setup.sh${RESET}"
+                echo -e "   ${YELLOW}⚠${RESET} Shell: Bash $shell_version (4.0+ recomendado)"
             fi
             ;;
         zsh)
-            shell_version=$(zsh --version | grep -oE '[0-9]+\.[0-9]+' | head -n1)
-            local major=${shell_version%%.*}
+            shell_version=$(zsh --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+' | head -n1)
+            major=${shell_version%%.*}
             if [[ $major -ge 5 ]]; then
                 echo -e "   ${GREEN}✓${RESET} Shell: Zsh $shell_version"
             else
-                echo -e "   ${YELLOW}⚠${RESET} Shell: Zsh $shell_version"
-                echo -e "     ${YELLOW}Zsh 5.0+ recomendado para setup.sh${RESET}"
+                echo -e "   ${YELLOW}⚠${RESET} Shell: Zsh $shell_version (5.0+ recomendado)"
             fi
             ;;
         *)
-            echo -e "   ${YELLOW}⚠${RESET} Shell: $user_shell (no probado)"
-            echo -e "     ${YELLOW}Funciones de navegación requieren bash/zsh${RESET}"
+            echo -e "   ${YELLOW}⚠${RESET} Shell: $user_shell (bash/zsh recomendado)"
             ;;
     esac
 }
 
-# Ejecutar verificaciones
+# ══════════════════════════════════════════════════════════════
+# Configuración
+# ══════════════════════════════════════════════════════════════
+
+configure_workspace_root() {
+    local wsrc_file="$HOME/.wsrc"
+    local current_root=""
+    local default_suggestion=""
+
+    # Leer configuración existente si existe
+    if [[ -f "$wsrc_file" ]]; then
+        current_root=$(grep -E "^WORKSPACE_ROOT=" "$wsrc_file" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" || true)
+        # Expandir ~ si está presente
+        current_root="${current_root/#\~/$HOME}"
+    fi
+
+    # Determinar sugerencia por defecto
+    if [[ -n "$current_root" && -d "$current_root" ]]; then
+        default_suggestion="$current_root"
+        echo ""
+        echo -e "   ${CYAN}Configuración existente detectada:${RESET}"
+        echo -e "   WORKSPACE_ROOT = $current_root"
+    else
+        # Sugerir un directorio común
+        default_suggestion="$HOME/projects"
+    fi
+
+    echo ""
+    echo -e "${BOLD}¿Dónde está el proyecto que quieres gestionar?${RESET}"
+    echo ""
+    echo "   WORKSPACE_ROOT es el directorio raíz donde están tus repositorios."
+    echo "   Ejemplo de estructura:"
+    echo ""
+    echo "   ~/projects/mi-proyecto/     ← WORKSPACE_ROOT"
+    echo "   ├── app/                    (repo)"
+    echo "   ├── libs/common/            (repo)"
+    echo "   └── workspaces/             (creado automáticamente)"
+    echo ""
+
+    read -p "   Ruta [$default_suggestion]: " user_input
+
+    # Usar default si está vacío
+    local workspace_root="${user_input:-$default_suggestion}"
+
+    # Expandir ~
+    workspace_root="${workspace_root/#\~/$HOME}"
+
+    # Validar que existe o preguntar si crear
+    if [[ ! -d "$workspace_root" ]]; then
+        echo ""
+        read -p "   El directorio no existe. ¿Crearlo? (s/n) [s]: " create_dir
+        create_dir="${create_dir:-s}"
+
+        if [[ "$create_dir" =~ ^[Ss]$ ]]; then
+            mkdir -p "$workspace_root"
+            echo -e "   ${GREEN}✓${RESET} Directorio creado: $workspace_root"
+        else
+            echo -e "   ${YELLOW}⚠${RESET} Deberás crear el directorio manualmente"
+        fi
+    fi
+
+    # Guardar en ~/.wsrc
+    echo ""
+    echo "Guardando configuración en ~/.wsrc..."
+
+    # Crear o actualizar ~/.wsrc
+    if [[ -f "$wsrc_file" ]]; then
+        # Actualizar WORKSPACE_ROOT existente o añadirlo
+        if grep -q "^WORKSPACE_ROOT=" "$wsrc_file" 2>/dev/null; then
+            # Usar sed compatible con macOS y Linux
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' "s|^WORKSPACE_ROOT=.*|WORKSPACE_ROOT=\"$workspace_root\"|" "$wsrc_file"
+            else
+                sed -i "s|^WORKSPACE_ROOT=.*|WORKSPACE_ROOT=\"$workspace_root\"|" "$wsrc_file"
+            fi
+        else
+            echo "WORKSPACE_ROOT=\"$workspace_root\"" >> "$wsrc_file"
+        fi
+    else
+        cat > "$wsrc_file" << EOF
+# Workspace Tools - Configuración
+# Generado por install.sh
+
+# Directorio raíz donde están tus repositorios
+WORKSPACE_ROOT="$workspace_root"
+
+# Directorio donde se crean los workspaces (opcional)
+# WORKSPACES_DIR="\$WORKSPACE_ROOT/workspaces"
+
+# Modo debug (opcional)
+# WS_DEBUG=1
+EOF
+    fi
+
+    echo -e "${GREEN}✓${RESET} Configuración guardada en ~/.wsrc"
+
+    # Guardar para uso posterior en el script
+    CONFIGURED_WORKSPACE_ROOT="$workspace_root"
+}
+
+# ══════════════════════════════════════════════════════════════
+# Main
+# ══════════════════════════════════════════════════════════════
+
+# Procesar argumentos
+case "${1:-}" in
+    --help|-h|help)
+        show_help
+        ;;
+esac
+
+# Header
+echo ""
+echo -e "${BOLD}════════════════════════════════════════════════════${RESET}"
+echo -e "${BOLD}  Workspace Tools - Instalación${RESET}"
+echo -e "${BOLD}════════════════════════════════════════════════════${RESET}"
+echo ""
+
+# 1. Verificar requisitos
+echo -e "${BOLD}1. Verificando requisitos del sistema...${RESET}"
+echo ""
+
+REQUIREMENTS_MET=true
+
 if ! check_bash_version; then
     REQUIREMENTS_MET=false
 fi
@@ -132,184 +273,50 @@ if [[ "$REQUIREMENTS_MET" != "true" ]]; then
     echo -e "${RED}════════════════════════════════════════════════════${RESET}"
     echo ""
     echo "Por favor, instala las versiones requeridas antes de continuar."
-    echo ""
-    echo "En macOS puedes actualizar Bash con:"
-    echo "  brew install bash"
-    echo ""
     exit 1
 fi
 
-echo -e "${GREEN}✓ Requisitos del sistema verificados${RESET}"
+echo -e "${GREEN}✓ Requisitos verificados${RESET}"
+
+# 2. Configurar permisos
+echo ""
+echo -e "${BOLD}2. Configurando permisos...${RESET}"
 echo ""
 
-# ══════════════════════════════════════════════════════════════
-# Instalación
-# ══════════════════════════════════════════════════════════════
+chmod +x "$SCRIPT_DIR/bin/"* 2>/dev/null || true
+echo -e "   ${GREEN}✓${RESET} Scripts en $SCRIPT_DIR/bin/"
 
-# Detectar directorio de instalación (2 niveles arriba)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# 3. Configurar WORKSPACE_ROOT
+echo ""
+echo -e "${BOLD}3. Configurando proyecto...${RESET}"
 
-echo "📍 Detectando ubicación..."
-echo "   Workspace root: $WORKSPACE_ROOT"
-echo "   Tools instalados en: $SCRIPT_DIR"
-echo ""
+configure_workspace_root
 
-# Verificar que estamos en la ubicación correcta
-if [[ ! "$SCRIPT_DIR" == */tools/workspace-tools ]]; then
-    echo "⚠️  Advertencia: Este script debería estar en:"
-    echo "   $WORKSPACE_ROOT/tools/workspace-tools/"
-    echo ""
-    read -p "¿Continuar de todos modos? (s/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Ss]$ ]]; then
-        echo "❌ Instalación cancelada"
-        exit 1
-    fi
-fi
-
-# Verificar estructura de repos
-echo "Verificando estructura de repos..."
+# 4. Instrucciones finales
 echo ""
-
-REPO_COUNT=0
-echo "Repos encontrados:"
-
-# Buscar en raíz (1 nivel)
-for dir in "$WORKSPACE_ROOT"/*/.git; do
-    if [ -d "$dir" ]; then
-        repo_name=$(basename $(dirname "$dir"))
-        if [ "$repo_name" != "workspaces" ]; then
-            echo "  • $repo_name"
-            ((REPO_COUNT++))
-        fi
-    fi
-done
-
-# Buscar en subdirectorios (2 niveles - libs/*, modules/*, tools/*)
-for dir in "$WORKSPACE_ROOT"/*/*/.git; do
-    if [ -d "$dir" ]; then
-        parent_dir=$(basename $(dirname $(dirname "$dir")))
-        repo_name=$(basename $(dirname "$dir"))
-        echo "  • $parent_dir/$repo_name"
-        ((REPO_COUNT++))
-    fi
-done
-
-if [ $REPO_COUNT -eq 0 ]; then
-    echo "  ⚠️  No se encontraron repos Git"
-    echo ""
-    echo "⚠️  ADVERTENCIA: No se detectaron repositorios"
-    echo "   Verifica que estés en el directorio correcto"
-fi
-
+echo -e "${BOLD}════════════════════════════════════════════════════${RESET}"
+echo -e "${GREEN}  ✓ Instalación completada${RESET}"
+echo -e "${BOLD}════════════════════════════════════════════════════${RESET}"
 echo ""
-echo "Total: $REPO_COUNT repos detectados"
+echo -e "${BOLD}Siguiente paso:${RESET}"
 echo ""
-
-# Crear directorio de workspaces si no existe
-WORKSPACES_DIR="$WORKSPACE_ROOT/workspaces"
-if [ ! -d "$WORKSPACES_DIR" ]; then
-    echo "Creando directorio de workspaces..."
-    mkdir -p "$WORKSPACES_DIR"
-    echo "✅ Creado: $WORKSPACES_DIR"
-else
-    echo "✅ Directorio workspaces ya existe"
-fi
-
-# Dar permisos de ejecución a los scripts
+echo "   Añade esta línea a tu ~/.bashrc o ~/.zshrc:"
 echo ""
-echo "Configurando permisos de ejecución..."
-chmod +x "$SCRIPT_DIR/bin/"*
-echo "✅ Scripts configurados"
-
+echo -e "   ${CYAN}source $SCRIPT_DIR/setup.sh${RESET}"
 echo ""
-echo "════════════════════════════════════════════════════"
-echo "✅ Instalación completada"
-echo "════════════════════════════════════════════════════"
+echo "   Luego recarga tu shell:"
 echo ""
-
-# Mostrar estructura
-echo "Estructura instalada:"
+echo -e "   ${CYAN}source ~/.bashrc${RESET}  (o ~/.zshrc)"
 echo ""
-echo "$WORKSPACE_ROOT/"
-echo "├── app/                        (repo)"
-echo "├── backend/                    (repo)"
-echo "├── libs/                       (contenedor)"
-echo "│   ├── common/                (repo)"
-echo "│   └── ..."
-echo "├── modules/                    (contenedor)"
-echo "│   ├── api/                   (repo)"
-echo "│   └── ..."
-echo "├── tools/                      (contenedor)"
-echo "│   └── workspace-tools/       (este repo)"
-echo "│       ├── bin/               (scripts)"
-echo "│       │   ├── ws             (comando unificado)"
-echo "│       │   ├── ws-new"
-echo "│       │   ├── ws-add"
-echo "│       │   ├── ws-list"
-echo "│       │   ├── ws-switch"
-echo "│       │   └── ws-clean"
-echo "│       ├── completions/       (autocompletado)"
-echo "│       ├── setup.sh           (configuración)"
-echo "│       └── README.md"
-echo "└── workspaces/                 (nuevo)"
-echo "    ├── master/"
-echo "    ├── develop/"
-echo "    └── ticket-123/            (ejemplo)"
+echo -e "${BOLD}Primeros comandos:${RESET}"
 echo ""
-echo "════════════════════════════════════════════════════"
+echo "   ws --help                    # Ver ayuda"
+echo "   ws new feature-1 app lib     # Crear workspace"
+echo "   ws list                      # Listar workspaces"
+echo "   ws cd feature-1              # Cambiar a workspace"
 echo ""
-echo "Próximos pasos:"
+echo -e "${BOLD}Documentación:${RESET}"
 echo ""
-echo "1. Configurar en tu shell (RECOMENDADO):"
-echo ""
-echo "   Añade esto a tu ~/.bashrc o ~/.zshrc:"
-echo ""
-cat <<'EOF'
-   source ~/projects/tools/workspace-tools/setup.sh
-EOF
-echo ""
-echo "   Esto configura automáticamente:"
-echo "     • Variable WS_TOOLS"
-echo "     • Comando 'ws' en el PATH"
-echo "     • Función 'ws cd' para cambiar de workspace"
-echo "     • Autocompletado (bash o zsh según tu shell)"
-echo ""
-echo "   Después ejecuta: source ~/.bashrc (o ~/.zshrc)"
-echo ""
-echo "2. Probar el sistema:"
-echo ""
-echo "   Con setup.sh cargado podrás usar:"
-echo ""
-echo "     ws new ticket-123 app libs/common        # crear workspace"
-echo "     ws list                                  # listar workspaces"
-echo "     ws cd ticket-123                         # cambiar a workspace"
-echo "     ws add ticket-123 backend                # añadir repo"
-echo "     ws clean ticket-123                      # limpiar workspace"
-echo ""
-echo "   💡 Soporta abreviaturas:"
-echo "     ws n ticket-123 app          # ws new"
-echo "     ws ls                        # ws list"
-echo "     ws cd ticket-123             # cambia automáticamente"
-echo "     ws rm ticket-123             # ws clean"
-echo ""
-echo "   💡 Soporta búsqueda parcial:"
-echo "     ws cd tick       # busca 'tick' en workspaces"
-echo "     ws add fac ...   # busca 'fac' en workspaces"
-echo ""
-echo "3. O probar sin instalar:"
-echo ""
-echo "   Desde el directorio tools/workspace-tools:"
-echo "     ./bin/ws new test app"
-echo "     ./bin/ws list"
-echo "     ./bin/ws clean test"
-echo ""
-echo "4. Ver documentación:"
-echo "   README.md       - Introducción y uso rápido"
-echo "   USER_GUIDE.md   - Referencia completa de comandos"
-echo ""
-echo "════════════════════════════════════════════════════"
-echo ""
-echo "¡Listo para empezar! 🚀"
+echo "   README.md      - Introducción y uso rápido"
+echo "   USER_GUIDE.md  - Referencia completa"
 echo ""
