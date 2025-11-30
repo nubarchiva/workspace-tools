@@ -7,6 +7,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [4.1.0] - 2025-11-30
+
 ### Añadido
 - **Módulo `ws-git-utils.sh`** - Funciones de utilidad Git centralizadas
   - `git_has_uncommitted_changes()` - Verifica cambios sin commitear
@@ -327,7 +329,9 @@ Scripts básicos y arquitectura inicial:
 
 ---
 
-[Unreleased]: https://github.com/nubarchiva/workspace-tools/compare/v3.2.0...HEAD
+[Unreleased]: https://github.com/nubarchiva/workspace-tools/compare/v4.1.0...HEAD
+[4.1.0]: https://github.com/nubarchiva/workspace-tools/compare/v4.0.0...v4.1.0
+[4.0.0]: https://github.com/nubarchiva/workspace-tools/compare/v3.2.0...v4.0.0
 [3.2.0]: https://github.com/nubarchiva/workspace-tools/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/nubarchiva/workspace-tools/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/nubarchiva/workspace-tools/compare/v2.1.0...v3.0.0
