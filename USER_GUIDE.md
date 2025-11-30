@@ -475,7 +475,7 @@ Crea `$WORKSPACE_ROOT/.wsignore` para excluir repos:
 
 ```
 # Repos externos que no deben participar en operaciones ws origins
-herramientas.aragon.es-opacara
+external-tools
 
 # Otros repos a ignorar
 legacy-project
@@ -641,4 +641,3 @@ ws list
 - **[README.md](README.md)** - Introducción y uso rápido
 - **[CHANGELOG.md](CHANGELOG.md)** - Historial de cambios
 - **[ROADMAP.md](ROADMAP.md)** - Funcionalidades implementadas y futuras
-- **[NUBARCHIVA.md](NUBARCHIVA.md)** - Ejemplos específicos para nubarchiva

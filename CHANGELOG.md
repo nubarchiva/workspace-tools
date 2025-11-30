@@ -7,8 +7,6 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
-## [4.1.0] - 2025-11-30
-
 ### Añadido
 - **Módulo `ws-git-utils.sh`** - Funciones de utilidad Git centralizadas
   - `git_has_uncommitted_changes()` - Verifica cambios sin commitear
@@ -36,7 +34,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - **Archivo `.wsignore`** - Excluye repos de operaciones `ws origins`
   - Ubicación: `$WORKSPACE_ROOT/.wsignore`
   - Formato: un repo por línea, comentarios con `#`
-  - Ejemplo: excluir repos externos
+  - Ejemplo: excluir repos externos como `external-tools`
 - **`ws stash`** - Gestión coordinada de stash en todos los repos
   - `ws stash` / `ws stash push "mensaje"` - Stash en repos con cambios
   - `ws stash pop` - Pop del stash más reciente en todos los repos
@@ -83,17 +81,6 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Verificaciones: bloquea si hay cambios sin commitear, advierte sobre commits sin pushear y branches remotas
   - Actualiza automáticamente worktrees (`git worktree repair`) y branches locales
   - Confirmación explícita escribiendo "RENOMBRAR" con resumen completo de cambios
-- **Verificación de versiones** en `install.sh` y `setup.sh`
-  - Valida Bash 4.0+ y Git 2.15+ (requeridos)
-  - Valida Zsh 5.0+ (opcional, si está instalado)
-  - Muestra advertencias claras si faltan dependencias
-  - Incluye instrucciones de instalación para macOS (brew install bash)
-- **Script de migración** (`migrate-workspaces.sh`)
-  - Migra workspaces de una ubicación a otra
-  - Útil al cambiar WORKSPACES_DIR en configuración
-  - Repara automáticamente los worktrees tras la migración
-- **Alias `st`** para el comando `status`
-  - `ws st` equivale a `ws status`
 
 ### Mejorado
 - **Autocompletado actualizado** (bash y zsh)
@@ -105,18 +92,9 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Completado de goals Maven y comandos Git comunes
 - **`ws clean` - Lista de archivos a ignorar configurable**
   - Nueva variable `WS_CLEAN_IGNORE` en `~/.wsrc`
-  - Por defecto ignora: `.idea .vscode .kiro .cursor .playwright-mcp AI.md .ai docs README.md .DS_Store`
+  - Por defecto ignora: `.idea .vscode .kiro .cursor .playwright-mcp AI.md .ai docs README.md`
   - `.claude` NO se ignora por defecto (puede contener `commands/` personalizados)
   - Los enlaces simbólicos siempre se ignoran automáticamente
-- **`ws status` y `ws list`** - Indicador de sincronización con develop
-  - Muestra si la branch está adelantada/atrasada respecto a develop
-  - Indica número de commits de diferencia
-  - Útil para saber si necesitas hacer `ws update`
-- **`install.sh` rediseñado** para usuarios externos
-  - Configuración interactiva de WORKSPACE_ROOT
-  - Crea/actualiza `~/.wsrc` automáticamente
-  - Sin asunciones sobre ubicación de instalación
-  - Ejemplos genéricos en documentación
 
 ### Cambiado
 - **ws-rename refactorizado** para mejorar mantenibilidad
@@ -129,30 +107,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Scripts refactorizados: ws-mvn, ws-git, ws-clean, ws-remove, ws-rename
   - Simplifica el código: `die "mensaje"` en vez de `error "❌ mensaje"; exit 1`
 
-### Eliminado
-- **`ws sync`** - Eliminado por redundante
-  - `ws sync` era equivalente a `ws git pull`
-  - Usar `ws git pull` o `ws update` según el caso
-- **`NUBARCHIVA.md`** - Movido a documentación interna
-  - Contenido específico de nubarchiva trasladado fuera del repositorio público
-
 ### Corregido
 - **ws-rename**: Salto de línea en mensaje de confirmación final
 - **Quoting de variables**: Todas las asignaciones de paths ahora usan comillas dobles
   - `WORKSPACE_DIR="$WORKSPACES_DIR/$WORKSPACE_NAME"` (antes sin comillas)
   - Afecta: ws-new, ws-add, ws-switch, ws-mvn, ws-git, ws-clean, ws-remove, ws-repo-path
   - Previene problemas con nombres de directorios que contengan espacios
-- **ws-clean**: Error `local: can only be used in a function`
-  - Variables `default_ignore` e `ignore_list` estaban fuera de función
-  - Eliminada palabra clave `local` de esas variables
-- **ws-clean**: Mensaje contradictorio al limpiar workspaces
-  - Antes mostraba "eliminando" pero luego "no se pudo eliminar"
-  - Ahora los mensajes son consistentes con la acción realizada
-- **ws-git**: Evitar crear branches remotas vacías en push
-  - `ws git push` ya no crea branches remotas si no hay commits locales
-- **ws**: Mensaje de error simplificado para comandos desconocidos
-  - Antes mostraba stack trace confuso
-  - Ahora muestra mensaje claro con sugerencia de `ws help`
 
 ## [4.0.0] - 2025-11-25
 
@@ -367,9 +327,7 @@ Scripts básicos y arquitectura inicial:
 
 ---
 
-[Unreleased]: https://github.com/nubarchiva/workspace-tools/compare/v4.1.0...HEAD
-[4.1.0]: https://github.com/nubarchiva/workspace-tools/compare/v4.0.0...v4.1.0
-[4.0.0]: https://github.com/nubarchiva/workspace-tools/compare/v3.2.0...v4.0.0
+[Unreleased]: https://github.com/nubarchiva/workspace-tools/compare/v3.2.0...HEAD
 [3.2.0]: https://github.com/nubarchiva/workspace-tools/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/nubarchiva/workspace-tools/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/nubarchiva/workspace-tools/compare/v2.1.0...v3.0.0

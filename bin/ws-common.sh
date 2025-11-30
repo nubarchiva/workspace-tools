@@ -233,7 +233,7 @@ detect_current_workspace() {
     elif [ -n "$WS_TOOLS" ]; then
         workspaces_dir="${WS_TOOLS%/tools/workspace-tools}/workspaces"
     else
-        workspaces_dir=~/wrkspc.nubarchiva/workspaces
+        workspaces_dir=~/projects/workspaces
     fi
 
     # Verificar si estamos dentro de un workspace
