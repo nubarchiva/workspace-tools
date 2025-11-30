@@ -43,27 +43,25 @@ ws new ticket-123 app backend libs/common
 
 ## Instalación
 
-### Opción 1: Manual
-
 ```bash
-# Clonar en tu directorio de herramientas
-git clone https://github.com/tu-org/workspace-tools.git
-cd workspace-tools
-./install.sh
+# 1. Clonar (elige la ubicación que prefieras)
+git clone https://github.com/nubarchiva/workspace-tools.git ~/.workspace-tools
 
-# Añadir a tu shell (~/.bashrc o ~/.zshrc)
-source /ruta/a/workspace-tools/setup.sh
+# 2. Ejecutar instalador (interactivo)
+~/.workspace-tools/install.sh
+
+# 3. Añadir a tu shell (~/.bashrc o ~/.zshrc)
+source ~/.workspace-tools/setup.sh
+
+# 4. Recargar shell
+source ~/.bashrc  # o ~/.zshrc
 ```
 
-### Opción 2: Homebrew (macOS)
+El instalador te preguntará dónde está tu proyecto (WORKSPACE_ROOT) y guardará la configuración en `~/.wsrc`.
 
-```bash
-brew install --build-from-source ./Formula/workspace-tools.rb
-```
+### Configuración manual (alternativa)
 
-### Configuración (opcional)
-
-Crea `~/.wsrc` para personalizar rutas:
+Si prefieres configurar manualmente, crea `~/.wsrc`:
 
 ```bash
 # Directorio raíz donde están tus repos
@@ -201,8 +199,7 @@ La verificación de versiones se realiza automáticamente en `install.sh` y `set
 
 - **[USER_GUIDE.md](USER_GUIDE.md)** - Referencia completa de comandos
 - **[CHANGELOG.md](CHANGELOG.md)** - Historial de cambios
-- **[ROADMAP.md](ROADMAP.md)** - Funcionalidades implementadas y futuras
-- **[NUBARCHIVA.md](NUBARCHIVA.md)** - Ejemplos para proyecto nubarchiva
+- **[ROADMAP.md](ROADMAP.md)** - Funcionalidades planificadas
 
 ## Contribuir
 
