@@ -86,6 +86,15 @@ Este documento describe las mejoras planificadas para Workspace Tools, priorizad
 - `ws --version` / `ws -v` - Muestra versión actual
 - Script de desinstalación interactivo (`uninstall.sh`)
 - CI con GitHub Actions (tests + ShellCheck)
+- Instalador rediseñado para usuarios externos (configuración interactiva)
+
+---
+
+### .wsignore
+✅ **v4.1** - Excluye repos de operaciones `ws origins`.
+- Archivo `$WORKSPACE_ROOT/.wsignore`
+- Un repo por línea, comentarios con `#`
+- Útil para excluir repos externos del pull masivo
 
 ---
 
@@ -156,5 +165,5 @@ Las propuestas de mejora son bienvenidas. Para sugerir una nueva funcionalidad:
 
 ---
 
-**Última actualización:** 25 de noviembre de 2025
-**Versión:** 4.1
+**Última actualización:** 30 de noviembre de 2025
+**Versión:** 4.1.0

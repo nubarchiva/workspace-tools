@@ -7,6 +7,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [4.1.0] - 2025-11-30
+
 ### Añadido
 - **Módulo `ws-git-utils.sh`** - Funciones de utilidad Git centralizadas
   - `git_has_uncommitted_changes()` - Verifica cambios sin commitear
@@ -34,7 +36,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - **Archivo `.wsignore`** - Excluye repos de operaciones `ws origins`
   - Ubicación: `$WORKSPACE_ROOT/.wsignore`
   - Formato: un repo por línea, comentarios con `#`
-  - Ejemplo: excluir repos externos como `herramientas.aragon.es-opacara`
+  - Ejemplo: excluir repos externos
 - **`ws stash`** - Gestión coordinada de stash en todos los repos
   - `ws stash` / `ws stash push "mensaje"` - Stash en repos con cambios
   - `ws stash pop` - Pop del stash más reciente en todos los repos
@@ -110,6 +112,11 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Muestra si la branch está adelantada/atrasada respecto a develop
   - Indica número de commits de diferencia
   - Útil para saber si necesitas hacer `ws update`
+- **`install.sh` rediseñado** para usuarios externos
+  - Configuración interactiva de WORKSPACE_ROOT
+  - Crea/actualiza `~/.wsrc` automáticamente
+  - Sin asunciones sobre ubicación de instalación
+  - Ejemplos genéricos en documentación
 
 ### Cambiado
 - **ws-rename refactorizado** para mejorar mantenibilidad
@@ -126,6 +133,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - **`ws sync`** - Eliminado por redundante
   - `ws sync` era equivalente a `ws git pull`
   - Usar `ws git pull` o `ws update` según el caso
+- **`NUBARCHIVA.md`** - Movido a documentación interna
+  - Contenido específico de nubarchiva trasladado fuera del repositorio público
 
 ### Corregido
 - **ws-rename**: Salto de línea en mensaje de confirmación final
@@ -358,10 +367,12 @@ Scripts básicos y arquitectura inicial:
 
 ---
 
-[Unreleased]: https://github.com/tu-usuario/workspace-tools/compare/v3.2.0...HEAD
-[3.2.0]: https://github.com/tu-usuario/workspace-tools/compare/v3.1.0...v3.2.0
-[3.1.0]: https://github.com/tu-usuario/workspace-tools/compare/v3.0.0...v3.1.0
-[3.0.0]: https://github.com/tu-usuario/workspace-tools/compare/v2.1.0...v3.0.0
-[2.1.0]: https://github.com/tu-usuario/workspace-tools/compare/v2.0.0...v2.1.0
-[2.0.0]: https://github.com/tu-usuario/workspace-tools/compare/v1.0.0...v2.0.0
-[1.0.0]: https://github.com/tu-usuario/workspace-tools/releases/tag/v1.0.0
+[Unreleased]: https://github.com/nubarchiva/workspace-tools/compare/v4.1.0...HEAD
+[4.1.0]: https://github.com/nubarchiva/workspace-tools/compare/v4.0.0...v4.1.0
+[4.0.0]: https://github.com/nubarchiva/workspace-tools/compare/v3.2.0...v4.0.0
+[3.2.0]: https://github.com/nubarchiva/workspace-tools/compare/v3.1.0...v3.2.0
+[3.1.0]: https://github.com/nubarchiva/workspace-tools/compare/v3.0.0...v3.1.0
+[3.0.0]: https://github.com/nubarchiva/workspace-tools/compare/v2.1.0...v3.0.0
+[2.1.0]: https://github.com/nubarchiva/workspace-tools/compare/v2.0.0...v2.1.0
+[2.0.0]: https://github.com/nubarchiva/workspace-tools/compare/v1.0.0...v2.0.0
+[1.0.0]: https://github.com/nubarchiva/workspace-tools/releases/tag/v1.0.0
