@@ -47,7 +47,7 @@ ws new ticket-123 app backend libs/common
 
 ```bash
 # Clonar en tu directorio de herramientas
-git clone https://github.com/tu-org/workspace-tools.git
+git clone https://github.com/nubarchiva/workspace-tools.git
 cd workspace-tools
 ./install.sh
 
@@ -202,7 +202,6 @@ La verificación de versiones se realiza automáticamente en `install.sh` y `set
 - **[USER_GUIDE.md](USER_GUIDE.md)** - Referencia completa de comandos
 - **[CHANGELOG.md](CHANGELOG.md)** - Historial de cambios
 - **[ROADMAP.md](ROADMAP.md)** - Funcionalidades implementadas y futuras
-- **[NUBARCHIVA.md](NUBARCHIVA.md)** - Ejemplos para proyecto nubarchiva
 
 ## Contribuir
 

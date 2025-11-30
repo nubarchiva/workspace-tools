@@ -7,7 +7,7 @@ ws() {
     if [ -z "$WS_TOOLS" ]; then
         echo "❌ Error: WS_TOOLS no está definido"
         echo "💡 Añade a tu ~/.bashrc o ~/.zshrc:"
-        echo "   export WS_TOOLS=~/wrkspc.nubarchiva/tools/workspace-tools"
+        echo "   export WS_TOOLS=~/projects/tools/workspace-tools"
         return 1
     fi
 
@@ -30,7 +30,7 @@ ws() {
         if [ -n "$WS_TOOLS" ]; then
             WORKSPACE_ROOT="${WS_TOOLS%/tools/workspace-tools}"
         else
-            WORKSPACE_ROOT=~/wrkspc.nubarchiva
+            WORKSPACE_ROOT=~/projects
         fi
         WORKSPACES_DIR=$WORKSPACE_ROOT/workspaces
 

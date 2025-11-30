@@ -34,7 +34,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - **Archivo `.wsignore`** - Excluye repos de operaciones `ws origins`
   - Ubicación: `$WORKSPACE_ROOT/.wsignore`
   - Formato: un repo por línea, comentarios con `#`
-  - Ejemplo: excluir repos externos como `herramientas.aragon.es-opacara`
+  - Ejemplo: excluir repos externos como `external-tools`
 - **`ws stash`** - Gestión coordinada de stash en todos los repos
   - `ws stash` / `ws stash push "mensaje"` - Stash en repos con cambios
   - `ws stash pop` - Pop del stash más reciente en todos los repos
@@ -327,10 +327,10 @@ Scripts básicos y arquitectura inicial:
 
 ---
 
-[Unreleased]: https://github.com/tu-usuario/workspace-tools/compare/v3.2.0...HEAD
-[3.2.0]: https://github.com/tu-usuario/workspace-tools/compare/v3.1.0...v3.2.0
-[3.1.0]: https://github.com/tu-usuario/workspace-tools/compare/v3.0.0...v3.1.0
-[3.0.0]: https://github.com/tu-usuario/workspace-tools/compare/v2.1.0...v3.0.0
-[2.1.0]: https://github.com/tu-usuario/workspace-tools/compare/v2.0.0...v2.1.0
-[2.0.0]: https://github.com/tu-usuario/workspace-tools/compare/v1.0.0...v2.0.0
-[1.0.0]: https://github.com/tu-usuario/workspace-tools/releases/tag/v1.0.0
+[Unreleased]: https://github.com/nubarchiva/workspace-tools/compare/v3.2.0...HEAD
+[3.2.0]: https://github.com/nubarchiva/workspace-tools/compare/v3.1.0...v3.2.0
+[3.1.0]: https://github.com/nubarchiva/workspace-tools/compare/v3.0.0...v3.1.0
+[3.0.0]: https://github.com/nubarchiva/workspace-tools/compare/v2.1.0...v3.0.0
+[2.1.0]: https://github.com/nubarchiva/workspace-tools/compare/v2.0.0...v2.1.0
+[2.0.0]: https://github.com/nubarchiva/workspace-tools/compare/v1.0.0...v2.0.0
+[1.0.0]: https://github.com/nubarchiva/workspace-tools/releases/tag/v1.0.0

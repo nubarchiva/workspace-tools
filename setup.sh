@@ -4,7 +4,7 @@
 #
 # Uso:
 #   Añade esto a tu ~/.bashrc o ~/.zshrc:
-#   source ~/wrkspc.nubarchiva/tools/workspace-tools/setup.sh
+#   source ~/projects/tools/workspace-tools/setup.sh
 #
 # Requisitos:
 #   - Bash 4.0+ o Zsh 5.0+ (para este script)

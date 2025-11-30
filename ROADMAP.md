@@ -15,7 +15,7 @@ Este documento describe las mejoras planificadas para Workspace Tools, priorizad
 ---
 
 ### wscd - Navegación rápida entre repos
-✅ **v3.2** - Navega entre repos del workspace actual con matching parcial y menú interactivo. `wscd ks` en lugar de `cd ../../../ks-nuba`. Soporta `wscd .` (raíz) y `wscd ..` (arriba).
+✅ **v3.2** - Navega entre repos del workspace actual con matching parcial y menú interactivo. `wscd app` en lugar de `cd ../../../my-app`. Soporta `wscd .` (raíz) y `wscd ..` (arriba).
 
 ---
 
@@ -129,7 +129,7 @@ Permite ejecutar scripts custom en eventos específicos (pre-push, pre-switch, p
 Integración con Jira para crear workspaces desde tickets y actualizar estado automáticamente.
 
 ```bash
-ws new NUBA-8123                    # crea workspace y linkea con Jira
+ws new TICKET-123                   # crea workspace y linkea con Jira
 ws commit "fix: bug" --update-jira  # actualiza Jira automáticamente
 ```
 
