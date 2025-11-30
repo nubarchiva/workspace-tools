@@ -77,7 +77,7 @@ fi
 #   1. Variable WORKSPACE_ROOT ya definida (por entorno o .wsrc)
 #   2. Derivar de WS_TOOLS (asume estructura tools/workspace-tools)
 #   3. Fallback configurable via WS_DEFAULT_ROOT
-#   4. Fallback final: ~/wrkspc.nubarchiva
+#   4. Fallback final: ~/projects
 
 if [[ -z "$WORKSPACE_ROOT" ]]; then
     if [[ -n "$WS_TOOLS" && "$WS_TOOLS" == */tools/workspace-tools ]]; then
@@ -85,7 +85,7 @@ if [[ -z "$WORKSPACE_ROOT" ]]; then
     elif [[ -n "$WS_DEFAULT_ROOT" ]]; then
         WORKSPACE_ROOT="$WS_DEFAULT_ROOT"
     else
-        WORKSPACE_ROOT="$HOME/wrkspc.nubarchiva"
+        WORKSPACE_ROOT="$HOME/projects"
     fi
 fi
 export WORKSPACE_ROOT

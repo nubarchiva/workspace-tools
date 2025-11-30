@@ -100,7 +100,7 @@ if [ -z "$WORKSPACE_ROOT" ]; then
         WORKSPACE_ROOT="${WS_TOOLS%/tools/workspace-tools}"
     else
         # Fallback
-        WORKSPACE_ROOT="$HOME/wrkspc.nubarchiva"
+        WORKSPACE_ROOT="$HOME/projects"
     fi
 fi
 
