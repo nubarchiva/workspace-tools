@@ -23,14 +23,50 @@ show_help() {
     echo "  ws origins git fetch       # fetch en todos los repos origen"
     echo "  ws origins list            # listar repos detectados"
     echo ""
+    echo "Archivos de configuración:"
+    echo "  \$WORKSPACE_ROOT/.wsignore  Repos a excluir (uno por línea)"
+    echo ""
     echo "Nota: Los repos origen normalmente están en branch develop o master."
 }
 
+# Cargar lista de repos ignorados desde .wsignore
+# Formato: un repo por línea, comentarios con #, líneas vacías ignoradas
+load_wsignore() {
+    local wsignore_file="$WORKSPACE_ROOT/.wsignore"
+    WSIGNORE_PATTERNS=()
+
+    if [ -f "$wsignore_file" ]; then
+        while IFS= read -r line || [ -n "$line" ]; do
+            # Ignorar líneas vacías y comentarios
+            line=$(echo "$line" | sed 's/#.*//' | xargs)
+            if [ -n "$line" ]; then
+                WSIGNORE_PATTERNS+=("$line")
+            fi
+        done < "$wsignore_file"
+    fi
+}
+
+# Verificar si un repo está en la lista de ignorados
+is_repo_ignored() {
+    local repo_path="$1"
+
+    for pattern in "${WSIGNORE_PATTERNS[@]}"; do
+        # Coincidencia exacta o como prefijo
+        if [[ "$repo_path" == "$pattern" || "$repo_path" == "$pattern/"* ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 # Función para encontrar repos origen en WORKSPACE_ROOT
-# Excluye el directorio workspaces/
+# Excluye el directorio workspaces/ y repos en .wsignore
 find_origin_repos() {
     local root_dir="$1"
     local workspaces_dir="$2"
+
+    # Cargar .wsignore
+    load_wsignore
 
     # Buscar .git hasta 3 niveles, excluyendo workspaces/
     find "$root_dir" -maxdepth 4 -name ".git" -type d 2>/dev/null | \
@@ -38,7 +74,12 @@ find_origin_repos() {
         grep -v "/workspaces/" | \
         sed "s|$root_dir/||" | \
         sed 's|/.git||' | \
-        sort
+        sort | \
+        while read -r repo; do
+            if ! is_repo_ignored "$repo"; then
+                echo "$repo"
+            fi
+        done
 }
 
 # Verificar argumentos
@@ -117,6 +158,13 @@ case "$SUBCOMMAND" in
         print_header "Repos origen en WORKSPACE_ROOT"
         echo ""
         echo "Directorio: ${COLOR_CYAN}$WORKSPACE_ROOT${COLOR_RESET}"
+
+        # Mostrar si hay .wsignore
+        wsignore_file="$WORKSPACE_ROOT/.wsignore"
+        if [ -f "$wsignore_file" ]; then
+            ignored_count=$(grep -v '^\s*#' "$wsignore_file" | grep -v '^\s*$' | wc -l | tr -d ' ')
+            echo "Ignorados:  ${COLOR_DIM}$ignored_count repos (ver .wsignore)${COLOR_RESET}"
+        fi
         echo ""
 
         repos=$(find_origin_repos "$WORKSPACE_ROOT" "$WORKSPACES_DIR")

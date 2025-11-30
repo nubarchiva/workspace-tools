@@ -29,7 +29,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - `ws origins git status` - Status de todos los repos origen
   - `ws origins list` - Lista repos origen detectados
   - Excluye automáticamente el directorio workspaces/
+  - Soporte para `.wsignore` para excluir repos específicos
   - Útil para actualizar repos en develop/master
+- **Archivo `.wsignore`** - Excluye repos de operaciones `ws origins`
+  - Ubicación: `$WORKSPACE_ROOT/.wsignore`
+  - Formato: un repo por línea, comentarios con `#`
+  - Ejemplo: excluir repos externos como `herramientas.aragon.es-opacara`
 - **`ws stash`** - Gestión coordinada de stash en todos los repos
   - `ws stash` / `ws stash push "mensaje"` - Stash en repos con cambios
   - `ws stash pop` - Pop del stash más reciente en todos los repos

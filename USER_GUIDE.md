@@ -466,14 +466,33 @@ ws origins <subcomando> [args...]
 **Comportamiento:**
 - Opera sobre los repos principales (donde está el .git)
 - Excluye el directorio workspaces/
+- Respeta `.wsignore` para excluir repos específicos
 - Útil para actualizar repos en develop/master
+
+**Archivo .wsignore:**
+
+Crea `$WORKSPACE_ROOT/.wsignore` para excluir repos:
+
+```
+# Repos externos que no deben participar en operaciones ws origins
+herramientas.aragon.es-opacara
+
+# Otros repos a ignorar
+legacy-project
+vendor/external-lib
+```
+
+Formato:
+- Un repo por línea (ruta relativa desde WORKSPACE_ROOT)
+- Comentarios con `#`
+- Líneas vacías ignoradas
 
 **Ejemplos:**
 ```bash
 ws origins git pull         # pull en todos los repos origen
 ws origins git status       # status de todos
 ws origins git fetch        # fetch en todos
-ws origins list             # listar repos detectados
+ws origins list             # listar repos detectados (muestra ignorados)
 ```
 
 ---
