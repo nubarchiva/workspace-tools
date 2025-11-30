@@ -82,6 +82,11 @@ WORKSPACES_DIR="$WORKSPACE_ROOT/workspaces"
 
 # Modo debug (opcional)
 WS_DEBUG=1
+
+# Archivos a ignorar en ws clean (opcional)
+# Por defecto: ".idea .vscode .kiro .cursor .playwright-mcp AI.md .ai docs README.md"
+# Los enlaces simbólicos siempre se ignoran automáticamente
+WS_CLEAN_IGNORE=".idea .vscode .kiro .cursor .playwright-mcp .claude AI.md .ai docs README.md"
 ```
 
 ### Prioridad de Configuración
@@ -288,6 +293,12 @@ ws del <workspace>
 - Advierte si hay cambios sin commitear
 - Advierte si hay commits sin pushear
 - Requiere confirmación
+
+**Archivos ignorados:**
+- Algunos archivos/directorios se ignoran al decidir si el workspace está vacío
+- Por defecto: `.idea`, `.vscode`, `.kiro`, `.cursor`, `.playwright-mcp`, `AI.md`, `.ai`, `docs`, `README.md`
+- Los enlaces simbólicos siempre se ignoran
+- Configurable via `WS_CLEAN_IGNORE` en `~/.wsrc`
 
 ---
 

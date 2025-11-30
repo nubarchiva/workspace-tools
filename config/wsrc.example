@@ -33,6 +33,15 @@
 # WS_DEBUG=1
 
 # -----------------------------------------------------------------------------
+# Archivos a ignorar en ws clean
+# -----------------------------------------------------------------------------
+# Lista de archivos/directorios que ws clean ignora al decidir si un workspace
+# está vacío. Los enlaces simbólicos siempre se ignoran automáticamente.
+# Por defecto: ".idea .vscode .kiro .cursor .playwright-mcp AI.md .ai docs README.md"
+# Nota: .claude NO está por defecto porque puede contener commands/ personalizados
+# WS_CLEAN_IGNORE=".idea .vscode .kiro .cursor .playwright-mcp .claude AI.md .ai docs README.md"
+
+# -----------------------------------------------------------------------------
 # Ejemplos de configuraciones avanzadas
 # -----------------------------------------------------------------------------
 

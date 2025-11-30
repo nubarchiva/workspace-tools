@@ -85,6 +85,11 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Completado de acciones de stash, templates y origins
   - Sugerencias de opciones para update, grep
   - Completado de goals Maven y comandos Git comunes
+- **`ws clean` - Lista de archivos a ignorar configurable**
+  - Nueva variable `WS_CLEAN_IGNORE` en `~/.wsrc`
+  - Por defecto ignora: `.idea .vscode .kiro .cursor .playwright-mcp AI.md .ai docs README.md`
+  - `.claude` NO se ignora por defecto (puede contener `commands/` personalizados)
+  - Los enlaces simbólicos siempre se ignoran automáticamente
 
 ### Cambiado
 - **ws-rename refactorizado** para mejorar mantenibilidad

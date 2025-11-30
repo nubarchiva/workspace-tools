@@ -152,11 +152,19 @@ if [ -d "$WORKSPACE_DIR" ]; then
     # Eliminar directorios vacíos recursivamente
     find "$WORKSPACE_DIR" -type d -empty -delete 2>/dev/null || true
 
-    # Archivos/directorios que deben ignorarse (creados por workspace-tools)
+    # Archivos/directorios que deben ignorarse al determinar si el workspace está vacío
+    # Configurable via WS_CLEAN_IGNORE en ~/.wsrc
+    # Por defecto:
     # - .idea/, .vscode/, .kiro/, .cursor/: configuración IDE/AI copiada por copy_workspace_config
+    # - .playwright-mcp/: configuración de herramientas testing
     # - AI.md, .ai/, docs/: symlinks creados por copy_workspace_config
     # - README.md: puede ser creado automáticamente
-    ignore_patterns=(".idea" ".vscode" ".kiro" ".cursor" "AI.md" ".ai" "docs" "README.md")
+    # Nota: .claude NO está por defecto porque puede contener commands/ personalizados
+    local default_ignore=".idea .vscode .kiro .cursor .playwright-mcp AI.md .ai docs README.md"
+    local ignore_list="${WS_CLEAN_IGNORE:-$default_ignore}"
+
+    # Convertir a array
+    read -ra ignore_patterns <<< "$ignore_list"
 
     # Contar archivos que NO deben ignorarse
     significant_files=0
@@ -171,12 +179,22 @@ if [ -d "$WORKSPACE_DIR" ]; then
     # Contar archivos significativos (que no están en la lista de ignorados)
     for file in "${all_files[@]}"; do
         should_ignore=false
-        for pattern in "${ignore_patterns[@]}"; do
-            if [ "$file" = "$pattern" ]; then
-                should_ignore=true
-                break
-            fi
-        done
+        file_path="$WORKSPACE_DIR/$file"
+
+        # Ignorar enlaces simbólicos (pueden ser repos referenciados sin worktree)
+        if [ -L "$file_path" ]; then
+            should_ignore=true
+        fi
+
+        # Ignorar archivos en la lista de patrones
+        if [ "$should_ignore" = false ]; then
+            for pattern in "${ignore_patterns[@]}"; do
+                if [ "$file" = "$pattern" ]; then
+                    should_ignore=true
+                    break
+                fi
+            done
+        fi
 
         if [ "$should_ignore" = false ]; then
             ((significant_files++))
