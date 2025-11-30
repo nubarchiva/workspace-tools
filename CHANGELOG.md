@@ -7,6 +7,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Mejorado
+- **`ws origins list`** - Muestra estado de cada repo en una línea
+  - ⚠️ N sin commitear: archivos modificados sin commit
+  - 📤 N sin push: commits locales sin pushear
+  - Formato compacto consistente con `ws ls`
+
 ## [4.1.0] - 2025-11-30
 
 ### Añadido
