@@ -296,7 +296,7 @@ ws del <workspace>
 
 **Archivos ignorados:**
 - Algunos archivos/directorios se ignoran al decidir si el workspace está vacío
-- Por defecto: `.idea`, `.vscode`, `.kiro`, `.cursor`, `.playwright-mcp`, `AI.md`, `.ai`, `docs`, `README.md`
+- Por defecto: `.idea`, `.vscode`, `.kiro`, `.cursor`, `.playwright-mcp`, `AI.md`, `.ai`, `docs`, `README.md`, `.DS_Store`
 - Los enlaces simbólicos siempre se ignoran
 - Configurable via `WS_CLEAN_IGNORE` en `~/.wsrc`
 

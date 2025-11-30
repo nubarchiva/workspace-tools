@@ -159,9 +159,10 @@ if [ -d "$WORKSPACE_DIR" ]; then
     # - .playwright-mcp/: configuración de herramientas testing
     # - AI.md, .ai/, docs/: symlinks creados por copy_workspace_config
     # - README.md: puede ser creado automáticamente
+    # - .DS_Store: archivo de sistema macOS
     # Nota: .claude NO está por defecto porque puede contener commands/ personalizados
-    local default_ignore=".idea .vscode .kiro .cursor .playwright-mcp AI.md .ai docs README.md"
-    local ignore_list="${WS_CLEAN_IGNORE:-$default_ignore}"
+    default_ignore=".idea .vscode .kiro .cursor .playwright-mcp AI.md .ai docs README.md .DS_Store"
+    ignore_list="${WS_CLEAN_IGNORE:-$default_ignore}"
 
     # Convertir a array
     read -ra ignore_patterns <<< "$ignore_list"
