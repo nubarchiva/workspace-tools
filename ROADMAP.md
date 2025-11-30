@@ -15,7 +15,7 @@ Este documento describe las mejoras planificadas para Workspace Tools, priorizad
 ---
 
 ### wscd - Navegación rápida entre repos
-✅ **v3.2** - Navega entre repos del workspace actual con matching parcial y menú interactivo. `wscd ks` en lugar de `cd ../../../ks-nuba`. Soporta `wscd .` (raíz) y `wscd ..` (arriba).
+✅ **v3.2** - Navega entre repos del workspace actual con matching parcial y menú interactivo. `wscd app` en lugar de `cd ../../../app`. Soporta `wscd .` (raíz) y `wscd ..` (arriba).
 
 ---
 
