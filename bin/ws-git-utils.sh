@@ -14,6 +14,8 @@
 #   - git_count_uncommitted_changes [path]
 #   - git_has_unpushed_commits [path]
 #   - git_count_unpushed_commits [path]
+#   - git_has_unpulled_commits [path]
+#   - git_count_unpulled_commits [path]
 #   - git_get_base_branch [path]
 #   - git_get_current_branch [path]
 #   - git_has_upstream [path]
@@ -143,23 +145,54 @@ git_count_unpushed_commits() {
     echo "${count:-0}"
 }
 
+# Verifica si hay commits sin pullear (en upstream pero no en local)
+# Uso: git_has_unpulled_commits [path]
+# Retorna: 0 si hay commits sin pullear, 1 si no
+git_has_unpulled_commits() {
+    local repo_path="${1:-.}"
+    local count
+    count=$(git_count_unpulled_commits "$repo_path")
+    [[ "$count" -gt 0 ]]
+}
+
+# Cuenta commits sin pullear (commits en upstream que no están en local)
+# Uso: git_count_unpulled_commits [path]
+# Retorna: número de commits (0 si no hay o error)
+git_count_unpulled_commits() {
+    local repo_path="${1:-.}"
+
+    if [[ ! -d "$repo_path" ]]; then
+        echo "0"
+        return
+    fi
+
+    local count=0
+
+    if git_has_upstream "$repo_path"; then
+        # Tiene upstream: contar commits pendientes de pull (HEAD..@{u})
+        count=$(cd "$repo_path" && git rev-list HEAD..@{u} 2>/dev/null | wc -l | tr -d ' ')
+    fi
+
+    echo "${count:-0}"
+}
+
 # -----------------------------------------------------------------------------
 # Función de estado completo (para evitar múltiples llamadas)
 # -----------------------------------------------------------------------------
 
 # Obtiene el estado completo de un repo en formato parseable
 # Uso: git_repo_status [path]
-# Retorna: línea con formato "uncommitted_count:unpushed_count:has_upstream:current_branch:upstream_branch"
-# Ejemplo: "3:5:1:feature/test:origin/feature/test"
+# Retorna: línea con formato "uncommitted_count:unpushed_count:unpulled_count:has_upstream:current_branch:upstream_branch"
+# Ejemplo: "3:5:2:1:feature/test:origin/feature/test"
 git_repo_status() {
     local repo_path="${1:-.}"
 
     if [[ ! -d "$repo_path" ]]; then
-        echo "0:0:0::"
+        echo "0:0:0:0::"
         return 1
     fi
 
-    local uncommitted_count unpushed_count has_upstream current_branch upstream_branch
+    local uncommitted_count unpushed_count unpulled_count has_upstream current_branch upstream_branch
 
     # Cambiar al directorio del repo
     cd "$repo_path" || return 1
@@ -171,14 +204,16 @@ git_repo_status() {
     # Branch actual
     current_branch=$(git branch --show-current 2>/dev/null)
 
-    # Upstream y commits sin pushear
+    # Upstream, commits sin pushear y commits sin pullear
     if git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then
         has_upstream=1
         upstream_branch=$(git rev-parse --abbrev-ref @{u} 2>/dev/null)
         unpushed_count=$(git rev-list @{u}..HEAD 2>/dev/null | wc -l | tr -d ' ')
+        unpulled_count=$(git rev-list HEAD..@{u} 2>/dev/null | wc -l | tr -d ' ')
     else
         has_upstream=0
         upstream_branch=""
+        unpulled_count=0
         # Sin upstream: comparar con branch base
         local base_branch=""
         for branch in origin/develop origin/master develop master; do
@@ -194,8 +229,9 @@ git_repo_status() {
         fi
     fi
     unpushed_count="${unpushed_count:-0}"
+    unpulled_count="${unpulled_count:-0}"
 
-    echo "${uncommitted_count}:${unpushed_count}:${has_upstream}:${current_branch}:${upstream_branch}"
+    echo "${uncommitted_count}:${unpushed_count}:${unpulled_count}:${has_upstream}:${current_branch}:${upstream_branch}"
 }
 
 # -----------------------------------------------------------------------------
@@ -233,6 +269,22 @@ git_warn_unpushed() {
         else
             echo "  ${COLOR_YELLOW}📤 $repo_name: $count commit(s) sin remoto${COLOR_RESET}"
         fi
+        return 0
+    fi
+    return 1
+}
+
+# Muestra advertencia de commits sin pullear si los hay
+# Uso: git_warn_unpulled <repo_name> [path]
+git_warn_unpulled() {
+    local repo_name="$1"
+    local repo_path="${2:-.}"
+
+    local count
+    count=$(git_count_unpulled_commits "$repo_path")
+
+    if [[ "$count" -gt 0 ]]; then
+        echo "  ${COLOR_YELLOW}📥 $repo_name: $count commit(s) sin pull${COLOR_RESET}"
         return 0
     fi
     return 1

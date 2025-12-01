@@ -194,9 +194,19 @@ case "$SUBCOMMAND" in
                         status_info="${COLOR_YELLOW}⚠️ $uncommitted sin commitear${COLOR_RESET}"
                     fi
 
-                    # Commits sin push
+                    # Commits sin push y sin pull (solo si tiene upstream)
                     if git_has_upstream "$repo_path"; then
                         unpushed=$(git_count_unpushed_commits "$repo_path")
+                        unpulled=$(git_count_unpulled_commits "$repo_path")
+
+                        if [ "$unpulled" -gt 0 ]; then
+                            if [ -n "$status_info" ]; then
+                                status_info="$status_info, ${COLOR_YELLOW}📥 $unpulled sin pull${COLOR_RESET}"
+                            else
+                                status_info="${COLOR_YELLOW}📥 $unpulled sin pull${COLOR_RESET}"
+                            fi
+                        fi
+
                         if [ "$unpushed" -gt 0 ]; then
                             if [ -n "$status_info" ]; then
                                 status_info="$status_info, ${COLOR_YELLOW}📤 $unpushed sin push${COLOR_RESET}"
