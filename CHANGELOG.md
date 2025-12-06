@@ -19,6 +19,10 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - `↓ N` (magenta): commits nuevos en develop
   - Cada repo muestra su propio estado de sincronización
   - Más claro que los 2 indicadores anteriores (ahead/behind confusos)
+- **Conteo de commits sin push** - Usa `--first-parent` para no inflar el número con commits de merges
+  - Antes: merge de develop mostraba todos los commits incluidos (ej: ↑27)
+  - Ahora: solo cuenta commits directos de la branch (ej: ↑2 para 2 merges)
+  - Aplicado en: `ws-list`, `ws-switch`, `ws-git-utils.sh`
 
 ## [4.1.0] - 2025-11-30
 

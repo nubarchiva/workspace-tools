@@ -120,6 +120,7 @@ git_has_unpushed_commits() {
 # Cuenta commits sin pushear
 # Uso: git_count_unpushed_commits [path]
 # Retorna: número de commits (0 si no hay o error)
+# Nota: Usa --first-parent para no contar commits que llegaron via merge
 git_count_unpushed_commits() {
     local repo_path="${1:-.}"
 
@@ -131,14 +132,14 @@ git_count_unpushed_commits() {
     local count=0
 
     if git_has_upstream "$repo_path"; then
-        # Tiene upstream: contar commits pendientes
-        count=$(cd "$repo_path" && git rev-list @{u}..HEAD 2>/dev/null | wc -l | tr -d ' ')
+        # Tiene upstream: contar commits pendientes (--first-parent para no contar merges)
+        count=$(cd "$repo_path" && git rev-list --first-parent @{u}..HEAD 2>/dev/null | wc -l | tr -d ' ')
     else
         # Sin upstream: comparar con branch base
         local base_branch
         base_branch=$(git_get_base_branch "$repo_path")
         if [[ -n "$base_branch" ]]; then
-            count=$(cd "$repo_path" && git rev-list "${base_branch}..HEAD" 2>/dev/null | wc -l | tr -d ' ')
+            count=$(cd "$repo_path" && git rev-list --first-parent "${base_branch}..HEAD" 2>/dev/null | wc -l | tr -d ' ')
         fi
     fi
 
@@ -205,10 +206,11 @@ git_repo_status() {
     current_branch=$(git branch --show-current 2>/dev/null)
 
     # Upstream, commits sin pushear y commits sin pullear
+    # Nota: unpushed usa --first-parent para no contar commits de merges
     if git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then
         has_upstream=1
         upstream_branch=$(git rev-parse --abbrev-ref @{u} 2>/dev/null)
-        unpushed_count=$(git rev-list @{u}..HEAD 2>/dev/null | wc -l | tr -d ' ')
+        unpushed_count=$(git rev-list --first-parent @{u}..HEAD 2>/dev/null | wc -l | tr -d ' ')
         unpulled_count=$(git rev-list HEAD..@{u} 2>/dev/null | wc -l | tr -d ' ')
     else
         has_upstream=0
@@ -223,7 +225,7 @@ git_repo_status() {
             fi
         done
         if [[ -n "$base_branch" ]]; then
-            unpushed_count=$(git rev-list "${base_branch}..HEAD" 2>/dev/null | wc -l | tr -d ' ')
+            unpushed_count=$(git rev-list --first-parent "${base_branch}..HEAD" 2>/dev/null | wc -l | tr -d ' ')
         else
             unpushed_count=0
         fi
