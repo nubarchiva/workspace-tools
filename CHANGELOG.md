@@ -12,6 +12,10 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - ⚠️ N sin commitear: archivos modificados sin commit
   - 📤 N sin push: commits locales sin pushear
   - Formato compacto consistente con `ws ls`
+- **`ws list`** - Indicador de sincronización por repo en lugar de agregado
+  - Antes: indicador global del workspace (↑39 ↓20)
+  - Ahora: cada repo muestra su propio indicador (• ks-nuba ↑36 ↓9)
+  - Más útil para identificar qué repo específico necesita atención
 
 ## [4.1.0] - 2025-11-30
 

@@ -47,36 +47,7 @@ show_workspace() {
     local path=$2
     local branch=$(get_branch_name "$name")
 
-    # Calcular estado de sincronización global del workspace
-    local sync_indicator=""
-    if [[ "$name" != "master" && "$name" != "develop" ]]; then
-        local total_ahead=0
-        local total_behind=0
-        local repos_for_sync=$(find_repos_in_workspace "$path")
-
-        while read -r repo_rel_path; do
-            if [ -n "$repo_rel_path" ]; then
-                local worktree_path="$path/$repo_rel_path"
-                if [ -d "$worktree_path" ]; then
-                    local sync_status=$(get_sync_status "$worktree_path")
-                    local ahead=${sync_status%:*}
-                    local behind=${sync_status#*:}
-                    ((total_ahead += ahead))
-                    ((total_behind += behind))
-                fi
-            fi
-        done <<< "$repos_for_sync"
-
-        if [ $total_ahead -gt 0 ] && [ $total_behind -gt 0 ]; then
-            sync_indicator=" ${COLOR_YELLOW}↑$total_ahead${COLOR_RESET} ${COLOR_MAGENTA}↓$total_behind${COLOR_RESET}"
-        elif [ $total_ahead -gt 0 ]; then
-            sync_indicator=" ${COLOR_YELLOW}↑$total_ahead${COLOR_RESET}"
-        elif [ $total_behind -gt 0 ]; then
-            sync_indicator=" ${COLOR_MAGENTA}↓$total_behind${COLOR_RESET}"
-        fi
-    fi
-
-    echo "🔹 ${COLOR_BOLD_CYAN}$name${COLOR_RESET}${sync_indicator} ${COLOR_DIM}(branch: ${COLOR_CYAN}$branch${COLOR_RESET}${COLOR_DIM})${COLOR_RESET}"
+    echo "🔹 ${COLOR_BOLD_CYAN}$name${COLOR_RESET} ${COLOR_DIM}(branch: ${COLOR_CYAN}$branch${COLOR_RESET}${COLOR_DIM})${COLOR_RESET}"
 
     # Encontrar repos (incluyendo subdirectorios)
     local repos=$(find_repos_in_workspace "$path")
@@ -90,11 +61,29 @@ show_workspace() {
 
     echo "   ${COLOR_DIM}📦 Repos: $repo_count${COLOR_RESET}"
 
-    # Listar repos
+    # Listar repos con indicador de sincronización
     echo "   📂 Contenido:"
     echo "$repos" | while read -r repo_rel_path; do
         if [ -n "$repo_rel_path" ]; then
-            echo "      • $repo_rel_path"
+            local worktree_path="$path/$repo_rel_path"
+            local sync_indicator=""
+
+            # Calcular sincronización con develop (solo para workspaces que no son master/develop)
+            if [[ "$name" != "master" && "$name" != "develop" ]] && [ -d "$worktree_path" ]; then
+                local sync_status=$(get_sync_status "$worktree_path")
+                local ahead=${sync_status%:*}
+                local behind=${sync_status#*:}
+
+                if [ "$ahead" -gt 0 ] && [ "$behind" -gt 0 ]; then
+                    sync_indicator=" ${COLOR_YELLOW}↑$ahead${COLOR_RESET} ${COLOR_MAGENTA}↓$behind${COLOR_RESET}"
+                elif [ "$ahead" -gt 0 ]; then
+                    sync_indicator=" ${COLOR_YELLOW}↑$ahead${COLOR_RESET}"
+                elif [ "$behind" -gt 0 ]; then
+                    sync_indicator=" ${COLOR_MAGENTA}↓$behind${COLOR_RESET}"
+                fi
+            fi
+
+            echo "      • $repo_rel_path$sync_indicator"
         fi
     done
 
