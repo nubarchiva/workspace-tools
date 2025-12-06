@@ -203,7 +203,10 @@ ws ls feature          # filtrar por "feature"
 - Nombre del workspace
 - Número de repos
 - Branch
-- Indicadores de cambios pendientes
+- Indicadores de sincronización por repo:
+  - `↑ N` (amarillo): N commits sin push
+  - `← N` (cyan): N commits pusheados pendientes de merge a develop
+  - `↓ N` (magenta): N commits nuevos en develop
 
 ---
 
@@ -237,6 +240,15 @@ ws status [workspace]
 ws .
 ws here
 ```
+
+**Información mostrada por repo:**
+- Branch actual
+- Cambios sin commitear
+- Indicadores de sincronización:
+  - `↑ N`: N commits sin push
+  - `← N`: N commits pusheados pendientes de merge a develop
+  - `↓ N`: N commits nuevos en develop
+  - `↔️`: Sincronizado con develop
 
 **Ejemplos:**
 ```bash

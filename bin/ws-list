@@ -14,13 +14,21 @@ else
 fi
 echo ""
 
-# Función para calcular estado de sincronización con develop de un repo
-# Retorna: "ahead:behind" (ej: "3:5" = 3 commits para merge, 5 nuevos en develop)
+# Función para calcular estado de sincronización de un repo
+# Retorna: "unpushed:pending_merge:behind"
+# - unpushed: commits locales sin push (↑)
+# - pending_merge: commits pusheados pero no en develop (←)
+# - behind: commits de develop que faltan (↓)
 get_sync_status() {
     local repo_path=$1
     local current_branch=$(git -C "$repo_path" branch --show-current 2>/dev/null)
 
-    # Determinar branch base
+    if [ -z "$current_branch" ]; then
+        echo "0:0:0"
+        return
+    fi
+
+    # Determinar branch base (develop o master)
     local base_branch=""
     if git -C "$repo_path" rev-parse --verify "origin/develop" >/dev/null 2>&1; then
         base_branch="origin/develop"
@@ -31,14 +39,32 @@ get_sync_status() {
     elif git -C "$repo_path" rev-parse --verify "master" >/dev/null 2>&1; then
         base_branch="master"
     else
-        echo "0:0"
+        echo "0:0:0"
         return
     fi
 
-    local ahead=$(git -C "$repo_path" rev-list --count "$base_branch..$current_branch" 2>/dev/null || echo "0")
-    local behind=$(git -C "$repo_path" rev-list --count "$current_branch..$base_branch" 2>/dev/null || echo "0")
+    local unpushed=0
+    local pending_merge=0
+    local behind=0
 
-    echo "$ahead:$behind"
+    # Commits de develop que no tenemos
+    behind=$(git -C "$repo_path" rev-list --count "HEAD..$base_branch" 2>/dev/null || echo "0")
+
+    # Verificar si tiene upstream (branch remota)
+    local upstream=$(git -C "$repo_path" rev-parse --abbrev-ref "@{upstream}" 2>/dev/null)
+
+    if [ -n "$upstream" ]; then
+        # Commits locales sin push
+        unpushed=$(git -C "$repo_path" rev-list --count "$upstream..HEAD" 2>/dev/null || echo "0")
+        # Commits pusheados pero no en develop
+        pending_merge=$(git -C "$repo_path" rev-list --count "$base_branch..$upstream" 2>/dev/null || echo "0")
+    else
+        # Sin upstream: todos los commits adelante de develop son "pending_merge" conceptualmente
+        # pero los mostramos como unpushed porque no han sido pusheados
+        unpushed=$(git -C "$repo_path" rev-list --count "$base_branch..HEAD" 2>/dev/null || echo "0")
+    fi
+
+    echo "$unpushed:$pending_merge:$behind"
 }
 
 # Función para mostrar workspace
@@ -71,15 +97,23 @@ show_workspace() {
             # Calcular sincronización con develop (solo para workspaces que no son master/develop)
             if [[ "$name" != "master" && "$name" != "develop" ]] && [ -d "$worktree_path" ]; then
                 local sync_status=$(get_sync_status "$worktree_path")
-                local ahead=${sync_status%:*}
-                local behind=${sync_status#*:}
+                # Parsear los 3 valores: unpushed:pending_merge:behind
+                local unpushed=$(echo "$sync_status" | cut -d: -f1)
+                local pending_merge=$(echo "$sync_status" | cut -d: -f2)
+                local behind=$(echo "$sync_status" | cut -d: -f3)
 
-                if [ "$ahead" -gt 0 ] && [ "$behind" -gt 0 ]; then
-                    sync_indicator=" ${COLOR_YELLOW}↑$ahead${COLOR_RESET} ${COLOR_MAGENTA}↓$behind${COLOR_RESET}"
-                elif [ "$ahead" -gt 0 ]; then
-                    sync_indicator=" ${COLOR_YELLOW}↑$ahead${COLOR_RESET}"
-                elif [ "$behind" -gt 0 ]; then
-                    sync_indicator=" ${COLOR_MAGENTA}↓$behind${COLOR_RESET}"
+                # Construir indicador con los 3 estados
+                # ↑ = commits sin push (amarillo)
+                # ← = pusheado, pendiente merge a develop (cyan)
+                # ↓ = develop tiene commits nuevos (magenta)
+                if [ "$unpushed" -gt 0 ]; then
+                    sync_indicator=" ${COLOR_YELLOW}↑$unpushed${COLOR_RESET}"
+                fi
+                if [ "$pending_merge" -gt 0 ]; then
+                    sync_indicator="$sync_indicator ${COLOR_CYAN}←$pending_merge${COLOR_RESET}"
+                fi
+                if [ "$behind" -gt 0 ]; then
+                    sync_indicator="$sync_indicator ${COLOR_MAGENTA}↓$behind${COLOR_RESET}"
                 fi
             fi
 

@@ -11,11 +11,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - **`ws origins list`** - Muestra estado de cada repo en una línea
   - ⚠️ N sin commitear: archivos modificados sin commit
   - 📤 N sin push: commits locales sin pushear
+  - 📥 N sin pull: commits en remoto pendientes de pull
   - Formato compacto consistente con `ws ls`
-- **`ws list`** - Indicador de sincronización por repo en lugar de agregado
-  - Antes: indicador global del workspace (↑39 ↓20)
-  - Ahora: cada repo muestra su propio indicador (• ks-nuba ↑36 ↓9)
-  - Más útil para identificar qué repo específico necesita atención
+- **`ws list` / `ws status`** - Sistema de 3 indicadores de sincronización por repo
+  - `↑ N` (amarillo): commits sin push
+  - `← N` (cyan): commits pusheados pendientes de merge a develop
+  - `↓ N` (magenta): commits nuevos en develop
+  - Cada repo muestra su propio estado de sincronización
+  - Más claro que los 2 indicadores anteriores (ahead/behind confusos)
 
 ## [4.1.0] - 2025-11-30
 
