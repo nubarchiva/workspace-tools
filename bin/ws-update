@@ -4,6 +4,7 @@
 
 # Inicializacion centralizada
 source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-git-utils.sh"
 
 # Función de ayuda
 show_help() {
@@ -13,6 +14,8 @@ show_help() {
     echo "Ejecuta merge o rebase en todos los repos del workspace."
     echo ""
     echo "Opciones:"
+    echo "  --all, -a          Actualizar TODOS los workspaces"
+    echo "  --dry, -d          Modo simulación: muestra qué haría sin ejecutar"
     echo "  --rebase, -r       Usar rebase en lugar de merge"
     echo "  --from, -f BRANCH  Especificar branch base (default: develop o master)"
     echo ""
@@ -21,23 +24,35 @@ show_help() {
     echo "  ws update --rebase           # rebase sobre develop"
     echo "  ws update NUBA-1234          # actualizar workspace específico"
     echo "  ws update -r --from main     # rebase sobre main"
+    echo "  ws update --all              # actualizar todos los workspaces"
+    echo "  ws update --all --dry        # ver qué actualizaría sin hacerlo"
     echo ""
     echo "Comportamiento:"
     echo "  • Hace fetch del remoto primero"
     echo "  • Usa origin/develop si existe, sino develop local"
     echo "  • Fallback a master si no existe develop"
     echo "  • Salta repos con cambios sin commitear"
-    echo "  • Se detiene si hay conflictos"
+    echo "  • En modo --all: continúa con siguiente workspace si hay conflictos"
 }
 
 # Opciones
 USE_REBASE=false
+UPDATE_ALL=false
+DRY_RUN=false
 WORKSPACE_PATTERN=""
 BASE_BRANCH=""
 
 # Parsear argumentos
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --all|-a)
+            UPDATE_ALL=true
+            shift
+            ;;
+        --dry|-d)
+            DRY_RUN=true
+            shift
+            ;;
         --rebase|-r)
             USE_REBASE=true
             shift
@@ -59,6 +74,349 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Determinar operación
+if [ "$USE_REBASE" = true ]; then
+    OPERATION="rebase"
+    OPERATION_VERB="Rebaseando"
+    OPERATION_PAST="rebaseado"
+else
+    OPERATION="merge"
+    OPERATION_VERB="Mergeando"
+    OPERATION_PAST="mergeado"
+fi
+
+# =============================================================================
+# Función para calcular commits pendientes de un repo
+# Retorna: número de commits que se mergearían/rebasearían
+# =============================================================================
+get_pending_commits() {
+    local repo_path=$1
+    local base_branch=$2
+
+    cd "$repo_path" 2>/dev/null || { echo "0"; return; }
+
+    # Determinar branch base si no se especificó
+    local local_base="$base_branch"
+    if [ -z "$local_base" ]; then
+        if git rev-parse --verify "origin/develop" >/dev/null 2>&1; then
+            local_base="origin/develop"
+        elif git rev-parse --verify "develop" >/dev/null 2>&1; then
+            local_base="develop"
+        elif git rev-parse --verify "origin/master" >/dev/null 2>&1; then
+            local_base="origin/master"
+        elif git rev-parse --verify "master" >/dev/null 2>&1; then
+            local_base="master"
+        else
+            echo "0"
+            return
+        fi
+    fi
+
+    local current_branch=$(git branch --show-current 2>/dev/null)
+    git rev-list --count "$current_branch..$local_base" 2>/dev/null || echo "0"
+}
+
+# =============================================================================
+# Función para mostrar resumen de un workspace (modo --dry o para --all)
+# =============================================================================
+show_workspace_summary() {
+    local ws_name=$1
+    local ws_dir=$2
+
+    # Saltar master/develop
+    if [[ "$ws_name" == "master" || "$ws_name" == "develop" ]]; then
+        return 1
+    fi
+
+    local repos=$(find_repos_in_workspace "$ws_dir")
+    if [ -z "$repos" ]; then
+        return 1
+    fi
+
+    local total_pending=0
+    local repos_to_update=""
+    local repos_with_changes=""
+
+    # Hacer fetch silencioso primero
+    echo "$repos" | while read -r repo_rel_path; do
+        if [ -n "$repo_rel_path" ]; then
+            local repo_path="$ws_dir/$repo_rel_path"
+            git -C "$repo_path" fetch origin --quiet 2>/dev/null || true
+        fi
+    done
+
+    # Analizar cada repo
+    while read -r repo_rel_path; do
+        if [ -n "$repo_rel_path" ]; then
+            local repo_path="$ws_dir/$repo_rel_path"
+
+            # Verificar cambios sin commitear
+            if git_has_uncommitted_changes "$repo_path"; then
+                repos_with_changes="$repos_with_changes $repo_rel_path"
+                continue
+            fi
+
+            # Contar commits pendientes
+            local pending=$(get_pending_commits "$repo_path" "$BASE_BRANCH")
+            if [ "$pending" -gt 0 ]; then
+                repos_to_update="$repos_to_update $repo_rel_path:$pending"
+                total_pending=$((total_pending + pending))
+            fi
+        fi
+    done <<< "$repos"
+
+    # Si no hay nada que hacer, retornar
+    if [ $total_pending -eq 0 ] && [ -z "$repos_with_changes" ]; then
+        return 1
+    fi
+
+    # Mostrar resumen
+    echo "🔹 ${COLOR_CYAN}$ws_name${COLOR_RESET}"
+
+    if [ -n "$repos_to_update" ]; then
+        for item in $repos_to_update; do
+            local repo="${item%:*}"
+            local count="${item#*:}"
+            echo "   ${COLOR_GREEN}↓ $repo${COLOR_RESET}: $count commit(s) para $OPERATION"
+        done
+    fi
+
+    if [ -n "$repos_with_changes" ]; then
+        for repo in $repos_with_changes; do
+            echo "   ${COLOR_YELLOW}⚠️  $repo${COLOR_RESET}: cambios sin commitear (se saltará)"
+        done
+    fi
+
+    echo ""
+    return 0
+}
+
+# =============================================================================
+# Función para actualizar un workspace específico
+# Retorna: 0 si OK, 1 si hubo conflictos
+# =============================================================================
+update_single_workspace() {
+    local ws_name=$1
+    local ws_dir=$2
+    local stop_on_conflict=${3:-true}
+
+    local branch_name=$(get_branch_name "$ws_name")
+
+    print_header "Actualizar workspace: $ws_name"
+    echo ""
+    echo "Workspace: ${COLOR_CYAN}$ws_name${COLOR_RESET}"
+    echo "Branch:    ${COLOR_CYAN}$branch_name${COLOR_RESET}"
+    echo "Operación: ${COLOR_BOLD}$OPERATION${COLOR_RESET}"
+    echo ""
+
+    local repos=$(find_repos_in_workspace "$ws_dir")
+
+    if [ -z "$repos" ]; then
+        warning "No hay repos en este workspace"
+        return 0
+    fi
+
+    # Contadores
+    local updated=0
+    local skipped=0
+    local already_updated=0
+    local conflicts=0
+
+    # Procesar cada repo
+    while read -r repo_rel_path; do
+        if [ -n "$repo_rel_path" ]; then
+            local repo_path="$ws_dir/$repo_rel_path"
+
+            print_separator_with_title "${COLOR_CYAN}$repo_rel_path${COLOR_RESET}"
+
+            cd "$repo_path" || continue
+
+            # Verificar cambios sin commitear
+            if git_has_uncommitted_changes "$repo_path"; then
+                warning "⏭️  Saltado (cambios sin commitear)"
+                ((skipped++))
+                echo ""
+                continue
+            fi
+
+            # Hacer fetch primero
+            echo "   ${COLOR_DIM}Fetching...${COLOR_RESET}"
+            git fetch origin --quiet 2>/dev/null || true
+
+            # Determinar branch base para este repo
+            local local_base="$BASE_BRANCH"
+            if [ -z "$local_base" ]; then
+                if git rev-parse --verify "origin/develop" >/dev/null 2>&1; then
+                    local_base="origin/develop"
+                elif git rev-parse --verify "develop" >/dev/null 2>&1; then
+                    local_base="develop"
+                elif git rev-parse --verify "origin/master" >/dev/null 2>&1; then
+                    local_base="origin/master"
+                elif git rev-parse --verify "master" >/dev/null 2>&1; then
+                    local_base="master"
+                else
+                    warning "⏭️  Saltado (no se encontró branch base)"
+                    ((skipped++))
+                    echo ""
+                    continue
+                fi
+            fi
+
+            # Verificar si hay algo que actualizar
+            local current_branch=$(git branch --show-current)
+            local behind=$(git rev-list --count "$current_branch..$local_base" 2>/dev/null || echo "0")
+
+            if [ "$behind" -eq 0 ]; then
+                success "✓ Ya actualizado con ${local_base#origin/}"
+                ((already_updated++))
+                echo ""
+                continue
+            fi
+
+            echo "   ${COLOR_DIM}$OPERATION_VERB $behind commit(s) de ${local_base#origin/}...${COLOR_RESET}"
+
+            # Ejecutar merge o rebase
+            if [ "$USE_REBASE" = true ]; then
+                if git rebase "$local_base" 2>&1; then
+                    success "✅ Rebaseado correctamente"
+                    ((updated++))
+                else
+                    error "❌ Conflictos en rebase"
+                    echo ""
+                    echo "   Para resolver:"
+                    echo "   ${COLOR_DIM}cd $repo_path${COLOR_RESET}"
+                    echo "   ${COLOR_DIM}# resolver conflictos${COLOR_RESET}"
+                    echo "   ${COLOR_DIM}git rebase --continue${COLOR_RESET}"
+                    echo ""
+                    git rebase --abort 2>/dev/null || true
+                    ((conflicts++))
+
+                    if [ "$stop_on_conflict" = true ]; then
+                        echo ""
+                        error "❌ Actualización detenida por conflictos"
+                        return 1
+                    fi
+                fi
+            else
+                if git merge "$local_base" --no-edit 2>&1; then
+                    success "✅ Mergeado correctamente"
+                    ((updated++))
+                else
+                    error "❌ Conflictos en merge"
+                    echo ""
+                    echo "   Para resolver:"
+                    echo "   ${COLOR_DIM}cd $repo_path${COLOR_RESET}"
+                    echo "   ${COLOR_DIM}# resolver conflictos${COLOR_RESET}"
+                    echo "   ${COLOR_DIM}git add . && git commit${COLOR_RESET}"
+                    echo ""
+                    git merge --abort 2>/dev/null || true
+                    ((conflicts++))
+
+                    if [ "$stop_on_conflict" = true ]; then
+                        echo ""
+                        error "❌ Actualización detenida por conflictos"
+                        return 1
+                    fi
+                fi
+            fi
+            echo ""
+        fi
+    done <<< "$repos"
+
+    # Resumen
+    echo ""
+    if [ "$conflicts" -gt 0 ]; then
+        warning "⚠️  $updated $OPERATION_PAST, $already_updated ya actualizados, $skipped saltados, $conflicts con conflictos"
+        return 1
+    else
+        success "✅ Workspace actualizado ($updated $OPERATION_PAST, $already_updated ya actualizados, $skipped saltados)"
+        return 0
+    fi
+}
+
+# =============================================================================
+# MODO --all: Actualizar todos los workspaces
+# =============================================================================
+if [ "$UPDATE_ALL" = true ]; then
+
+    if [ "$DRY_RUN" = true ]; then
+        # Modo simulación
+        print_header "Simulación: workspaces a actualizar"
+        echo ""
+        echo "Operación: ${COLOR_BOLD}$OPERATION${COLOR_RESET}"
+        echo ""
+
+        found_any=false
+        for ws_dir in "$WORKSPACES_DIR"/*; do
+            if [ -d "$ws_dir" ]; then
+                ws_name=$(basename "$ws_dir")
+                if show_workspace_summary "$ws_name" "$ws_dir"; then
+                    found_any=true
+                fi
+            fi
+        done
+
+        if [ "$found_any" = false ]; then
+            echo "${COLOR_DIM}Todos los workspaces están actualizados${COLOR_RESET}"
+        fi
+
+        echo "${COLOR_DIM}═══════════════════════════════════════════════════${COLOR_RESET}"
+        echo "${COLOR_DIM}Ejecuta sin --dry para aplicar los cambios${COLOR_RESET}"
+        exit 0
+    fi
+
+    # Modo ejecución real
+    print_header "Actualizar TODOS los workspaces"
+    echo ""
+    echo "Operación: ${COLOR_BOLD}$OPERATION${COLOR_RESET}"
+    echo ""
+
+    # Contadores globales
+    ws_updated=0
+    ws_skipped=0
+    ws_with_conflicts=0
+    ws_already_updated=0
+
+    for ws_dir in "$WORKSPACES_DIR"/*; do
+        if [ -d "$ws_dir" ]; then
+            ws_name=$(basename "$ws_dir")
+
+            # Saltar master/develop
+            if [[ "$ws_name" == "master" || "$ws_name" == "develop" ]]; then
+                continue
+            fi
+
+            # Verificar si tiene repos
+            repos=$(find_repos_in_workspace "$ws_dir")
+            if [ -z "$repos" ]; then
+                continue
+            fi
+
+            echo ""
+            if update_single_workspace "$ws_name" "$ws_dir" false; then
+                ((ws_updated++))
+            else
+                ((ws_with_conflicts++))
+            fi
+        fi
+    done
+
+    # Resumen final
+    echo ""
+    echo "${COLOR_DIM}═══════════════════════════════════════════════════${COLOR_RESET}"
+    if [ "$ws_with_conflicts" -gt 0 ]; then
+        warning "⚠️  $ws_updated workspaces actualizados, $ws_with_conflicts con conflictos"
+    else
+        success "✅ $ws_updated workspaces actualizados"
+    fi
+
+    exit 0
+fi
+
+# =============================================================================
+# MODO normal: Actualizar un workspace específico
+# =============================================================================
+
 # Auto-detectar workspace si no se especificó
 if [ -z "$WORKSPACE_PATTERN" ]; then
     WORKSPACE_PATTERN=$(detect_current_workspace 2>/dev/null || true)
@@ -78,7 +436,6 @@ if [ $? -ne 0 ]; then
 fi
 
 WORKSPACE_DIR="$WORKSPACES_DIR/$WORKSPACE_NAME"
-BRANCH_NAME="$(get_branch_name "$WORKSPACE_NAME")"
 
 if [ ! -d "$WORKSPACE_DIR" ]; then
     die "Workspace no existe: $WORKSPACE_NAME"
@@ -88,166 +445,24 @@ fi
 if [[ "$WORKSPACE_NAME" == "master" || "$WORKSPACE_NAME" == "develop" ]]; then
     error "❌ No tiene sentido actualizar $WORKSPACE_NAME con sí mismo"
     echo ""
-    info "💡 Usa 'ws git pull' para sincronizar con el remoto"
+    info "💡 Usa 'ws origins git pull' para sincronizar repos origen"
     exit 1
 fi
 
-# Determinar operación
-if [ "$USE_REBASE" = true ]; then
-    OPERATION="rebase"
-    OPERATION_VERB="Rebaseando"
-    OPERATION_PAST="rebaseado"
-else
-    OPERATION="merge"
-    OPERATION_VERB="Mergeando"
-    OPERATION_PAST="mergeado"
-fi
-
-print_header "Actualizar workspace: $WORKSPACE_NAME"
-echo ""
-echo "Workspace: ${COLOR_CYAN}$WORKSPACE_NAME${COLOR_RESET}"
-echo "Branch:    ${COLOR_CYAN}$BRANCH_NAME${COLOR_RESET}"
-echo "Operación: ${COLOR_BOLD}$OPERATION${COLOR_RESET}"
-echo ""
-
-# Encontrar repos
-repos=$(find_repos_in_workspace "$WORKSPACE_DIR")
-
-if [ -z "$repos" ]; then
-    die "No hay repos en este workspace"
-fi
-
-# Contadores
-total=0
-updated=0
-skipped=0
-conflicts=0
-
-# Procesar cada repo
-echo "$repos" | while read -r repo_rel_path; do
-    if [ -n "$repo_rel_path" ]; then
-        ((total++))
-        repo_path="$WORKSPACE_DIR/$repo_rel_path"
-
-        print_separator_with_title "${COLOR_CYAN}$repo_rel_path${COLOR_RESET}"
-
-        cd "$repo_path" || continue
-
-        # Verificar cambios sin commitear
-        if git_has_uncommitted_changes "$repo_path"; then
-            warning "⏭️  Saltado (cambios sin commitear)"
-            echo "$skipped" > /tmp/ws_update_skipped_$$
-            skipped=$(($(cat /tmp/ws_update_skipped_$$ 2>/dev/null || echo 0) + 1))
-            echo "$skipped" > /tmp/ws_update_skipped_$$
-            echo ""
-            continue
-        fi
-
-        # Hacer fetch primero
-        echo "   ${COLOR_DIM}Fetching...${COLOR_RESET}"
-        git fetch origin --quiet 2>/dev/null || true
-
-        # Determinar branch base para este repo
-        local_base="$BASE_BRANCH"
-        if [ -z "$local_base" ]; then
-            if git rev-parse --verify "origin/develop" >/dev/null 2>&1; then
-                local_base="origin/develop"
-            elif git rev-parse --verify "develop" >/dev/null 2>&1; then
-                local_base="develop"
-            elif git rev-parse --verify "origin/master" >/dev/null 2>&1; then
-                local_base="origin/master"
-            elif git rev-parse --verify "master" >/dev/null 2>&1; then
-                local_base="master"
-            else
-                warning "⏭️  Saltado (no se encontró branch base)"
-                echo ""
-                continue
-            fi
-        fi
-
-        # Verificar si hay algo que actualizar
-        current_branch=$(git branch --show-current)
-        behind=$(git rev-list --count "$current_branch..$local_base" 2>/dev/null || echo "0")
-
-        if [ "$behind" -eq 0 ]; then
-            success "✓ Ya actualizado con ${local_base#origin/}"
-            echo ""
-            continue
-        fi
-
-        echo "   ${COLOR_DIM}$OPERATION_VERB $behind commit(s) de ${local_base#origin/}...${COLOR_RESET}"
-
-        # Ejecutar merge o rebase
-        if [ "$USE_REBASE" = true ]; then
-            if git rebase "$local_base" 2>&1; then
-                success "✅ Rebaseado correctamente"
-                echo "$updated" > /tmp/ws_update_updated_$$
-                updated=$(($(cat /tmp/ws_update_updated_$$ 2>/dev/null || echo 0) + 1))
-                echo "$updated" > /tmp/ws_update_updated_$$
-            else
-                error "❌ Conflictos en rebase"
-                echo ""
-                echo "   Para resolver:"
-                echo "   ${COLOR_DIM}cd $repo_path${COLOR_RESET}"
-                echo "   ${COLOR_DIM}# resolver conflictos${COLOR_RESET}"
-                echo "   ${COLOR_DIM}git rebase --continue${COLOR_RESET}"
-                echo ""
-                echo "   Para abortar:"
-                echo "   ${COLOR_DIM}git rebase --abort${COLOR_RESET}"
-                echo ""
-                echo "$conflicts" > /tmp/ws_update_conflicts_$$
-                conflicts=$(($(cat /tmp/ws_update_conflicts_$$ 2>/dev/null || echo 0) + 1))
-                echo "$conflicts" > /tmp/ws_update_conflicts_$$
-                # Abortar el rebase para dejar el repo en estado limpio
-                git rebase --abort 2>/dev/null || true
-                exit 1
-            fi
-        else
-            if git merge "$local_base" --no-edit 2>&1; then
-                success "✅ Mergeado correctamente"
-                echo "$updated" > /tmp/ws_update_updated_$$
-                updated=$(($(cat /tmp/ws_update_updated_$$ 2>/dev/null || echo 0) + 1))
-                echo "$updated" > /tmp/ws_update_updated_$$
-            else
-                error "❌ Conflictos en merge"
-                echo ""
-                echo "   Para resolver:"
-                echo "   ${COLOR_DIM}cd $repo_path${COLOR_RESET}"
-                echo "   ${COLOR_DIM}# resolver conflictos${COLOR_RESET}"
-                echo "   ${COLOR_DIM}git add . && git commit${COLOR_RESET}"
-                echo ""
-                echo "   Para abortar:"
-                echo "   ${COLOR_DIM}git merge --abort${COLOR_RESET}"
-                echo ""
-                echo "$conflicts" > /tmp/ws_update_conflicts_$$
-                conflicts=$(($(cat /tmp/ws_update_conflicts_$$ 2>/dev/null || echo 0) + 1))
-                echo "$conflicts" > /tmp/ws_update_conflicts_$$
-                # Abortar el merge para dejar el repo en estado limpio
-                git merge --abort 2>/dev/null || true
-                exit 1
-            fi
-        fi
-        echo ""
-    fi
-done
-
-# Leer contadores finales
-updated=$(cat /tmp/ws_update_updated_$$ 2>/dev/null || echo 0)
-skipped=$(cat /tmp/ws_update_skipped_$$ 2>/dev/null || echo 0)
-conflicts=$(cat /tmp/ws_update_conflicts_$$ 2>/dev/null || echo 0)
-rm -f /tmp/ws_update_*_$$ 2>/dev/null
-
-# Resumen
-echo ""
-if [ "$conflicts" -gt 0 ]; then
-    error "❌ Actualización detenida por conflictos"
+# Modo --dry para workspace individual
+if [ "$DRY_RUN" = true ]; then
+    print_header "Simulación: $WORKSPACE_NAME"
     echo ""
-    echo "Resumen: $updated $OPERATION_PAST, $skipped saltados, $conflicts con conflictos"
-    exit 1
-else
-    success "✅ Workspace actualizado"
-    if [ "$skipped" -gt 0 ]; then
-        echo ""
-        warning "⚠️  $skipped repo(s) saltados por tener cambios sin commitear"
+    echo "Operación: ${COLOR_BOLD}$OPERATION${COLOR_RESET}"
+    echo ""
+
+    if show_workspace_summary "$WORKSPACE_NAME" "$WORKSPACE_DIR"; then
+        echo "${COLOR_DIM}Ejecuta sin --dry para aplicar los cambios${COLOR_RESET}"
+    else
+        echo "${COLOR_DIM}Este workspace está actualizado${COLOR_RESET}"
     fi
+    exit 0
 fi
+
+# Ejecutar actualización
+update_single_workspace "$WORKSPACE_NAME" "$WORKSPACE_DIR" true

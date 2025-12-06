@@ -23,6 +23,11 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Antes: merge de develop mostraba todos los commits incluidos (ej: ↑27)
   - Ahora: solo cuenta commits directos de la branch (ej: ↑2 para 2 merges)
   - Aplicado en: `ws-list`, `ws-switch`, `ws-git-utils.sh`
+- **`ws update --all`** - Actualiza todos los workspaces de una vez
+  - `ws update --all` - merge develop en todos los workspaces
+  - `ws update --all --dry` - simula sin ejecutar, muestra qué actualizaría
+  - Continúa con el siguiente workspace si hay conflictos
+  - Muestra resumen final con workspaces actualizados y con conflictos
 
 ## [4.1.0] - 2025-11-30
 

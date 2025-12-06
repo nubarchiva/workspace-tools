@@ -363,6 +363,8 @@ ws update [workspace] [opciones]
 ```
 
 **Opciones:**
+- `--all, -a`: Actualizar TODOS los workspaces
+- `--dry, -d`: Modo simulación, muestra qué haría sin ejecutar
 - `--rebase, -r`: Usar rebase en lugar de merge
 - `--from, -f <branch>`: Especificar branch base (default: develop o master)
 
@@ -371,12 +373,14 @@ ws update [workspace] [opciones]
 - Usa origin/develop si existe, sino develop local
 - Fallback a master si no existe develop
 - Salta repos con cambios sin commitear
-- Se detiene si hay conflictos
+- Se detiene si hay conflictos (excepto en modo `--all`)
 
 **Ejemplos:**
 ```bash
 ws update                 # merge develop en workspace actual
 ws update --rebase        # rebase sobre develop
+ws update --all           # actualizar todos los workspaces
+ws update --all --dry     # ver qué actualizaría sin hacerlo
 ws update feature-123     # workspace específico
 ws update -r --from main  # rebase sobre main
 ```
