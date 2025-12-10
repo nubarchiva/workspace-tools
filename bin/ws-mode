@@ -1,0 +1,91 @@
+#!/bin/bash
+# Gestiona el modo de conectividad (online/offline)
+
+# Inicializacion centralizada
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
+
+# Archivo para persistir el modo
+MODE_FILE="$WS_TOOLS/.ws-mode"
+
+# Función de ayuda
+show_help() {
+    echo "Uso: ws mode [offline|online]"
+    echo ""
+    echo "Gestiona el modo de conectividad de workspace-tools."
+    echo ""
+    echo "Comandos:"
+    echo "  ws mode              Muestra el modo actual"
+    echo "  ws mode offline      Activa modo offline (salta fetch/push)"
+    echo "  ws mode online       Activa modo online (comportamiento normal)"
+    echo ""
+    echo "En modo offline:"
+    echo "  • Se saltan todas las operaciones de red (fetch, push)"
+    echo "  • Los comandos responden inmediatamente sin esperar"
+    echo "  • Útil cuando no hay VPN o conexión"
+    echo ""
+    echo "En modo online (por defecto):"
+    echo "  • Detecta conectividad automáticamente"
+    echo "  • Si hay conexión, hace fetch para datos actualizados"
+    echo "  • Si no hay conexión, salta fetch sin esperar (timeout 2s)"
+}
+
+# Función para leer modo actual
+get_current_mode() {
+    if [ -f "$MODE_FILE" ]; then
+        cat "$MODE_FILE"
+    else
+        echo "online"
+    fi
+}
+
+# Función para establecer modo
+set_mode() {
+    local mode=$1
+    echo "$mode" > "$MODE_FILE"
+}
+
+# Procesar argumentos
+case "${1:-}" in
+    offline)
+        set_mode "offline"
+        success "✅ Modo OFFLINE activado"
+        echo ""
+        echo "${COLOR_DIM}Los comandos saltarán operaciones de red${COLOR_RESET}"
+        echo "${COLOR_DIM}Usa 'ws mode online' para volver al modo normal${COLOR_RESET}"
+        ;;
+
+    online)
+        set_mode "online"
+        success "✅ Modo ONLINE activado"
+        echo ""
+        echo "${COLOR_DIM}Conectividad detectada automáticamente${COLOR_RESET}"
+        ;;
+
+    --help|-h)
+        show_help
+        ;;
+
+    "")
+        # Mostrar modo actual
+        current_mode=$(get_current_mode)
+
+        if [ "$current_mode" = "offline" ]; then
+            echo "Modo actual: ${COLOR_YELLOW}OFFLINE${COLOR_RESET}"
+            echo ""
+            echo "${COLOR_DIM}Los comandos saltan operaciones de red${COLOR_RESET}"
+            echo "${COLOR_DIM}Usa 'ws mode online' para detectar conectividad automáticamente${COLOR_RESET}"
+        else
+            echo "Modo actual: ${COLOR_GREEN}ONLINE${COLOR_RESET}"
+            echo ""
+            echo "${COLOR_DIM}Conectividad detectada automáticamente${COLOR_RESET}"
+            echo "${COLOR_DIM}Usa 'ws mode offline' para forzar modo sin conexión${COLOR_RESET}"
+        fi
+        ;;
+
+    *)
+        error "❌ Modo desconocido: $1"
+        echo ""
+        show_help
+        exit 1
+        ;;
+esac

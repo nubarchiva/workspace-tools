@@ -12,6 +12,9 @@
 .DS_Store
 Thumbs.db
 
+# State files (local to each machine)
+.ws-mode
+
 # Backup files
 *.bak
 *.tmp

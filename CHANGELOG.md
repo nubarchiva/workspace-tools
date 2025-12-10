@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Añadido
+- **`ws mode [offline|online]`** - Control manual del modo de conectividad
+  - `ws mode` - Muestra el modo actual
+  - `ws mode offline` - Fuerza modo sin conexión (salta todas las operaciones de red)
+  - `ws mode online` - Modo normal (detecta conectividad automáticamente)
+  - Persistente: se guarda en `.ws-mode` y se mantiene entre sesiones
+  - También respeta variable de entorno `WS_OFFLINE=1`
+  - Útil cuando no hay VPN y se quiere evitar el timeout de 2 segundos
+
 ### Mejorado
 - **`ws origins list`** - Muestra estado de cada repo en una línea
   - ⚠️ N sin commitear: archivos modificados sin commit

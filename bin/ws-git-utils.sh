@@ -35,12 +35,39 @@ _WS_GIT_UTILS_LOADED=1
 # Cache del estado de conectividad (se evalúa una vez por ejecución)
 _GIT_REMOTE_REACHABLE=""
 
+# Archivo de modo persistente
+_WS_MODE_FILE="${WS_TOOLS:-.}/.ws-mode"
+
+# Verifica si estamos en modo offline forzado
+# Uso: ws_is_offline_mode
+# Retorna: 0 si modo offline, 1 si modo online
+ws_is_offline_mode() {
+    # Variable de entorno tiene prioridad
+    if [ "$WS_OFFLINE" = "1" ] || [ "$WS_OFFLINE" = "true" ]; then
+        return 0
+    fi
+
+    # Comprobar archivo de modo
+    if [ -f "$_WS_MODE_FILE" ] && [ "$(cat "$_WS_MODE_FILE" 2>/dev/null)" = "offline" ]; then
+        return 0
+    fi
+
+    return 1
+}
+
 # Verifica si el remoto es alcanzable
 # Uso: git_is_remote_reachable [repo_path]
 # Retorna: 0 si hay conexión, 1 si no
 # Nota: Cachea el resultado para evitar múltiples comprobaciones
+# Nota: Respeta modo offline (forzado o por archivo)
 git_is_remote_reachable() {
     local repo_path="${1:-.}"
+
+    # Si modo offline forzado, siempre retornar no alcanzable
+    if ws_is_offline_mode; then
+        _GIT_REMOTE_REACHABLE="no"
+        return 1
+    fi
 
     # Si ya comprobamos, devolver resultado cacheado
     if [ -n "$_GIT_REMOTE_REACHABLE" ]; then
