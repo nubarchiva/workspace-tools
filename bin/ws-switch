@@ -3,6 +3,7 @@
 
 # Inicializacion centralizada
 source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-git-utils.sh"
 
 WORKSPACE_PATTERN=$1
 
@@ -104,8 +105,8 @@ echo "$repos" | while read -r repo_rel_path; do
                 fi
 
                 if [ -n "$base_branch" ]; then
-                    # Hacer fetch silencioso para tener refs actualizadas
-                    git fetch origin --quiet 2>/dev/null || true
+                    # Hacer fetch si hay conectividad
+                    git_fetch_if_reachable "$worktree_path"
 
                     base_name="${base_branch#origin/}"
 

@@ -29,6 +29,13 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Continúa con el siguiente workspace si hay conflictos
   - Muestra resumen final con workspaces actualizados y con conflictos
 
+### Corregido
+- **Detección de conectividad** - Los comandos ya no se quedan colgados sin conexión
+  - Nueva función `git_is_remote_reachable()` con timeout de 2 segundos
+  - El resultado se cachea para evitar múltiples comprobaciones
+  - Si no hay conexión, los comandos funcionan con datos locales
+  - Afecta a: `ws switch`, `ws status`, `ws update`
+
 ## [4.1.0] - 2025-11-30
 
 ### Añadido

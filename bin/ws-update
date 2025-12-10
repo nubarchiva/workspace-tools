@@ -137,13 +137,15 @@ show_workspace_summary() {
     local repos_to_update=""
     local repos_with_changes=""
 
-    # Hacer fetch silencioso primero
-    echo "$repos" | while read -r repo_rel_path; do
-        if [ -n "$repo_rel_path" ]; then
-            local repo_path="$ws_dir/$repo_rel_path"
-            git -C "$repo_path" fetch origin --quiet 2>/dev/null || true
-        fi
-    done
+    # Hacer fetch silencioso primero (solo si hay conectividad)
+    if git_is_remote_reachable "$ws_dir"; then
+        echo "$repos" | while read -r repo_rel_path; do
+            if [ -n "$repo_rel_path" ]; then
+                local repo_path="$ws_dir/$repo_rel_path"
+                git -C "$repo_path" fetch origin --quiet 2>/dev/null || true
+            fi
+        done
+    fi
 
     # Analizar cada repo
     while read -r repo_rel_path; do
@@ -239,9 +241,11 @@ update_single_workspace() {
                 continue
             fi
 
-            # Hacer fetch primero
-            echo "   ${COLOR_DIM}Fetching...${COLOR_RESET}"
-            git fetch origin --quiet 2>/dev/null || true
+            # Hacer fetch si hay conectividad
+            if git_is_remote_reachable "$repo_path"; then
+                echo "   ${COLOR_DIM}Fetching...${COLOR_RESET}"
+                git fetch origin --quiet 2>/dev/null || true
+            fi
 
             # Determinar branch base para este repo
             local local_base="$BASE_BRANCH"

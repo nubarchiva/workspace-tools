@@ -29,6 +29,46 @@
 _WS_GIT_UTILS_LOADED=1
 
 # -----------------------------------------------------------------------------
+# Detección de conectividad remota
+# -----------------------------------------------------------------------------
+
+# Cache del estado de conectividad (se evalúa una vez por ejecución)
+_GIT_REMOTE_REACHABLE=""
+
+# Verifica si el remoto es alcanzable
+# Uso: git_is_remote_reachable [repo_path]
+# Retorna: 0 si hay conexión, 1 si no
+# Nota: Cachea el resultado para evitar múltiples comprobaciones
+git_is_remote_reachable() {
+    local repo_path="${1:-.}"
+
+    # Si ya comprobamos, devolver resultado cacheado
+    if [ -n "$_GIT_REMOTE_REACHABLE" ]; then
+        [ "$_GIT_REMOTE_REACHABLE" = "yes" ]
+        return $?
+    fi
+
+    # Comprobar conectividad con timeout de 2 segundos
+    if (cd "$repo_path" 2>/dev/null && timeout 2 git ls-remote --exit-code origin HEAD >/dev/null 2>&1); then
+        _GIT_REMOTE_REACHABLE="yes"
+        return 0
+    else
+        _GIT_REMOTE_REACHABLE="no"
+        return 1
+    fi
+}
+
+# Hace fetch si hay conectividad, sino lo salta silenciosamente
+# Uso: git_fetch_if_reachable [repo_path]
+git_fetch_if_reachable() {
+    local repo_path="${1:-.}"
+
+    if git_is_remote_reachable "$repo_path"; then
+        (cd "$repo_path" && git fetch origin --quiet 2>/dev/null) || true
+    fi
+}
+
+# -----------------------------------------------------------------------------
 # Funciones de verificación de estado
 # -----------------------------------------------------------------------------
 
