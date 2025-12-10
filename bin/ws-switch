@@ -60,6 +60,11 @@ fi
 
 # Mostrar información del workspace
 print_header "Workspace: ${COLOR_BOLD}$WORKSPACE_NAME${COLOR_RESET}"
+
+# Mostrar indicador de modo offline
+if ws_is_offline_mode; then
+    echo "${COLOR_YELLOW}[OFFLINE]${COLOR_RESET} ${COLOR_DIM}Datos locales (sin fetch)${COLOR_RESET}"
+fi
 echo ""
 
 # Mostrar estado de cada repo (incluyendo subdirectorios)

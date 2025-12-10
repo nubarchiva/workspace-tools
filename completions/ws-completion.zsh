@@ -29,6 +29,7 @@ _ws() {
         'rename:Renombra un workspace'
         'info:Muestra información del workspace'
         'origins:Operaciones en repos origen'
+        'mode:Gestiona modo online/offline'
         'help:Muestra ayuda'
         # Aliases
         'ls:Alias de list'
@@ -144,6 +145,13 @@ _ws() {
                 list|ls)
                     # Filtro opcional
                     _get_workspaces
+                    ;;
+                mode)
+                    local -a mode_opts=(
+                        'offline:Forzar modo sin conexión'
+                        'online:Modo normal (auto-detecta)'
+                    )
+                    _describe 'mode options' mode_opts
                     ;;
             esac
             ;;

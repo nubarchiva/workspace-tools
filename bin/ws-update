@@ -205,6 +205,11 @@ update_single_workspace() {
     local branch_name=$(get_branch_name "$ws_name")
 
     print_header "Actualizar workspace: $ws_name"
+
+    # Mostrar indicador de modo offline
+    if ws_is_offline_mode; then
+        echo "${COLOR_YELLOW}[OFFLINE]${COLOR_RESET} ${COLOR_DIM}Datos locales (sin fetch)${COLOR_RESET}"
+    fi
     echo ""
     echo "Workspace: ${COLOR_CYAN}$ws_name${COLOR_RESET}"
     echo "Branch:    ${COLOR_CYAN}$branch_name${COLOR_RESET}"

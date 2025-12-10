@@ -12,6 +12,11 @@ if [ -n "$FILTER_PATTERN" ]; then
 else
     print_header "WORKSPACES ACTIVOS"
 fi
+
+# Mostrar indicador de modo offline
+if ws_is_offline_mode; then
+    echo "${COLOR_YELLOW}[OFFLINE]${COLOR_RESET} ${COLOR_DIM}Datos locales (sin fetch)${COLOR_RESET}"
+fi
 echo ""
 
 # Función para calcular estado de sincronización de un repo
