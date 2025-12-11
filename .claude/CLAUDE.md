@@ -6,16 +6,25 @@
 
 ### Procedimiento obligatorio:
 
-1. Hacer el commit en local normalmente
-2. **INMEDIATAMENTE** modificar la fecha del commit para que esté fuera del horario laboral
-3. Usar `git commit --amend --date="..."` para corregir la fecha
+1. **ANTES de hacer commit**, verificar la hora actual con `date`
+2. Si la hora está **fuera** del horario laboral (antes de 08:00, después de 19:00, o fin de semana):
+   - Hacer el commit normalmente, **SIN modificar la fecha**
+3. Si la hora está **dentro** del horario laboral (08:00-19:00 L-V):
+   - Hacer el commit y luego modificar la fecha con `git commit --amend --date="..."`
+   - Usar una hora fuera de horario laboral del mismo día
 4. **MANTENER COHERENCIA CRONOLÓGICA**: Los commits más recientes deben tener fechas posteriores
 
 ### Ejemplo de fecha válida:
 - Lunes a Viernes: antes de 08:00 o después de 19:00
 - Sábado y Domingo: cualquier hora
 
-### Comando para corregir:
+### Comando para verificar hora actual:
+```bash
+# SIEMPRE ejecutar esto ANTES de decidir si modificar la fecha
+date "+%Y-%m-%d %H:%M:%S %Z %A"
+```
+
+### Comando para corregir (SOLO si es horario laboral):
 ```bash
 # Verificar primero la fecha del último commit para mantener orden cronológico
 git log --format="%ai %s" -1
