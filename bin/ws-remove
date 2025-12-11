@@ -5,21 +5,19 @@
 # Inicializacion centralizada
 source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
 
-WORKSPACE_PATTERN=$1
-shift  # Remover el primer argumento (workspace), el resto son repos
-REPOS_TO_REMOVE="$@"
-
 # Función de ayuda
 show_help() {
-    echo "Uso: ws remove <nombre|patrón> <repo1> [repo2] [repo3] ..."
+    echo "Uso: ws remove [workspace] <repo1> [repo2] [repo3] ..."
     echo ""
     echo "Elimina uno o más repos de un workspace existente."
+    echo "Si no se especifica workspace, usa el actual (auto-detecta)."
     echo ""
     echo "💡 Puedes usar coincidencia parcial para el nombre del workspace"
     echo ""
     echo "Ejemplos:"
-    echo "  ws remove nuba-8400 libs/marc4j"
-    echo "  ws remove nuba-8400 libs/marc4j modules/docs"
+    echo "  ws remove libs/marc4j                         # workspace actual"
+    echo "  ws remove libs/marc4j modules/docs            # múltiples repos"
+    echo "  ws remove nuba-8400 libs/marc4j               # workspace explícito"
     echo "  ws remove fac modules/docs                    # coincidencia parcial"
     echo ""
     echo "Verificaciones:"
@@ -29,9 +27,43 @@ show_help() {
     echo "  • Elimina el worktree y la branch local"
 }
 
-if [ -z "$WORKSPACE_PATTERN" ]; then
+if [ -z "$1" ]; then
     show_help
     exit 1
+fi
+
+# Intentar detectar si el primer argumento es un workspace o un repo
+# Si el primer argumento existe como directorio en el workspace actual, es un repo
+# Si no, intentar como nombre de workspace
+WORKSPACE_PATTERN=""
+REPOS_TO_REMOVE=""
+
+# Intentar auto-detectar workspace actual
+DETECTED_WORKSPACE=$(detect_current_workspace 2>/dev/null || true)
+
+if [ -n "$DETECTED_WORKSPACE" ]; then
+    # Estamos en un workspace, verificar si el primer argumento es un repo
+    DETECTED_WS_DIR="$WORKSPACES_DIR/$DETECTED_WORKSPACE"
+    FIRST_ARG="$1"
+
+    # Comprobar si el primer argumento parece un repo (existe en el workspace actual)
+    if [ -d "$DETECTED_WS_DIR/$FIRST_ARG" ]; then
+        # Es un repo del workspace actual
+        WORKSPACE_PATTERN="$DETECTED_WORKSPACE"
+        REPOS_TO_REMOVE="$@"
+        info "🔍 Workspace detectado: $WORKSPACE_PATTERN"
+        echo ""
+    else
+        # Podría ser un workspace explícito, usar comportamiento clásico
+        WORKSPACE_PATTERN="$1"
+        shift
+        REPOS_TO_REMOVE="$@"
+    fi
+else
+    # No estamos en un workspace, comportamiento clásico
+    WORKSPACE_PATTERN="$1"
+    shift
+    REPOS_TO_REMOVE="$@"
 fi
 
 if [ -z "$REPOS_TO_REMOVE" ]; then
