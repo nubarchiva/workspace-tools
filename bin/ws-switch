@@ -1,27 +1,47 @@
 #!/bin/bash
-# Cambia al workspace especificado y muestra su información
+# Muestra información de un workspace
+# Si se invoca como ws-info: auto-detecta workspace actual
+# Si se invoca como ws-switch: lista workspaces si no hay argumentos
 
 # Inicializacion centralizada
 source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
 source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-git-utils.sh"
 
-WORKSPACE_PATTERN=$1
+# Detectar modo de invocación (info vs switch)
+SCRIPT_NAME=$(basename "$0")
+IS_INFO_MODE=false
+[[ "$SCRIPT_NAME" == "ws-info" ]] && IS_INFO_MODE=true
 
-# Función de ayuda
+# Función de ayuda (ajusta textos según modo)
 show_help() {
-    echo "Uso: ws switch [nombre|patrón]"
-    echo ""
-    echo "💡 Puedes usar coincidencia parcial para el nombre del workspace"
-    echo ""
-    echo "Ejemplos:"
-    echo "  ws switch                    # lista workspaces disponibles"
-    echo "  ws switch master"
-    echo "  ws switch nuba-8400"
-    echo "  ws switch fac                # busca 'fac' en workspaces"
+    if $IS_INFO_MODE; then
+        echo "Uso: ws info [nombre|patrón]"
+        echo ""
+        echo "Muestra información del workspace (sin cambiar de directorio)."
+        echo "Si no se especifica workspace, usa el actual (auto-detecta)."
+        echo ""
+        echo "💡 Puedes usar coincidencia parcial para el nombre del workspace"
+        echo ""
+        echo "Ejemplos:"
+        echo "  ws info                      # workspace actual (auto-detecta)"
+        echo "  ws info master"
+        echo "  ws info nuba-8400"
+        echo "  ws info fac                  # busca 'fac' en workspaces"
+    else
+        echo "Uso: ws switch [nombre|patrón]"
+        echo ""
+        echo "💡 Puedes usar coincidencia parcial para el nombre del workspace"
+        echo ""
+        echo "Ejemplos:"
+        echo "  ws switch                    # lista workspaces disponibles"
+        echo "  ws switch master"
+        echo "  ws switch nuba-8400"
+        echo "  ws switch fac                # busca 'fac' en workspaces"
+    fi
 }
 
-# Si no hay argumentos, listar workspaces
-if [ -z "$WORKSPACE_PATTERN" ]; then
+# Función para listar workspaces disponibles
+list_available_workspaces() {
     echo "Workspaces disponibles:"
     echo ""
 
@@ -37,7 +57,35 @@ if [ -z "$WORKSPACE_PATTERN" ]; then
 
     echo ""
     show_help
+}
+
+# Manejar opciones de ayuda
+if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    show_help
     exit 0
+fi
+
+# Determinar workspace: comportamiento diferente según modo
+WORKSPACE_PATTERN=""
+
+if [ -n "$1" ]; then
+    WORKSPACE_PATTERN="$1"
+else
+    if $IS_INFO_MODE; then
+        # Modo info: intentar auto-detectar workspace actual
+        WORKSPACE_PATTERN=$(detect_current_workspace 2>/dev/null || true)
+        if [ -z "$WORKSPACE_PATTERN" ]; then
+            # No se pudo detectar, mostrar lista
+            list_available_workspaces
+            exit 0
+        fi
+        info "🔍 Workspace detectado: $WORKSPACE_PATTERN"
+        echo ""
+    else
+        # Modo switch: listar workspaces disponibles
+        list_available_workspaces
+        exit 0
+    fi
 fi
 
 # Buscar workspace que coincida con el patrón

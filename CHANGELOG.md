@@ -38,6 +38,19 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Continúa con el siguiente workspace si hay conflictos
   - Muestra resumen final con workspaces actualizados y con conflictos
 
+### Cambiado
+- **Refactorización `ws-info` / `ws-switch`** - Unificados en un solo script
+  - `ws-info` vuelve a ser symlink a `ws-switch`
+  - `ws-switch` detecta cómo fue invocado (`basename $0`) y ajusta comportamiento
+  - Si invocado como `ws-info`: auto-detecta workspace actual
+  - Si invocado como `ws-switch`: lista workspaces disponibles
+  - Elimina ~155 líneas de código duplicado
+  - Comportamiento externo idéntico al anterior
+- **Tests añadidos** - 36 nuevos tests para ws-switch y ws-info
+  - `tests/test_ws_switch.bats` - 18 tests para comportamiento de switch
+  - `tests/test_ws_info.bats` - 18 tests para comportamiento de info
+  - Cobertura: ayuda, búsqueda, información mostrada, repos, modo offline
+
 ### Corregido
 - **Detección de conectividad** - Los comandos ya no se quedan colgados sin conexión
   - Nueva función `git_is_remote_reachable()` con timeout de 2 segundos
