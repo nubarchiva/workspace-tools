@@ -133,10 +133,20 @@ REPOS ORIGEN:
   origins list
       Lista todos los repos origen detectados
 
+CONFIGURACIÓN:
+
+  mode [offline|online]
+      Gestiona el modo de conectividad
+      Ejemplos:
+        ws mode                        # muestra modo actual
+        ws mode offline                # forzar modo sin conexión
+        ws mode online                 # modo normal (auto-detecta)
+
 CARACTERÍSTICAS:
 
   • Búsqueda parcial: usa parte del nombre (ej: ws cd fea)
   • Abreviaturas: n (new), a (add), ls (list), cd (switch), rm (clean)
+  • Detección automática de conectividad (timeout 2s)
   • Nombres especiales: master, develop (usan esas branches)
   • Otros nombres: crean branch feature/<nombre>
 
@@ -168,7 +178,7 @@ fi
 # Función para expandir abreviaturas
 expand_abbreviation() {
     local abbrev=$1
-    local commands="new add remove switch list clean mvn git update stash grep templates status rename info origins help"
+    local commands="new add remove switch list clean mvn git update stash grep templates status rename info origins mode help"
 
     # Aliases predefinidos
     case $abbrev in
@@ -214,7 +224,7 @@ fi
 
 # Mapear subcomandos a scripts
 case $SUBCOMMAND in
-    new|add|remove|switch|list|clean|mvn|git|update|stash|grep|templates|status|rename|info|origins)
+    new|add|remove|switch|list|clean|mvn|git|update|stash|grep|templates|status|rename|info|origins|mode)
         SCRIPT_NAME="ws-$SUBCOMMAND"
         SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_NAME"
 

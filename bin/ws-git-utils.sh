@@ -21,12 +21,78 @@
 #   - git_has_upstream [path]
 #   - git_get_upstream_branch [path]
 #   - git_repo_status [path] - Retorna estado completo en formato parseable
+#   - get_sync_status [path] - Retorna sincronización con develop/master
 #
 # =============================================================================
 
 # Evitar doble carga
 [[ -n "$_WS_GIT_UTILS_LOADED" ]] && return 0
 _WS_GIT_UTILS_LOADED=1
+
+# -----------------------------------------------------------------------------
+# Detección de conectividad remota
+# -----------------------------------------------------------------------------
+
+# Cache del estado de conectividad (se evalúa una vez por ejecución)
+_GIT_REMOTE_REACHABLE=""
+
+# Verifica si estamos en modo offline forzado
+# Uso: ws_is_offline_mode
+# Retorna: 0 si modo offline, 1 si modo online
+ws_is_offline_mode() {
+    # Variable de entorno tiene prioridad
+    if [ "$WS_OFFLINE" = "1" ] || [ "$WS_OFFLINE" = "true" ]; then
+        return 0
+    fi
+
+    # Comprobar archivo de modo (evaluar ruta dinámicamente)
+    local mode_file="${WS_TOOLS:-.}/.ws-mode"
+    if [ -f "$mode_file" ] && [ "$(cat "$mode_file" 2>/dev/null)" = "offline" ]; then
+        return 0
+    fi
+
+    return 1
+}
+
+# Verifica si el remoto es alcanzable
+# Uso: git_is_remote_reachable [repo_path]
+# Retorna: 0 si hay conexión, 1 si no
+# Nota: Cachea el resultado para evitar múltiples comprobaciones
+# Nota: Respeta modo offline (forzado o por archivo)
+git_is_remote_reachable() {
+    local repo_path="${1:-.}"
+
+    # Si modo offline forzado, siempre retornar no alcanzable
+    if ws_is_offline_mode; then
+        _GIT_REMOTE_REACHABLE="no"
+        return 1
+    fi
+
+    # Si ya comprobamos, devolver resultado cacheado
+    if [ -n "$_GIT_REMOTE_REACHABLE" ]; then
+        [ "$_GIT_REMOTE_REACHABLE" = "yes" ]
+        return $?
+    fi
+
+    # Comprobar conectividad con timeout de 2 segundos
+    if (cd "$repo_path" 2>/dev/null && timeout 2 git ls-remote --exit-code origin HEAD >/dev/null 2>&1); then
+        _GIT_REMOTE_REACHABLE="yes"
+        return 0
+    else
+        _GIT_REMOTE_REACHABLE="no"
+        return 1
+    fi
+}
+
+# Hace fetch si hay conectividad, sino lo salta silenciosamente
+# Uso: git_fetch_if_reachable [repo_path]
+git_fetch_if_reachable() {
+    local repo_path="${1:-.}"
+
+    if git_is_remote_reachable "$repo_path"; then
+        (cd "$repo_path" && git fetch origin --quiet 2>/dev/null) || true
+    fi
+}
 
 # -----------------------------------------------------------------------------
 # Funciones de verificación de estado
@@ -234,6 +300,66 @@ git_repo_status() {
     unpulled_count="${unpulled_count:-0}"
 
     echo "${uncommitted_count}:${unpushed_count}:${unpulled_count}:${has_upstream}:${current_branch}:${upstream_branch}"
+}
+
+# -----------------------------------------------------------------------------
+# Función de sincronización con branch base (develop/master)
+# -----------------------------------------------------------------------------
+
+# Calcula estado de sincronización de un repo respecto a develop/master
+# Retorna: "unpushed:pending_merge:behind"
+# - unpushed: commits locales sin push (↑)
+# - pending_merge: commits pusheados pero no en develop (←)
+# - behind: commits de develop que faltan (↓)
+# Uso: get_sync_status [path]
+get_sync_status() {
+    local repo_path="${1:-.}"
+    local current_branch
+    current_branch=$(git -C "$repo_path" branch --show-current 2>/dev/null)
+
+    if [[ -z "$current_branch" ]]; then
+        echo "0:0:0"
+        return
+    fi
+
+    # Determinar branch base (develop o master)
+    local base_branch=""
+    if git -C "$repo_path" rev-parse --verify "origin/develop" >/dev/null 2>&1; then
+        base_branch="origin/develop"
+    elif git -C "$repo_path" rev-parse --verify "develop" >/dev/null 2>&1; then
+        base_branch="develop"
+    elif git -C "$repo_path" rev-parse --verify "origin/master" >/dev/null 2>&1; then
+        base_branch="origin/master"
+    elif git -C "$repo_path" rev-parse --verify "master" >/dev/null 2>&1; then
+        base_branch="master"
+    else
+        echo "0:0:0"
+        return
+    fi
+
+    local unpushed=0
+    local pending_merge=0
+    local behind=0
+
+    # Commits de develop que no tenemos
+    behind=$(git -C "$repo_path" rev-list --count "HEAD..$base_branch" 2>/dev/null || echo "0")
+
+    # Verificar si tiene upstream (branch remota)
+    local upstream
+    upstream=$(git -C "$repo_path" rev-parse --abbrev-ref "@{upstream}" 2>/dev/null)
+
+    if [[ -n "$upstream" ]]; then
+        # Commits locales sin push (--first-parent para no contar commits de merges)
+        unpushed=$(git -C "$repo_path" rev-list --count --first-parent "$upstream..HEAD" 2>/dev/null || echo "0")
+        # Commits pusheados pero no en develop
+        pending_merge=$(git -C "$repo_path" rev-list --count "$base_branch..$upstream" 2>/dev/null || echo "0")
+    else
+        # Sin upstream: todos los commits adelante de develop son "pending_merge" conceptualmente
+        # pero los mostramos como unpushed porque no han sido pusheados
+        unpushed=$(git -C "$repo_path" rev-list --count --first-parent "$base_branch..HEAD" 2>/dev/null || echo "0")
+    fi
+
+    echo "$unpushed:$pending_merge:$behind"
 }
 
 # -----------------------------------------------------------------------------
