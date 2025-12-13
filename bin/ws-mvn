@@ -11,25 +11,8 @@ source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
 WORKSPACE_PATTERN=""
 MVN_ARGS=""
 
-if [ -n "$1" ]; then
-    # Verificar si primer argumento corresponde a un workspace existente
-    first_arg_lower=$(echo "$1" | tr '[:upper:]' '[:lower:]')
-    is_workspace=false
-
-    if [ -d "$WORKSPACES_DIR" ]; then
-        for ws_dir in "$WORKSPACES_DIR"/*; do
-            if [ -d "$ws_dir" ]; then
-                ws_name=$(basename "$ws_dir")
-                ws_name_lower=$(echo "$ws_name" | tr '[:upper:]' '[:lower:]')
-                if [[ "$ws_name_lower" == *"$first_arg_lower"* ]]; then
-                    is_workspace=true
-                    break
-                fi
-            fi
-        done
-    fi
-
-    if [ "$is_workspace" = true ]; then
+if [[ -n "$1" ]]; then
+    if is_workspace_pattern "$1"; then
         # Primer argumento coincide con workspace → modo explícito
         WORKSPACE_PATTERN="$1"
         shift
@@ -37,7 +20,7 @@ if [ -n "$1" ]; then
     else
         # Primer argumento NO es workspace → intentar auto-detección
         DETECTED_WORKSPACE=$(detect_current_workspace 2>/dev/null || true)
-        if [ -n "$DETECTED_WORKSPACE" ]; then
+        if [[ -n "$DETECTED_WORKSPACE" ]]; then
             # Auto-detectado, todos los args son para Maven
             WORKSPACE_PATTERN="$DETECTED_WORKSPACE"
             MVN_ARGS="$@"
@@ -51,12 +34,8 @@ if [ -n "$1" ]; then
 else
     # Sin argumentos, intentar auto-detección
     DETECTED_WORKSPACE=$(detect_current_workspace 2>/dev/null || true)
-    if [ -n "$DETECTED_WORKSPACE" ]; then
+    if [[ -n "$DETECTED_WORKSPACE" ]]; then
         WORKSPACE_PATTERN="$DETECTED_WORKSPACE"
-        # Si primer argumento está vacío (ej: wmci sin args), saltarlo
-        if [ "$#" -gt 0 ] && [ -z "$1" ]; then
-            shift
-        fi
         MVN_ARGS="$@"
     fi
 fi
@@ -90,41 +69,17 @@ show_help() {
     echo "    modules/diffusion-portal"
 }
 
-# Si no se especificó workspace, intentar detectar automáticamente
-if [ -z "$WORKSPACE_PATTERN" ]; then
-    WORKSPACE_PATTERN=$(detect_current_workspace)
-    if [ -z "$WORKSPACE_PATTERN" ]; then
-        error "❌ Error: no se especificó workspace y no se pudo detectar automáticamente"
-        echo ""
-        info "💡 Ejecuta este comando desde dentro de un workspace o especifica el nombre:"
-        echo "   ws mvn <workspace> <argumentos-maven>"
-        echo ""
-        show_help
-        exit 1
-    fi
-    info "🔍 Workspace detectado: $WORKSPACE_PATTERN"
-fi
-
-if [ -z "$MVN_ARGS" ]; then
+# Validar argumentos Maven
+if [[ -z "$MVN_ARGS" ]]; then
     error "❌ Error: debes especificar argumentos para Maven"
     echo ""
     show_help
     exit 1
 fi
 
-# Buscar workspace que coincida con el patrón
-WORKSPACE_NAME=$(find_matching_workspace "$WORKSPACE_PATTERN" "$WORKSPACES_DIR")
-if [ $? -ne 0 ]; then
-    exit 1
-fi
-
-# Determinar directorio del workspace
-WORKSPACE_DIR="$WORKSPACES_DIR/$WORKSPACE_NAME"
+# Resolver workspace (usa WORKSPACE_PATTERN, define WORKSPACE_NAME y WORKSPACE_DIR)
+resolve_workspace "$WORKSPACE_PATTERN" "ws mvn <workspace> <argumentos-maven>"
 BRANCH_NAME="$(get_branch_name "$WORKSPACE_NAME")"
-
-if [ ! -d "$WORKSPACE_DIR" ]; then
-    die "Workspace no existe: $WORKSPACE_NAME"
-fi
 
 print_header "Ejecutando Maven en workspace"
 echo ""

@@ -21,6 +21,7 @@
 #   - git_has_upstream [path]
 #   - git_get_upstream_branch [path]
 #   - git_repo_status [path] - Retorna estado completo en formato parseable
+#   - get_sync_status [path] - Retorna sincronización con develop/master
 #
 # =============================================================================
 
@@ -299,6 +300,66 @@ git_repo_status() {
     unpulled_count="${unpulled_count:-0}"
 
     echo "${uncommitted_count}:${unpushed_count}:${unpulled_count}:${has_upstream}:${current_branch}:${upstream_branch}"
+}
+
+# -----------------------------------------------------------------------------
+# Función de sincronización con branch base (develop/master)
+# -----------------------------------------------------------------------------
+
+# Calcula estado de sincronización de un repo respecto a develop/master
+# Retorna: "unpushed:pending_merge:behind"
+# - unpushed: commits locales sin push (↑)
+# - pending_merge: commits pusheados pero no en develop (←)
+# - behind: commits de develop que faltan (↓)
+# Uso: get_sync_status [path]
+get_sync_status() {
+    local repo_path="${1:-.}"
+    local current_branch
+    current_branch=$(git -C "$repo_path" branch --show-current 2>/dev/null)
+
+    if [[ -z "$current_branch" ]]; then
+        echo "0:0:0"
+        return
+    fi
+
+    # Determinar branch base (develop o master)
+    local base_branch=""
+    if git -C "$repo_path" rev-parse --verify "origin/develop" >/dev/null 2>&1; then
+        base_branch="origin/develop"
+    elif git -C "$repo_path" rev-parse --verify "develop" >/dev/null 2>&1; then
+        base_branch="develop"
+    elif git -C "$repo_path" rev-parse --verify "origin/master" >/dev/null 2>&1; then
+        base_branch="origin/master"
+    elif git -C "$repo_path" rev-parse --verify "master" >/dev/null 2>&1; then
+        base_branch="master"
+    else
+        echo "0:0:0"
+        return
+    fi
+
+    local unpushed=0
+    local pending_merge=0
+    local behind=0
+
+    # Commits de develop que no tenemos
+    behind=$(git -C "$repo_path" rev-list --count "HEAD..$base_branch" 2>/dev/null || echo "0")
+
+    # Verificar si tiene upstream (branch remota)
+    local upstream
+    upstream=$(git -C "$repo_path" rev-parse --abbrev-ref "@{upstream}" 2>/dev/null)
+
+    if [[ -n "$upstream" ]]; then
+        # Commits locales sin push (--first-parent para no contar commits de merges)
+        unpushed=$(git -C "$repo_path" rev-list --count --first-parent "$upstream..HEAD" 2>/dev/null || echo "0")
+        # Commits pusheados pero no en develop
+        pending_merge=$(git -C "$repo_path" rev-list --count "$base_branch..$upstream" 2>/dev/null || echo "0")
+    else
+        # Sin upstream: todos los commits adelante de develop son "pending_merge" conceptualmente
+        # pero los mostramos como unpushed porque no han sido pusheados
+        unpushed=$(git -C "$repo_path" rev-list --count --first-parent "$base_branch..HEAD" 2>/dev/null || echo "0")
+    fi
+
+    echo "$unpushed:$pending_merge:$behind"
 }
 
 # -----------------------------------------------------------------------------

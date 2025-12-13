@@ -159,6 +159,68 @@ require_git_repo() {
 }
 
 # -----------------------------------------------------------------------------
+# Funciones de resolución de workspace
+# -----------------------------------------------------------------------------
+
+# Verifica si un string coincide parcialmente con algún workspace existente
+# Uso: if is_workspace_pattern "8400"; then echo "es workspace"; fi
+# Retorna: 0 si coincide, 1 si no
+is_workspace_pattern() {
+    local pattern="$1"
+    local pattern_lower
+    pattern_lower=$(echo "$pattern" | tr '[:upper:]' '[:lower:]')
+
+    if [[ ! -d "$WORKSPACES_DIR" ]]; then
+        return 1
+    fi
+
+    for ws_dir in "$WORKSPACES_DIR"/*; do
+        if [[ -d "$ws_dir" ]]; then
+            local ws_name ws_name_lower
+            ws_name=$(basename "$ws_dir")
+            ws_name_lower=$(echo "$ws_name" | tr '[:upper:]' '[:lower:]')
+            if [[ "$ws_name_lower" == *"$pattern_lower"* ]]; then
+                return 0
+            fi
+        fi
+    done
+
+    return 1
+}
+
+# Resuelve un patrón de workspace y define WORKSPACE_NAME y WORKSPACE_DIR
+# Si no hay patrón, intenta auto-detectar
+# Uso: resolve_workspace "$WORKSPACE_PATTERN" "ws stash <workspace>"
+#      resolve_workspace "" "ws stash <workspace>"  # auto-detecta
+# Resultado: WORKSPACE_NAME y WORKSPACE_DIR definidos, o exit 1 si falla
+resolve_workspace() {
+    local pattern="$1"
+    local usage_hint="${2:-ws <comando> <workspace>}"
+
+    if [[ -n "$pattern" ]]; then
+        WORKSPACE_NAME=$(find_matching_workspace "$pattern" "$WORKSPACES_DIR")
+        if [[ $? -ne 0 ]]; then
+            exit 1
+        fi
+    else
+        WORKSPACE_NAME=$(detect_current_workspace)
+        if [[ -z "$WORKSPACE_NAME" ]]; then
+            error "❌ No se especificó workspace y no se pudo detectar automáticamente"
+            echo ""
+            info "💡 Ejecuta desde dentro de un workspace o especifica el nombre:"
+            echo "   $usage_hint"
+            exit 1
+        fi
+        info "🔍 Workspace detectado: $WORKSPACE_NAME"
+    fi
+
+    WORKSPACE_DIR="$WORKSPACES_DIR/$WORKSPACE_NAME"
+    if [[ ! -d "$WORKSPACE_DIR" ]]; then
+        die "Workspace no existe: $WORKSPACE_NAME"
+    fi
+}
+
+# -----------------------------------------------------------------------------
 # Debug info (si WS_DEBUG=1)
 # -----------------------------------------------------------------------------
 

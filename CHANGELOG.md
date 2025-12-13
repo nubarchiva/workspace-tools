@@ -46,10 +46,20 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Si invocado como `ws-switch`: lista workspaces disponibles
   - Elimina ~155 líneas de código duplicado
   - Comportamiento externo idéntico al anterior
-- **Tests añadidos** - 36 nuevos tests para ws-switch y ws-info
+- **Refactorización detección de workspace** - Centralización de lógica duplicada
+  - Nueva función `resolve_workspace()` en `ws-init.sh` - Resuelve patrón a WORKSPACE_NAME/DIR
+  - Nueva función `is_workspace_pattern()` en `ws-init.sh` - Verifica si coincide con workspace
+  - Función `get_sync_status()` movida a `ws-git-utils.sh` - Sincronización con develop/master
+  - Scripts refactorizados: ws-stash, ws-grep, ws-mvn, ws-git, ws-list
+  - Elimina ~140 líneas de código duplicado adicionales
+- **Tests añadidos** - 87 nuevos tests
   - `tests/test_ws_switch.bats` - 18 tests para comportamiento de switch
   - `tests/test_ws_info.bats` - 18 tests para comportamiento de info
-  - Cobertura: ayuda, búsqueda, información mostrada, repos, modo offline
+  - `tests/test_ws_stash.bats` - 14 tests para ws-stash
+  - `tests/test_ws_grep.bats` - 14 tests para ws-grep
+  - `tests/test_ws_mvn.bats` - 10 tests para ws-mvn
+  - `tests/test_ws_git.bats` - 13 tests para ws-git
+  - Cobertura: ayuda, validación de argumentos, detección de workspace, funcionalidad
 
 ### Corregido
 - **Detección de conectividad** - Los comandos ya no se quedan colgados sin conexión

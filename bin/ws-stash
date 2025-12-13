@@ -87,30 +87,6 @@ done
 # Funciones de workspace
 # =============================================================================
 
-detect_workspace() {
-    if [ -n "$WORKSPACE_PATTERN" ]; then
-        WORKSPACE_NAME=$(find_matching_workspace "$WORKSPACE_PATTERN" "$WORKSPACES_DIR")
-        if [ $? -ne 0 ]; then
-            exit 1
-        fi
-    else
-        WORKSPACE_NAME=$(detect_current_workspace)
-        if [ -z "$WORKSPACE_NAME" ]; then
-            error "❌ No se especificó workspace y no se pudo detectar automáticamente"
-            echo ""
-            info "💡 Ejecuta desde dentro de un workspace o especifica el nombre:"
-            echo "   ws stash <workspace>"
-            exit 1
-        fi
-        info "🔍 Workspace detectado: $WORKSPACE_NAME"
-    fi
-
-    WORKSPACE_DIR="$WORKSPACES_DIR/$WORKSPACE_NAME"
-    if [ ! -d "$WORKSPACE_DIR" ]; then
-        die "Workspace no existe: $WORKSPACE_NAME"
-    fi
-}
-
 get_repos() {
     find_repos_in_workspace "$WORKSPACE_DIR"
 }
@@ -343,7 +319,7 @@ stash_show() {
 # Main
 # =============================================================================
 
-detect_workspace
+resolve_workspace "$WORKSPACE_PATTERN" "ws stash <workspace>"
 
 repos=$(get_repos)
 
