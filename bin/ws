@@ -142,6 +142,13 @@ CONFIGURACIÓN:
         ws mode offline                # forzar modo sin conexión
         ws mode online                 # modo normal (auto-detecta)
 
+  update-config [--all] [workspace]
+      Actualiza configuración de AI assistants en worktrees
+      Genera .claude/CLAUDE.md real para evitar confusión de working directory
+      Ejemplos:
+        ws update-config --all         # actualizar todos
+        ws update-config feature-123   # actualizar uno específico
+
 CARACTERÍSTICAS:
 
   • Búsqueda parcial: usa parte del nombre (ej: ws cd fea)
@@ -178,7 +185,7 @@ fi
 # Función para expandir abreviaturas
 expand_abbreviation() {
     local abbrev=$1
-    local commands="new add remove switch list clean mvn git update stash grep templates status rename info origins mode help"
+    local commands="new add remove switch list clean mvn git update stash grep templates status rename info origins mode update-config help"
 
     # Aliases predefinidos
     case $abbrev in
@@ -189,6 +196,7 @@ expand_abbreviation() {
         mv) echo "rename"; return 0 ;;
         tpl) echo "templates"; return 0 ;;
         .|here|st) echo "status"; return 0 ;;
+        uc) echo "update-config"; return 0 ;;
         h) echo "help"; return 0 ;;
     esac
 
@@ -224,7 +232,7 @@ fi
 
 # Mapear subcomandos a scripts
 case $SUBCOMMAND in
-    new|add|remove|switch|list|clean|mvn|git|update|stash|grep|templates|status|rename|info|origins|mode)
+    new|add|remove|switch|list|clean|mvn|git|update|stash|grep|templates|status|rename|info|origins|mode|update-config)
         SCRIPT_NAME="ws-$SUBCOMMAND"
         SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_NAME"
 

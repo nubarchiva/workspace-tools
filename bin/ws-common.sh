@@ -172,6 +172,7 @@ find_repos_in_workspace() {
 # Directorio de referencia: usa CONFIG_REFERENCE_DIR si está definida, sino WORKSPACE_ROOT
 copy_workspace_config() {
     local workspace_dir=$1
+    local workspace_name=$(basename "$workspace_dir")
 
     # Evaluar en tiempo de ejecución para asegurar que WORKSPACE_ROOT está definida
     local config_source="${CONFIG_REFERENCE_DIR}"
@@ -182,9 +183,15 @@ copy_workspace_config() {
     echo ""
     echo "📋 Configurando workspace desde $config_source..."
 
-    # Crear symlinks para documentación AI (SSOT - Single Source of Truth)
+    # Crear .claude/CLAUDE.md REAL (no symlink) para evitar confusión de working directory
+    # Claude Code infiere el proyecto desde la ruta de CLAUDE.md, por eso debe ser archivo real
+    mkdir -p "$workspace_dir/.claude"
+    _generate_claude_md "$workspace_dir" "$workspace_name" "$config_source"
+    echo "  • Creando .claude/CLAUDE.md (archivo real, no symlink)"
+
+    # Crear symlink a AI.md para referencia (pero Claude usará .claude/CLAUDE.md primero)
     if [ -f "$config_source/AI.md" ]; then
-        echo "  • Enlazando AI.md (SSOT)"
+        echo "  • Enlazando AI.md (documentación compartida)"
         ln -sf "$config_source/AI.md" "$workspace_dir/AI.md"
     fi
 
@@ -217,6 +224,45 @@ copy_workspace_config() {
     fi
 
     echo "  ✅ Configuración completada"
+}
+
+# Genera el archivo .claude/CLAUDE.md con contenido real para el worktree
+# Uso interno: _generate_claude_md <workspace_dir> <workspace_name> <config_source>
+_generate_claude_md() {
+    local workspace_dir=$1
+    local workspace_name=$2
+    local config_source=$3
+    local claude_md_path="$workspace_dir/.claude/CLAUDE.md"
+
+    cat > "$claude_md_path" << EOF
+# Worktree: $workspace_name
+
+## Working Directory
+
+**IMPORTANTE**: Este es un worktree independiente.
+- Ruta: \`$workspace_dir\`
+- Buscar código SOLO dentro de este directorio
+- NO buscar en la raíz del workspace (\`$config_source\`)
+
+## Documentación Compartida
+
+La documentación AI está disponible via symlinks (SSOT - Single Source of Truth):
+- \`AI.md\` → Guidelines principales del proyecto
+- \`.ai/\` → Documentación técnica detallada
+- \`docs/\` → Documentación general
+
+Para contexto completo del proyecto, consultar:
+- \`.ai/context.md\` - Contexto global del ecosistema
+- \`.ai/coding-standards.md\` - DDD, Clean Architecture, convenciones
+
+## Repos en este Worktree
+
+Los repositorios de código están en subdirectorios de este worktree.
+Usar \`ws info\` o \`ws status\` para ver los repos incluidos.
+
+---
+*Generado automáticamente por workspace-tools*
+EOF
 }
 
 # Función para detectar el workspace actual basándose en el directorio actual
