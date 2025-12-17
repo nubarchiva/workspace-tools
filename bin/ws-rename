@@ -8,7 +8,8 @@ source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
 # Variables globales
 # =============================================================================
 
-REPOS_DIR="$WORKSPACE_ROOT/repos"
+# NOTA: Los repos están directamente en WORKSPACE_ROOT, no en un subdirectorio /repos
+REPOS_DIR="$WORKSPACE_ROOT"
 OLD_NAME="$1"
 NEW_NAME="$2"
 
@@ -310,9 +311,8 @@ repair_worktrees() {
     echo "$repos" | while IFS= read -r repo_rel_path; do
         [ -z "$repo_rel_path" ] && continue
 
-        local repo_name repo_main
-        repo_name=$(basename "$repo_rel_path")
-        repo_main="$REPOS_DIR/$repo_name"
+        # Usar ruta relativa completa, no solo basename (para repos en subdirs como libs/marc4j)
+        local repo_main="$REPOS_DIR/$repo_rel_path"
 
         if [ -d "$repo_main/.git" ]; then
             if (cd "$repo_main" && git worktree repair >/dev/null 2>&1); then
