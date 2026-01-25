@@ -25,6 +25,9 @@ setup_test_environment() {
     mkdir -p "$TEST_WORKSPACE_ROOT"
     mkdir -p "$TEST_WORKSPACES_DIR"
 
+    # IMPORTANTE: Ignorar ~/.wsrc para que no sobrescriba las variables de test
+    export WS_CONFIG_FILE="/dev/null"
+
     # Sobrescribir variables de entorno para que los scripts usen el entorno de prueba
     export WORKSPACE_ROOT="$TEST_WORKSPACE_ROOT"
     export WORKSPACES_DIR="$TEST_WORKSPACES_DIR"
