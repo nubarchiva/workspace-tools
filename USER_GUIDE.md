@@ -467,6 +467,42 @@ ws templates remove old-template
 
 ---
 
+### ws prune
+
+Limpia ramas locales huérfanas (cuyo remoto ya no existe).
+
+```bash
+ws prune [opciones] [repo...]
+```
+
+**Opciones:**
+- `--dry-run`: Muestra qué se borraría sin borrar nada
+- `--force`: Borra incluso ramas no mergeadas (¡PELIGRO!)
+- `--all`: Aplica a todos los repos del workspace
+
+**Comportamiento:**
+- Por defecto, solo borra ramas que:
+  1. Ya no existen en el remoto (marcadas como `gone`)
+  2. Están completamente mergeadas en develop/main
+- Con `--force`, borra TODAS las ramas huérfanas (posible pérdida de datos)
+- Hace `git fetch --prune` automáticamente antes de analizar
+
+**¿Por qué existen estas ramas?**
+- Se crean automáticamente al hacer `git checkout` de una rama remota
+- O cuando `ws new` / `ws add` crean worktrees
+- Permanecen incluso cuando la rama remota se borra (tras merge de PR)
+
+**Ejemplos:**
+```bash
+ws prune                    # limpia repo actual (solo mergeadas)
+ws prune --dry-run          # ver qué se borraría
+ws prune --all              # limpia todos los repos
+ws prune --all --dry-run    # ver qué se borraría en todos
+ws prune --force ks-nuba    # forzar en repo específico
+```
+
+---
+
 ### ws origins
 
 Ejecuta comandos en todos los repos origen (en WORKSPACE_ROOT).

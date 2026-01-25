@@ -121,6 +121,7 @@ ws clean feature-123
 | `ws update [--rebase]` | Merge/rebase de develop |
 | `ws stash [push\|pop\|list]` | Stash coordinado |
 | `ws grep <patrón>` | Buscar en todos los repos |
+| `ws prune [--all]` | Limpiar ramas locales huérfanas |
 | `ws origins git <cmd>` | Git en repos origen |
 
 ### Templates

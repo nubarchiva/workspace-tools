@@ -120,6 +120,18 @@ OPERACIONES MULTI-REPO:
         ws templates add frontend ks-nuba libs/ui
         ws tpl show backend                 # alias
 
+  prune [--dry-run] [--force] [--all] [repo...]
+      Limpia ramas locales huérfanas (sin remoto)
+      Por defecto solo borra ramas ya mergeadas en develop/main
+      Opciones:
+        --dry-run   Muestra qué se borraría sin borrar
+        --force     Borra incluso ramas no mergeadas (¡PELIGRO!)
+        --all       Aplica a todos los repos del workspace
+      Ejemplos:
+        ws prune                            # limpia repo actual
+        ws prune --dry-run --all            # ver qué se borraría
+        ws prune --force ks-nuba            # forzar en repo específico
+
 REPOS ORIGEN:
 
   origins git <comando> [args]
@@ -178,7 +190,7 @@ fi
 # Función para expandir abreviaturas
 expand_abbreviation() {
     local abbrev=$1
-    local commands="new add remove switch list clean mvn git update stash grep templates status rename info origins mode help"
+    local commands="new add remove switch list clean mvn git update stash grep templates status rename info origins mode prune help"
 
     # Aliases predefinidos
     case $abbrev in
@@ -224,7 +236,7 @@ fi
 
 # Mapear subcomandos a scripts
 case $SUBCOMMAND in
-    new|add|remove|switch|list|clean|mvn|git|update|stash|grep|templates|status|rename|info|origins|mode)
+    new|add|remove|switch|list|clean|mvn|git|update|stash|grep|templates|status|rename|info|origins|mode|prune)
         SCRIPT_NAME="ws-$SUBCOMMAND"
         SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_NAME"
 

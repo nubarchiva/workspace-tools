@@ -8,6 +8,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **`ws prune [--dry-run] [--force] [--all]`** - Limpia ramas locales huérfanas
+  - Elimina ramas locales cuyo remoto ya no existe (marcadas como `gone`)
+  - Por defecto solo borra ramas ya mergeadas en develop/main (seguro)
+  - `--dry-run`: muestra qué se borraría sin borrar
+  - `--force`: borra incluso ramas no mergeadas (posible pérdida de datos)
+  - `--all`: aplica a todos los repos del workspace
+  - Hace `git fetch --prune` automáticamente
+  - Explica por qué existen estas ramas (creadas por checkout/worktree)
 - **`ws mode [offline|online]`** - Control manual del modo de conectividad
   - `ws mode` - Muestra el modo actual
   - `ws mode offline` - Fuerza modo sin conexión (salta todas las operaciones de red)

@@ -1,0 +1,246 @@
+#!/bin/bash
+#
+# ws-prune - Limpia ramas locales huérfanas (sin remoto)
+#
+# Uso: ws prune [opciones] [repo...]
+#
+# Opciones:
+#   --dry-run    Muestra qué se borraría sin borrar nada
+#   --force      Borra incluso ramas no mergeadas (¡PELIGRO!)
+#   --all        Aplica a todos los repos del workspace
+#   -h, --help   Muestra esta ayuda
+#
+
+# Inicializacion centralizada
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
+
+# Opciones
+DRY_RUN=false
+FORCE=false
+ALL_REPOS=false
+REPOS=()
+
+show_help() {
+    cat << 'EOF'
+ws prune - Limpia ramas locales huérfanas (sin remoto)
+
+USO:
+    ws prune [opciones] [repo...]
+
+DESCRIPCIÓN:
+    Elimina ramas locales cuyo remoto ya no existe (marcadas como 'gone').
+    Por defecto, solo elimina ramas que ya están mergeadas en develop/main.
+
+OPCIONES:
+    --dry-run    Muestra qué se borraría sin borrar nada
+    --force      Borra incluso ramas no mergeadas (¡PELIGRO: posible pérdida de datos!)
+    --all        Aplica a todos los repos del workspace
+    -h, --help   Muestra esta ayuda
+
+EJEMPLOS:
+    ws prune                    # Limpia repo actual (solo mergeadas)
+    ws prune --dry-run          # Ver qué se borraría
+    ws prune --all              # Limpia todos los repos
+    ws prune --force ks-nuba    # Limpia ks-nuba incluyendo no mergeadas
+    ws prune --all --dry-run    # Ver qué se borraría en todos los repos
+
+SEGURIDAD:
+    Sin --force, solo se borran ramas que:
+    1. Ya no existen en el remoto (': gone]')
+    2. Están completamente mergeadas en develop o main
+
+    Con --force se borran TODAS las ramas huérfanas, incluso con commits
+    no mergeados. Usar con precaución.
+EOF
+}
+
+# Parsear argumentos
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --force)
+            FORCE=true
+            shift
+            ;;
+        --all)
+            ALL_REPOS=true
+            shift
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        -*)
+            error "Opción desconocida: $1"
+            echo "Usa 'ws prune --help' para ver opciones disponibles"
+            exit 1
+            ;;
+        *)
+            REPOS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+# Función para detectar el repo actual desde el directorio de trabajo
+detect_current_repo() {
+    local current_dir="$(pwd)"
+
+    # Si estamos dentro de WORKSPACE_ROOT
+    if [[ "$current_dir" == "$WORKSPACE_ROOT"/* ]]; then
+        # Extraer ruta relativa
+        local rel_path="${current_dir#$WORKSPACE_ROOT/}"
+
+        # Buscar el repo más cercano subiendo en la jerarquía
+        local check_dir="$current_dir"
+        while [[ "$check_dir" != "$WORKSPACE_ROOT" && "$check_dir" != "/" ]]; do
+            if [[ -d "$check_dir/.git" ]] || [[ -f "$check_dir/.git" ]]; then
+                # Encontrado un repo, devolver ruta relativa desde WORKSPACE_ROOT
+                echo "${check_dir#$WORKSPACE_ROOT/}"
+                return 0
+            fi
+            check_dir="$(dirname "$check_dir")"
+        done
+    fi
+
+    return 1
+}
+
+# Determinar repos a procesar
+if $ALL_REPOS; then
+    # Buscar todos los repos principales (no worktrees)
+    # Los repos principales tienen .git como directorio, los worktrees tienen .git como archivo
+    REPOS=()
+    while IFS= read -r -d '' gitdir; do
+        if [[ -d "$gitdir" ]]; then  # Solo directorios .git (repos principales)
+            repo_dir="$(dirname "$gitdir")"
+            repo_name="${repo_dir#$WORKSPACE_ROOT/}"
+            # Excluir workspaces (están en workspaces/)
+            if [[ "$repo_name" != workspaces/* ]]; then
+                REPOS+=("$repo_name")
+            fi
+        fi
+    done < <(find "$WORKSPACE_ROOT" -maxdepth 3 -name ".git" -print0 2>/dev/null)
+elif [ ${#REPOS[@]} -eq 0 ]; then
+    # Usar repo actual si estamos en uno
+    CURRENT_REPO=$(detect_current_repo)
+    if [ -n "$CURRENT_REPO" ]; then
+        REPOS=("$CURRENT_REPO")
+    else
+        error "No estás en un repositorio. Usa --all o especifica repos."
+        exit 1
+    fi
+fi
+
+# Función para limpiar un repo
+prune_repo() {
+    local repo_path="$1"
+    local repo_name="$2"
+
+    if [[ ! -d "$repo_path/.git" ]] && [[ ! -f "$repo_path/.git" ]]; then
+        warning "  ⚠️  $repo_name: No es un repositorio git"
+        return 0
+    fi
+
+    cd "$repo_path" || return 1
+
+    # Primero, actualizar referencias remotas
+    git fetch --prune --quiet 2>/dev/null || true
+
+    # Detectar rama base (develop o main)
+    local base_branch="develop"
+    if ! git rev-parse --verify develop &>/dev/null; then
+        if git rev-parse --verify main &>/dev/null; then
+            base_branch="main"
+        else
+            base_branch="master"
+        fi
+    fi
+
+    # Buscar ramas huérfanas (gone)
+    local gone_branches=()
+    local merged_branches=()
+    local unmerged_branches=()
+
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        branch=$(echo "$line" | awk '{print $1}')
+        [ -z "$branch" ] && continue
+        gone_branches+=("$branch")
+
+        # Verificar si está mergeada
+        if git branch --merged "$base_branch" 2>/dev/null | grep -q "^[* ]*${branch}$"; then
+            merged_branches+=("$branch")
+        else
+            unmerged_branches+=("$branch")
+        fi
+    done < <(git branch -vv 2>/dev/null | grep ': gone]' | awk '{print $1}')
+
+    # Mostrar resultados
+    local total=${#gone_branches[@]}
+    local merged=${#merged_branches[@]}
+    local unmerged=${#unmerged_branches[@]}
+
+    if [ $total -eq 0 ]; then
+        success "  ✅ $repo_name: Sin ramas huérfanas"
+        return 0
+    fi
+
+    echo "  📦 $repo_name: $total huérfanas ($merged mergeadas, $unmerged sin mergear)"
+
+    # Procesar ramas mergeadas (seguras)
+    for branch in "${merged_branches[@]}"; do
+        if $DRY_RUN; then
+            info "      [dry-run] Borraría: $branch (mergeada)"
+        else
+            if git branch -d "$branch" &>/dev/null; then
+                success "      ✅ Borrada: $branch"
+            else
+                error "      ❌ Error al borrar: $branch"
+            fi
+        fi
+    done
+
+    # Procesar ramas no mergeadas (solo con --force)
+    for branch in "${unmerged_branches[@]}"; do
+        if $FORCE; then
+            if $DRY_RUN; then
+                warning "      [dry-run] Borraría: $branch (NO mergeada, --force)"
+            else
+                if git branch -D "$branch" &>/dev/null; then
+                    warning "      ⚠️  Borrada (forzado): $branch"
+                else
+                    error "      ❌ Error al borrar: $branch"
+                fi
+            fi
+        else
+            warning "      ⏭️  Saltada: $branch (no mergeada, usa --force para borrar)"
+        fi
+    done
+}
+
+# Header
+echo ""
+if $DRY_RUN; then
+    info "🔍 Modo dry-run: mostrando qué se borraría"
+fi
+if $FORCE; then
+    warning "⚠️  Modo force: se borrarán incluso ramas no mergeadas"
+fi
+echo ""
+echo "Limpiando ramas huérfanas en ${#REPOS[@]} repo(s)..."
+echo ""
+
+# Procesar cada repo
+for repo in "${REPOS[@]}"; do
+    repo_path="$WORKSPACE_ROOT/$repo"
+    prune_repo "$repo_path" "$repo"
+done
+
+echo ""
+if $DRY_RUN; then
+    info "💡 Ejecuta sin --dry-run para aplicar los cambios"
+fi
