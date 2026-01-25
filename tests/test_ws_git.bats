@@ -16,7 +16,7 @@ teardown() {
 # Tests de ayuda
 # =============================================================================
 
-@test "ws-git: sin argumentos y sin workspace detectado muestra error" {
+@test "ws-git: no args and no detected workspace shows error" {
     cd "$TEST_WORKSPACE_ROOT"
     run run_ws git
 
@@ -25,7 +25,7 @@ teardown() {
     [[ "$output" == *"no se especificó"* ]] || [[ "$output" == *"no se pudo detectar"* ]] || [[ "$output" == *"comando"* ]]
 }
 
-@test "ws-git: workspace sin comando git muestra error" {
+@test "ws-git: workspace without git command shows error" {
     mkdir -p "$TEST_WORKSPACES_DIR/git-test"
 
     run run_ws git git-test
@@ -35,17 +35,17 @@ teardown() {
 }
 
 # =============================================================================
-# Tests de detección de workspace
+# Tests de deteccion de workspace
 # =============================================================================
 
-@test "ws-git: workspace inexistente falla" {
+@test "ws-git: nonexistent workspace fails" {
     run run_ws git no-existe-xyz status
 
     [ "$status" -eq 1 ]
     [[ "$output" == *"No se encontró"* ]] || [[ "$output" == *"no existe"* ]]
 }
 
-@test "ws-git: coincidencia parcial encuentra workspace" {
+@test "ws-git: partial match finds workspace" {
     mkdir -p "$TEST_WORKSPACES_DIR/feature-GIT-4321"
 
     run run_ws git 4321 status
@@ -54,7 +54,7 @@ teardown() {
     [[ "$output" == *"GIT-4321"* ]] || [[ "$output" == *"feature-GIT-4321"* ]] || [[ "$output" == *"No hay repos"* ]]
 }
 
-@test "ws-git: workspace vacío falla con mensaje claro" {
+@test "ws-git: empty workspace fails with clear message" {
     mkdir -p "$TEST_WORKSPACES_DIR/git-vacio"
 
     run run_ws git git-vacio status
@@ -64,10 +64,10 @@ teardown() {
 }
 
 # =============================================================================
-# Tests de detección inteligente de argumentos
+# Tests de deteccion inteligente de argumentos
 # =============================================================================
 
-@test "ws-git: sin workspace y sin auto-detección falla" {
+@test "ws-git: no workspace and no auto-detection fails" {
     # Sin crear ningún workspace, ejecutar desde la raíz
     cd "$TEST_WORKSPACE_ROOT"
     run run_ws git status
@@ -78,7 +78,7 @@ teardown() {
     [[ "$output" == *"No se encontró"* ]] || [[ "$output" == *"no se pudo detectar"* ]] || [[ "$output" == *"no se especificó"* ]] || [[ "$output" == *"debes especificar"* ]]
 }
 
-@test "ws-git: workspace explícito toma args restantes como git args" {
+@test "ws-git: explicit workspace takes remaining args as git args" {
     mkdir -p "$TEST_WORKSPACES_DIR/explicit-git"
     create_test_repo "repo-git-explicit"
 
@@ -97,7 +97,7 @@ teardown() {
 # Tests de comandos git
 # =============================================================================
 
-@test "ws-git: status muestra estado de repos" {
+@test "ws-git: status shows repo state" {
     mkdir -p "$TEST_WORKSPACES_DIR/git-status"
     create_test_repo "repo-status"
 
@@ -111,7 +111,7 @@ teardown() {
     [[ "$output" == *"repo-status"* ]]
 }
 
-@test "ws-git: muestra header con información del workspace" {
+@test "ws-git: shows header with workspace info" {
     mkdir -p "$TEST_WORKSPACES_DIR/header-git"
     create_test_repo "repo-header-git"
 
@@ -126,7 +126,7 @@ teardown() {
     [[ "$output" == *"Workspace"* ]] || [[ "$output" == *"Branch"* ]]
 }
 
-@test "ws-git: log funciona en todos los repos" {
+@test "ws-git: log works in all repos" {
     mkdir -p "$TEST_WORKSPACES_DIR/git-log"
     create_test_repo "repo-log"
 
@@ -144,7 +144,7 @@ teardown() {
 # Tests de push especial
 # =============================================================================
 
-@test "ws-git: push sin upstream y sin commits no crea branch remota" {
+@test "ws-git: push without upstream and commits does not create remote branch" {
     mkdir -p "$TEST_WORKSPACES_DIR/git-push-vacio"
     create_test_repo "repo-push-vacio"
 
@@ -163,7 +163,7 @@ teardown() {
 # Tests de múltiples repos
 # =============================================================================
 
-@test "ws-git: ejecuta en múltiples repos" {
+@test "ws-git: runs in multiple repos" {
     mkdir -p "$TEST_WORKSPACES_DIR/multi-repo"
     create_test_repo "repo-uno"
     create_test_repo "repo-dos"
@@ -183,7 +183,7 @@ teardown() {
     [[ "$output" == *"repo-dos"* ]]
 }
 
-@test "ws-git: éxito muestra mensaje de confirmación" {
+@test "ws-git: success shows confirmation message" {
     mkdir -p "$TEST_WORKSPACES_DIR/git-ok"
     create_test_repo "repo-ok"
 

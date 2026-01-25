@@ -16,21 +16,21 @@ teardown() {
 # Tests de ayuda
 # =============================================================================
 
-@test "ws-grep: -h muestra ayuda" {
+@test "ws-grep: -h shows help" {
     run run_ws grep -h
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Uso: ws grep"* ]]
 }
 
-@test "ws-grep: --help muestra ayuda" {
+@test "ws-grep: --help shows help" {
     run run_ws grep --help
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Uso: ws grep"* ]]
 }
 
-@test "ws-grep: ayuda menciona opciones" {
+@test "ws-grep: help mentions options" {
     run run_ws grep --help
 
     [ "$status" -eq 0 ]
@@ -43,14 +43,14 @@ teardown() {
 # Tests de validación de argumentos
 # =============================================================================
 
-@test "ws-grep: sin patrón falla con mensaje claro" {
+@test "ws-grep: no pattern fails with clear message" {
     run run_ws grep
 
     [ "$status" -eq 1 ]
     [[ "$output" == *"patrón"* ]] || [[ "$output" == *"Debes especificar"* ]]
 }
 
-@test "ws-grep: opción desconocida falla" {
+@test "ws-grep: unknown option fails" {
     run run_ws grep --opcion-invalida "patron"
 
     [ "$status" -eq 1 ]
@@ -58,17 +58,17 @@ teardown() {
 }
 
 # =============================================================================
-# Tests de detección de workspace
+# Tests de deteccion de workspace
 # =============================================================================
 
-@test "ws-grep: workspace inexistente falla" {
+@test "ws-grep: nonexistent workspace fails" {
     run run_ws grep "patron" no-existe-xyz
 
     [ "$status" -eq 1 ]
     [[ "$output" == *"No se encontró"* ]] || [[ "$output" == *"no existe"* ]]
 }
 
-@test "ws-grep: sin workspace fuera de workspace falla" {
+@test "ws-grep: no workspace outside workspace fails" {
     cd "$TEST_WORKSPACE_ROOT"
     run run_ws grep "patron"
 
@@ -76,7 +76,7 @@ teardown() {
     [[ "$output" == *"no se pudo detectar"* ]] || [[ "$output" == *"No se especificó"* ]]
 }
 
-@test "ws-grep: coincidencia parcial encuentra workspace" {
+@test "ws-grep: partial match finds workspace" {
     mkdir -p "$TEST_WORKSPACES_DIR/feature-GREP-1234"
     create_test_repo "repo-grep"
 
@@ -91,10 +91,10 @@ teardown() {
 }
 
 # =============================================================================
-# Tests de búsqueda
+# Tests de busqueda
 # =============================================================================
 
-@test "ws-grep: workspace vacío falla" {
+@test "ws-grep: empty workspace fails" {
     mkdir -p "$TEST_WORKSPACES_DIR/grep-vacio"
 
     run run_ws grep "patron" grep-vacio
@@ -103,7 +103,7 @@ teardown() {
     [[ "$output" == *"No hay repos"* ]]
 }
 
-@test "ws-grep: búsqueda sin resultados muestra mensaje" {
+@test "ws-grep: search without results shows message" {
     mkdir -p "$TEST_WORKSPACES_DIR/grep-sin-resultado"
     create_test_repo "repo-busqueda"
 
@@ -117,7 +117,7 @@ teardown() {
     [[ "$output" == *"No se encontraron"* ]]
 }
 
-@test "ws-grep: búsqueda con resultados muestra coincidencias" {
+@test "ws-grep: search with results shows matches" {
     mkdir -p "$TEST_WORKSPACES_DIR/grep-con-resultado"
     create_test_repo "repo-con-texto"
 
@@ -138,7 +138,7 @@ teardown() {
 # Tests de opciones
 # =============================================================================
 
-@test "ws-grep: -i busca case-insensitive" {
+@test "ws-grep: -i searches case-insensitive" {
     mkdir -p "$TEST_WORKSPACES_DIR/grep-case"
     create_test_repo "repo-case"
 
@@ -155,7 +155,7 @@ teardown() {
     [[ "$output" == *"TextoMixto"* ]] || [[ "$output" == *"archivo.txt"* ]]
 }
 
-@test "ws-grep: --type filtra por extensión" {
+@test "ws-grep: --type filters by extension" {
     mkdir -p "$TEST_WORKSPACES_DIR/grep-type"
     create_test_repo "repo-type"
 
@@ -177,7 +177,7 @@ teardown() {
 # Tests de header y formato
 # =============================================================================
 
-@test "ws-grep: muestra header con patrón buscado" {
+@test "ws-grep: shows header with search pattern" {
     mkdir -p "$TEST_WORKSPACES_DIR/grep-header"
     create_test_repo "repo-header"
 

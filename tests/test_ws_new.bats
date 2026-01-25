@@ -23,25 +23,25 @@ run_ws_new() {
 # Tests de ayuda y validacion basica
 # =============================================================================
 
-@test "ws-new: sin argumentos muestra ayuda y sale con 1" {
+@test "ws-new: no args shows help and exits with 1" {
     run run_ws_new
     [ "$status" -eq 1 ]
     [[ "$output" == *"Uso:"* ]]
 }
 
-@test "ws-new: ayuda muestra ejemplos" {
+@test "ws-new: help shows examples" {
     run run_ws_new
     [[ "$output" == *"Ejemplos"* ]]
     [[ "$output" == *"ws new"* ]]
 }
 
-@test "ws-new: ayuda menciona master y develop" {
+@test "ws-new: help mentions master and develop" {
     run run_ws_new
     [[ "$output" == *"master"* ]]
     [[ "$output" == *"develop"* ]]
 }
 
-@test "ws-new: nombre vacio muestra ayuda" {
+@test "ws-new: empty name shows help" {
     run run_ws_new ""
     [ "$status" -eq 1 ]
     [[ "$output" == *"Uso:"* ]]
@@ -51,19 +51,19 @@ run_ws_new() {
 # Tests de creacion de workspace
 # =============================================================================
 
-@test "ws-new: crea directorio del workspace" {
+@test "ws-new: creates workspace directory" {
     run run_ws_new "test-workspace"
     [ "$status" -eq 0 ]
     [ -d "$TEST_WORKSPACES_DIR/test-workspace" ]
 }
 
-@test "ws-new: workspace sin repos muestra mensaje informativo" {
+@test "ws-new: workspace without repos shows informative message" {
     run run_ws_new "empty-workspace"
     [ "$status" -eq 0 ]
     [[ "$output" == *"ws add"* ]]
 }
 
-@test "ws-new: crea workspace con un repo" {
+@test "ws-new: creates workspace with one repo" {
     create_test_repo "mi-repo"
 
     run run_ws_new "test-ws" "mi-repo"
@@ -72,7 +72,7 @@ run_ws_new() {
     [ -d "$TEST_WORKSPACES_DIR/test-ws/mi-repo" ]
 }
 
-@test "ws-new: crea workspace con multiples repos" {
+@test "ws-new: creates workspace with multiple repos" {
     create_test_repo "repo-a"
     create_test_repo "repo-b"
 
@@ -82,7 +82,7 @@ run_ws_new() {
     [ -d "$TEST_WORKSPACES_DIR/multi-ws/repo-b" ]
 }
 
-@test "ws-new: crea workspace con repo en subdirectorio" {
+@test "ws-new: creates workspace with repo in subdirectory" {
     create_test_repo "libs/mi-lib"
 
     run run_ws_new "subdir-ws" "libs/mi-lib"
@@ -90,7 +90,7 @@ run_ws_new() {
     [ -d "$TEST_WORKSPACES_DIR/subdir-ws/libs/mi-lib" ]
 }
 
-@test "ws-new: repo inexistente muestra warning pero no falla" {
+@test "ws-new: nonexistent repo shows warning but does not fail" {
     run run_ws_new "test-ws" "repo-que-no-existe"
     [ "$status" -eq 0 ]
     [[ "$output" == *"no encontrado"* ]] || [[ "$output" == *"saltando"* ]]
@@ -100,7 +100,7 @@ run_ws_new() {
 # Tests de branches
 # =============================================================================
 
-@test "ws-new: master usa branch master" {
+@test "ws-new: master uses master branch" {
     create_test_repo "mi-repo"
 
     # Cambiar el repo principal a otra branch para poder crear worktree en master
@@ -119,7 +119,7 @@ run_ws_new() {
     [ "$branch" = "master" ]
 }
 
-@test "ws-new: develop usa branch develop" {
+@test "ws-new: develop uses develop branch" {
     create_test_repo "mi-repo"
 
     # Crear branch develop si no existe
@@ -138,7 +138,7 @@ run_ws_new() {
     [ "$branch" = "develop" ]
 }
 
-@test "ws-new: feature crea branch feature/nombre" {
+@test "ws-new: feature creates branch feature/nombre" {
     create_test_repo "mi-repo"
 
     run run_ws_new "mi-feature" "mi-repo"
@@ -153,7 +153,7 @@ run_ws_new() {
 # Tests de worktrees
 # =============================================================================
 
-@test "ws-new: crea worktree de git valido" {
+@test "ws-new: creates valid git worktree" {
     create_test_repo "mi-repo"
 
     run run_ws_new "worktree-test" "mi-repo"
@@ -167,7 +167,7 @@ run_ws_new() {
     [ "$status" -eq 0 ]
 }
 
-@test "ws-new: worktree aparece en git worktree list" {
+@test "ws-new: worktree appears in git worktree list" {
     create_test_repo "mi-repo"
 
     run_ws_new "listed-ws" "mi-repo"

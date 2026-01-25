@@ -26,13 +26,13 @@ run_ws_clean() {
 # Tests que funcionan
 # =============================================================================
 
-@test "ws-clean: sin argumentos muestra ayuda" {
+@test "ws-clean: no args shows help" {
     run run_ws_clean
     [ "$status" -eq 1 ]
     [[ "$output" == *"Uso:"* ]] || [[ "$output" == *"ws clean"* ]]
 }
 
-@test "ws-clean: ayuda menciona verificaciones" {
+@test "ws-clean: help mentions verificaciones" {
     run run_ws_clean
     [[ "$output" == *"cambios"* ]] || [[ "$output" == *"pendientes"* ]] || [[ "$output" == *"Ejemplo"* ]]
 }
@@ -41,13 +41,13 @@ run_ws_clean() {
 # Tests de integracion (requieren refactoring)
 # =============================================================================
 
-@test "ws-clean: workspace inexistente falla" {
+@test "ws-clean: nonexistent workspace fails" {
     run run_ws_clean "no-existe"
     [ "$status" -ne 0 ]
     [[ "$output" == *"no existe"* ]] || [[ "$output" == *"No se encontr"* ]]
 }
 
-@test "ws-clean: elimina workspace vacio" {
+@test "ws-clean: removes empty workspace" {
     mkdir -p "$TEST_WORKSPACES_DIR/vacio"
 
     # Simular confirmacion con subshell
@@ -64,7 +64,7 @@ run_ws_clean() {
     [ ! -d "$TEST_WORKSPACES_DIR/vacio" ]
 }
 
-@test "ws-clean: busqueda parcial funciona" {
+@test "ws-clean: partial search works" {
     mkdir -p "$TEST_WORKSPACES_DIR/NUBA-8400-feature"
 
     # Buscar por "8400" con confirmacion
@@ -80,7 +80,7 @@ run_ws_clean() {
     [ "$exit_code" -eq 0 ]
 }
 
-@test "ws-clean: advierte sobre cambios sin commitear" {
+@test "ws-clean: warns about uncommitted changes" {
     mkdir -p "$TEST_WORKSPACES_DIR/con-cambios/mi-repo"
 
     # Crear repo con cambios
@@ -98,7 +98,7 @@ run_ws_clean() {
     [[ "$output" == *"cambios"* ]] || [[ "$output" == *"sin commitear"* ]]
 }
 
-@test "ws-clean: elimina worktrees de git" {
+@test "ws-clean: removes git worktrees" {
     # Este test verifica que git worktree prune se ejecuta
     # Requiere setup mas complejo con repo principal
     # Test simplificado: verificar que funciona con workspace sin repos
@@ -108,7 +108,7 @@ run_ws_clean() {
     [ "$status" -eq 0 ]
 }
 
-@test "ws-clean: opcion --force omite confirmacion" {
+@test "ws-clean: --force option skips confirmation" {
     mkdir -p "$TEST_WORKSPACES_DIR/force-test"
 
     run run_ws_clean "--force" "force-test"

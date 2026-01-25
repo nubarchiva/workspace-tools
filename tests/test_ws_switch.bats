@@ -16,7 +16,7 @@ teardown() {
 # Tests de ayuda y argumentos
 # =============================================================================
 
-@test "ws-switch: sin argumentos lista workspaces disponibles" {
+@test "ws-switch: no args lists available workspaces" {
     # Crear un workspace de prueba
     mkdir -p "$TEST_WORKSPACES_DIR/test-workspace"
 
@@ -27,14 +27,14 @@ teardown() {
     [[ "$output" == *"test-workspace"* ]]
 }
 
-@test "ws-switch: sin argumentos muestra uso" {
+@test "ws-switch: no args shows usage" {
     run run_ws switch
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Uso: ws switch"* ]]
 }
 
-@test "ws-switch: sin workspaces muestra mensaje apropiado" {
+@test "ws-switch: no workspaces shows appropriate message" {
     # No crear ningún workspace
     run run_ws switch
 
@@ -46,14 +46,14 @@ teardown() {
 # Tests de búsqueda de workspace
 # =============================================================================
 
-@test "ws-switch: workspace inexistente falla con código 1" {
+@test "ws-switch: nonexistent workspace fails with code 1" {
     run run_ws switch no-existe-xyz
 
     [ "$status" -eq 1 ]
     [[ "$output" == *"No se encontró"* ]] || [[ "$output" == *"no existe"* ]]
 }
 
-@test "ws-switch: workspace inexistente muestra workspaces disponibles" {
+@test "ws-switch: nonexistent workspace shows available workspaces" {
     mkdir -p "$TEST_WORKSPACES_DIR/mi-workspace"
 
     run run_ws switch no-existe
@@ -62,7 +62,7 @@ teardown() {
     [[ "$output" == *"mi-workspace"* ]]
 }
 
-@test "ws-switch: coincidencia exacta funciona" {
+@test "ws-switch: exact match works" {
     mkdir -p "$TEST_WORKSPACES_DIR/mi-workspace"
     create_test_repo "mi-repo"
 
@@ -77,7 +77,7 @@ teardown() {
     [[ "$output" == *"mi-workspace"* ]]
 }
 
-@test "ws-switch: búsqueda parcial encuentra workspace único" {
+@test "ws-switch: partial search finds unique workspace" {
     mkdir -p "$TEST_WORKSPACES_DIR/feature-NUBA-1234"
 
     run run_ws switch 1234
@@ -86,7 +86,7 @@ teardown() {
     [[ "$output" == *"NUBA-1234"* ]] || [[ "$output" == *"feature-NUBA-1234"* ]]
 }
 
-@test "ws-switch: búsqueda case-insensitive" {
+@test "ws-switch: case-insensitive search" {
     mkdir -p "$TEST_WORKSPACES_DIR/MiWorkspace"
 
     run run_ws switch miwork
@@ -98,7 +98,7 @@ teardown() {
 # Tests de información mostrada
 # =============================================================================
 
-@test "ws-switch: muestra header con nombre del workspace" {
+@test "ws-switch: shows header with workspace name" {
     mkdir -p "$TEST_WORKSPACES_DIR/test-ws"
 
     run run_ws switch test-ws
@@ -107,7 +107,7 @@ teardown() {
     [[ "$output" == *"test-ws"* ]]
 }
 
-@test "ws-switch: muestra ruta del workspace" {
+@test "ws-switch: shows workspace path" {
     mkdir -p "$TEST_WORKSPACES_DIR/ruta-test"
 
     run run_ws switch ruta-test
@@ -117,7 +117,7 @@ teardown() {
     [[ "$output" == *"ruta-test"* ]]
 }
 
-@test "ws-switch: muestra instrucciones para cd" {
+@test "ws-switch: shows cd instructions" {
     mkdir -p "$TEST_WORKSPACES_DIR/cd-test"
 
     run run_ws switch cd-test
@@ -126,7 +126,7 @@ teardown() {
     [[ "$output" == *"Para trabajar aquí"* ]] || [[ "$output" == *"cd"* ]]
 }
 
-@test "ws-switch: workspace vacío muestra mensaje informativo" {
+@test "ws-switch: empty workspace shows informative message" {
     mkdir -p "$TEST_WORKSPACES_DIR/vacio"
 
     run run_ws switch vacio
@@ -139,7 +139,7 @@ teardown() {
 # Tests con repos
 # =============================================================================
 
-@test "ws-switch: muestra repos del workspace" {
+@test "ws-switch: shows workspace repos" {
     mkdir -p "$TEST_WORKSPACES_DIR/con-repos"
     create_test_repo "repo-test"
 
@@ -153,7 +153,7 @@ teardown() {
     [[ "$output" == *"repo-test"* ]]
 }
 
-@test "ws-switch: muestra branch de cada repo" {
+@test "ws-switch: shows branch of each repo" {
     mkdir -p "$TEST_WORKSPACES_DIR/branch-test"
     create_test_repo "mi-repo"
 
@@ -168,7 +168,7 @@ teardown() {
     [[ "$output" == *"feature/branch-test"* ]]
 }
 
-@test "ws-switch: muestra estado sin cambios cuando repo limpio" {
+@test "ws-switch: shows clean state when repo is clean" {
     mkdir -p "$TEST_WORKSPACES_DIR/limpio"
     create_test_repo "repo-limpio"
 
@@ -182,7 +182,7 @@ teardown() {
     [[ "$output" == *"Sin cambios"* ]]
 }
 
-@test "ws-switch: muestra advertencia cuando hay cambios sin commitear" {
+@test "ws-switch: shows warning when uncommitted changes" {
     mkdir -p "$TEST_WORKSPACES_DIR/con-cambios"
     create_test_repo "repo-cambios"
 
@@ -203,7 +203,7 @@ teardown() {
 # Tests de workspaces especiales
 # =============================================================================
 
-@test "ws-switch: master muestra branch master" {
+@test "ws-switch: master shows master branch" {
     mkdir -p "$TEST_WORKSPACES_DIR/master"
     create_test_repo "repo-master"
 
@@ -217,7 +217,7 @@ teardown() {
     [[ "$output" == *"master"* ]]
 }
 
-@test "ws-switch: develop muestra branch develop" {
+@test "ws-switch: develop shows develop branch" {
     mkdir -p "$TEST_WORKSPACES_DIR/develop"
     create_test_repo "repo-develop"
 

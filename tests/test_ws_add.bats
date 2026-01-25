@@ -26,18 +26,18 @@ run_ws_add() {
 # Tests que funcionan
 # =============================================================================
 
-@test "ws-add: sin argumentos muestra ayuda" {
+@test "ws-add: no args shows help" {
     run run_ws_add
     [ "$status" -eq 1 ]
     [[ "$output" == *"Uso:"* ]] || [[ "$output" == *"ws add"* ]]
 }
 
-@test "ws-add: solo workspace sin repo muestra error" {
+@test "ws-add: workspace without repo shows error" {
     run run_ws_add "mi-workspace"
     [ "$status" -eq 1 ]
 }
 
-@test "ws-add: ayuda menciona repos en subdirectorios" {
+@test "ws-add: help mentions repos in subdirectories" {
     run run_ws_add
     [[ "$output" == *"libs"* ]] || [[ "$output" == *"modules"* ]] || [[ "$output" == *"Ejemplo"* ]]
 }
@@ -46,12 +46,12 @@ run_ws_add() {
 # Tests de integracion (requieren refactoring)
 # =============================================================================
 
-@test "ws-add: workspace inexistente falla" {
+@test "ws-add: nonexistent workspace fails" {
     run run_ws_add "no-existe" "mi-repo"
     [ "$status" -ne 0 ]
 }
 
-@test "ws-add: anade repo a workspace existente" {
+@test "ws-add: adds repo to existing workspace" {
     # Crear workspace y repo
     mkdir -p "$TEST_WORKSPACES_DIR/mi-workspace"
     create_test_repo "mi-repo"
@@ -61,7 +61,7 @@ run_ws_add() {
     [ -d "$TEST_WORKSPACES_DIR/mi-workspace/mi-repo" ]
 }
 
-@test "ws-add: anade multiples repos" {
+@test "ws-add: adds multiple repos" {
     mkdir -p "$TEST_WORKSPACES_DIR/multi"
     create_test_repo "repo-a"
     create_test_repo "repo-b"
@@ -72,7 +72,7 @@ run_ws_add() {
     [ -d "$TEST_WORKSPACES_DIR/multi/repo-b" ]
 }
 
-@test "ws-add: repo en subdirectorio mantiene estructura" {
+@test "ws-add: repo in subdirectory keeps structure" {
     mkdir -p "$TEST_WORKSPACES_DIR/subdir-test"
     create_test_repo "libs/mi-lib"
 
@@ -81,7 +81,7 @@ run_ws_add() {
     [ -d "$TEST_WORKSPACES_DIR/subdir-test/libs/mi-lib" ]
 }
 
-@test "ws-add: busqueda parcial de workspace funciona" {
+@test "ws-add: partial workspace search works" {
     mkdir -p "$TEST_WORKSPACES_DIR/NUBA-8400-feature"
     create_test_repo "mi-repo"
 
@@ -90,7 +90,7 @@ run_ws_add() {
     [ "$status" -eq 0 ]
 }
 
-@test "ws-add: repo inexistente muestra warning" {
+@test "ws-add: nonexistent repo shows warning" {
     mkdir -p "$TEST_WORKSPACES_DIR/warning-test"
 
     run run_ws_add "warning-test" "repo-fantasma"
@@ -98,7 +98,7 @@ run_ws_add() {
     [[ "$output" == *"no encontrado"* ]] || [[ "$output" == *"saltando"* ]]
 }
 
-@test "ws-add: crea worktree en la branch correcta" {
+@test "ws-add: creates worktree on correct branch" {
     mkdir -p "$TEST_WORKSPACES_DIR/feature-123"
     create_test_repo "mi-repo"
 
@@ -110,7 +110,7 @@ run_ws_add() {
     [ "$branch" = "feature/feature-123" ]
 }
 
-@test "ws-add: repo ya existente muestra warning" {
+@test "ws-add: existing repo shows warning" {
     mkdir -p "$TEST_WORKSPACES_DIR/duplicate-test"
     create_test_repo "mi-repo"
 
@@ -122,7 +122,7 @@ run_ws_add() {
     [[ "$output" == *"ya existe"* ]] || [[ "$output" == *"saltando"* ]]
 }
 
-@test "ws-add: auto-deteccion de workspace funciona" {
+@test "ws-add: workspace auto-detection works" {
     mkdir -p "$TEST_WORKSPACES_DIR/auto-detect"
     create_test_repo "nuevo-repo"
 

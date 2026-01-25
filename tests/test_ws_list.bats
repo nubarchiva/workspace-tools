@@ -32,12 +32,12 @@ run_ws_list() {
     [ "$status" -eq 0 ]
 }
 
-@test "ws-list: output contiene header WORKSPACES" {
+@test "ws-list: output contains header WORKSPACES" {
     run run_ws_list
     [[ "$output" == *"WORKSPACES"* ]]
 }
 
-@test "ws-list: con filtro muestra el filtro en header" {
+@test "ws-list: with filter shows filter in header" {
     run run_ws_list "mi-filtro"
     [[ "$output" == *"filtro"* ]] || [[ "$output" == *"mi-filtro"* ]]
 }
@@ -46,13 +46,13 @@ run_ws_list() {
 # Tests de integracion (requieren refactoring)
 # =============================================================================
 
-@test "ws-list: sin workspaces muestra mensaje apropiado" {
+@test "ws-list: no workspaces shows message apropiado" {
     run run_ws_list
     [ "$status" -eq 0 ]
     [[ "$output" == *"No hay workspaces"* ]] || [[ "$output" == *"ws new"* ]]
 }
 
-@test "ws-list: muestra workspace existente" {
+@test "ws-list: shows existing workspace" {
     mkdir -p "$TEST_WORKSPACES_DIR/mi-workspace"
 
     run run_ws_list
@@ -60,7 +60,7 @@ run_ws_list() {
     [[ "$output" == *"mi-workspace"* ]]
 }
 
-@test "ws-list: muestra multiples workspaces" {
+@test "ws-list: shows multiple workspaces" {
     mkdir -p "$TEST_WORKSPACES_DIR/workspace-a"
     mkdir -p "$TEST_WORKSPACES_DIR/workspace-b"
 
@@ -70,7 +70,7 @@ run_ws_list() {
     [[ "$output" == *"workspace-b"* ]]
 }
 
-@test "ws-list: muestra branch de cada workspace" {
+@test "ws-list: shows branch of each workspace" {
     mkdir -p "$TEST_WORKSPACES_DIR/mi-feature"
 
     run run_ws_list
@@ -78,7 +78,7 @@ run_ws_list() {
     [[ "$output" == *"feature/mi-feature"* ]]
 }
 
-@test "ws-list: master muestra branch master" {
+@test "ws-list: master shows master branch" {
     mkdir -p "$TEST_WORKSPACES_DIR/master"
 
     run run_ws_list
@@ -96,7 +96,7 @@ run_ws_list() {
     [[ "$output" != *"otro-workspace"* ]]
 }
 
-@test "ws-list: muestra conteo de repos" {
+@test "ws-list: shows repo count" {
     mkdir -p "$TEST_WORKSPACES_DIR/con-repos"
 
     # Crear repo dentro del workspace
@@ -110,7 +110,7 @@ run_ws_list() {
     [[ "$output" == *"Repos"* ]] || [[ "$output" == *"1"* ]]
 }
 
-@test "ws-list: muestra total de workspaces" {
+@test "ws-list: shows total workspaces" {
     mkdir -p "$TEST_WORKSPACES_DIR/ws-1"
     mkdir -p "$TEST_WORKSPACES_DIR/ws-2"
     mkdir -p "$TEST_WORKSPACES_DIR/ws-3"
@@ -120,7 +120,7 @@ run_ws_list() {
     [[ "$output" == *"Total"* ]] || [[ "$output" == *"3"* ]]
 }
 
-@test "ws-list: filtro sin coincidencias muestra mensaje" {
+@test "ws-list: filter without matches shows message" {
     mkdir -p "$TEST_WORKSPACES_DIR/mi-workspace"
 
     run run_ws_list "inexistente"

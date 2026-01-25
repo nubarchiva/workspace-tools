@@ -16,7 +16,7 @@ teardown() {
 # Tests de ayuda
 # =============================================================================
 
-@test "ws-stash: -h muestra ayuda" {
+@test "ws-stash: -h shows help" {
     run run_ws stash -h
 
     [ "$status" -eq 0 ]
@@ -25,14 +25,14 @@ teardown() {
     [[ "$output" == *"pop"* ]]
 }
 
-@test "ws-stash: --help muestra ayuda" {
+@test "ws-stash: --help shows help" {
     run run_ws stash --help
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Uso: ws stash"* ]]
 }
 
-@test "ws-stash: ayuda menciona acciones disponibles" {
+@test "ws-stash: help mentions available actions" {
     run run_ws stash --help
 
     [ "$status" -eq 0 ]
@@ -47,14 +47,14 @@ teardown() {
 # Tests de detección de workspace
 # =============================================================================
 
-@test "ws-stash: workspace inexistente falla" {
+@test "ws-stash: nonexistent workspace fails" {
     run run_ws stash list no-existe-xyz
 
     [ "$status" -eq 1 ]
     [[ "$output" == *"No se encontró"* ]] || [[ "$output" == *"no existe"* ]]
 }
 
-@test "ws-stash: sin argumentos fuera de workspace falla con mensaje claro" {
+@test "ws-stash: no args outside workspace fails with clear message" {
     cd "$TEST_WORKSPACE_ROOT"
     run run_ws stash list
 
@@ -62,7 +62,7 @@ teardown() {
     [[ "$output" == *"no se pudo detectar"* ]] || [[ "$output" == *"No se especificó"* ]]
 }
 
-@test "ws-stash: coincidencia parcial encuentra workspace" {
+@test "ws-stash: partial match finds workspace" {
     mkdir -p "$TEST_WORKSPACES_DIR/feature-NUBA-9999"
     create_test_repo "repo-9999"
 
@@ -76,7 +76,7 @@ teardown() {
     [[ "$output" == *"NUBA-9999"* ]] || [[ "$output" == *"feature-NUBA-9999"* ]]
 }
 
-@test "ws-stash: workspace explícito funciona" {
+@test "ws-stash: explicit workspace works" {
     mkdir -p "$TEST_WORKSPACES_DIR/stash-test"
     create_test_repo "repo-stash-test"
 
@@ -94,7 +94,7 @@ teardown() {
 # Tests de stash list
 # =============================================================================
 
-@test "ws-stash: list en workspace vacío muestra mensaje" {
+@test "ws-stash: list in empty workspace shows message" {
     mkdir -p "$TEST_WORKSPACES_DIR/vacio-stash"
 
     run run_ws stash list vacio-stash
@@ -103,7 +103,7 @@ teardown() {
     [[ "$output" == *"No hay repos"* ]]
 }
 
-@test "ws-stash: list en workspace con repo sin stashes" {
+@test "ws-stash: list in workspace with repo without stashes" {
     mkdir -p "$TEST_WORKSPACES_DIR/sin-stash"
     create_test_repo "repo-limpio"
 
@@ -121,7 +121,7 @@ teardown() {
 # Tests de stash push
 # =============================================================================
 
-@test "ws-stash: push en repo sin cambios muestra 'Sin cambios'" {
+@test "ws-stash: push in repo without changes shows 'Sin cambios'" {
     mkdir -p "$TEST_WORKSPACES_DIR/push-test"
     create_test_repo "repo-push"
 
@@ -135,7 +135,7 @@ teardown() {
     [[ "$output" == *"Sin cambios"* ]]
 }
 
-@test "ws-stash: push con cambios crea stash" {
+@test "ws-stash: push with changes creates stash" {
     mkdir -p "$TEST_WORKSPACES_DIR/push-cambios"
     create_test_repo "repo-cambios"
 
@@ -152,7 +152,7 @@ teardown() {
     [[ "$output" == *"Stash creado"* ]] || [[ "$output" == *"stashes creados"* ]]
 }
 
-@test "ws-stash: push con mensaje personalizado" {
+@test "ws-stash: push with custom message" {
     mkdir -p "$TEST_WORKSPACES_DIR/push-msg"
     create_test_repo "repo-msg"
 
@@ -172,7 +172,7 @@ teardown() {
 # Tests de stash pop
 # =============================================================================
 
-@test "ws-stash: pop sin stashes muestra 'Sin stashes'" {
+@test "ws-stash: pop without stashes shows 'Sin stashes'" {
     mkdir -p "$TEST_WORKSPACES_DIR/pop-vacio"
     create_test_repo "repo-pop-vacio"
 
@@ -190,7 +190,7 @@ teardown() {
 # Tests de acción por defecto
 # =============================================================================
 
-@test "ws-stash: sin acción usa push por defecto" {
+@test "ws-stash: no action uses push by default" {
     mkdir -p "$TEST_WORKSPACES_DIR/default-action"
     create_test_repo "repo-default"
 

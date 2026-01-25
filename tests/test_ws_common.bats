@@ -16,66 +16,66 @@ teardown() {
 # Tests para validate_workspace_name()
 # =============================================================================
 
-@test "validate_workspace_name: nombre valido retorna 0" {
+@test "validate_workspace_name: valid name returns 0" {
     run validate_workspace_name "mi-workspace"
     [ "$status" -eq 0 ]
 }
 
-@test "validate_workspace_name: nombre vacio retorna 1" {
+@test "validate_workspace_name: empty name returns 1" {
     run validate_workspace_name ""
     [ "$status" -eq 1 ]
     [[ "$output" == *"vacío"* ]]
 }
 
-@test "validate_workspace_name: nombre con espacios retorna 1" {
+@test "validate_workspace_name: name with spaces returns 1" {
     run validate_workspace_name "mi workspace"
     [ "$status" -eq 1 ]
     [[ "$output" == *"espacios"* ]]
 }
 
-@test "validate_workspace_name: nombre muy largo retorna 1" {
+@test "validate_workspace_name: very long name returns 1" {
     local long_name=$(printf 'a%.0s' {1..70})
     run validate_workspace_name "$long_name"
     [ "$status" -eq 1 ]
     [[ "$output" == *"largo"* ]]
 }
 
-@test "validate_workspace_name: nombre con slash retorna 1" {
+@test "validate_workspace_name: name with slash returns 1" {
     run validate_workspace_name "mi/workspace"
     [ "$status" -eq 1 ]
     [[ "$output" == *"no permitidos"* ]]
 }
 
-@test "validate_workspace_name: nombre que empieza con punto retorna 1" {
+@test "validate_workspace_name: name starting with dot returns 1" {
     run validate_workspace_name ".hidden"
     [ "$status" -eq 1 ]
     [[ "$output" == *"punto"* ]]
 }
 
-@test "validate_workspace_name: nombre que empieza con guion retorna 1" {
+@test "validate_workspace_name: name starting with dash returns 1" {
     run validate_workspace_name "-invalid"
     [ "$status" -eq 1 ]
     [[ "$output" == *"guión"* ]]
 }
 
-@test "validate_workspace_name: nombre reservado workspaces retorna 1" {
+@test "validate_workspace_name: reserved name workspaces retorna 1" {
     run validate_workspace_name "workspaces"
     [ "$status" -eq 1 ]
     [[ "$output" == *"reservado"* ]]
 }
 
-@test "validate_workspace_name: nombre reservado repos retorna 1" {
+@test "validate_workspace_name: reserved name repos retorna 1" {
     run validate_workspace_name "repos"
     [ "$status" -eq 1 ]
     [[ "$output" == *"reservado"* ]]
 }
 
-@test "validate_workspace_name: master es valido" {
+@test "validate_workspace_name: master is valid" {
     run validate_workspace_name "master"
     [ "$status" -eq 0 ]
 }
 
-@test "validate_workspace_name: develop es valido" {
+@test "validate_workspace_name: develop is valid" {
     run validate_workspace_name "develop"
     [ "$status" -eq 0 ]
 }
@@ -84,27 +84,27 @@ teardown() {
 # Tests para get_branch_name()
 # =============================================================================
 
-@test "get_branch_name: master retorna master" {
+@test "get_branch_name: master returns master" {
     result=$(get_branch_name "master")
     [ "$result" = "master" ]
 }
 
-@test "get_branch_name: develop retorna develop" {
+@test "get_branch_name: develop returns develop" {
     result=$(get_branch_name "develop")
     [ "$result" = "develop" ]
 }
 
-@test "get_branch_name: cualquier otro nombre retorna feature/nombre" {
+@test "get_branch_name: any other name returns feature/nombre" {
     result=$(get_branch_name "mi-feature")
     [ "$result" = "feature/mi-feature" ]
 }
 
-@test "get_branch_name: nombre con guiones retorna feature/nombre" {
+@test "get_branch_name: name with dashes returns feature/nombre" {
     result=$(get_branch_name "NUBA-8400-nueva-funcionalidad")
     [ "$result" = "feature/NUBA-8400-nueva-funcionalidad" ]
 }
 
-@test "get_branch_name: nombre numerico retorna feature/numero" {
+@test "get_branch_name: numeric name returns feature/numero" {
     result=$(get_branch_name "12345")
     [ "$result" = "feature/12345" ]
 }
@@ -113,46 +113,46 @@ teardown() {
 # Tests para find_matching_workspace()
 # =============================================================================
 
-@test "find_matching_workspace: coincidencia exacta retorna el nombre" {
+@test "find_matching_workspace: exact match returns name" {
     mkdir -p "$TEST_WORKSPACES_DIR/mi-workspace"
 
     result=$(find_matching_workspace "mi-workspace" "$TEST_WORKSPACES_DIR")
     [ "$result" = "mi-workspace" ]
 }
 
-@test "find_matching_workspace: coincidencia parcial retorna el workspace" {
+@test "find_matching_workspace: partial match returns workspace" {
     mkdir -p "$TEST_WORKSPACES_DIR/NUBA-8400-feature"
 
     result=$(find_matching_workspace "8400" "$TEST_WORKSPACES_DIR")
     [ "$result" = "NUBA-8400-feature" ]
 }
 
-@test "find_matching_workspace: busqueda case-insensitive" {
+@test "find_matching_workspace: case-insensitive search" {
     mkdir -p "$TEST_WORKSPACES_DIR/MiWorkspace"
 
     result=$(find_matching_workspace "miworkspace" "$TEST_WORKSPACES_DIR")
     [ "$result" = "MiWorkspace" ]
 }
 
-@test "find_matching_workspace: master retorna master directamente" {
+@test "find_matching_workspace: master returns master directamente" {
     # No necesita que exista el directorio
     result=$(find_matching_workspace "master" "$TEST_WORKSPACES_DIR")
     [ "$result" = "master" ]
 }
 
-@test "find_matching_workspace: develop retorna develop directamente" {
+@test "find_matching_workspace: develop returns develop directamente" {
     result=$(find_matching_workspace "develop" "$TEST_WORKSPACES_DIR")
     [ "$result" = "develop" ]
 }
 
-@test "find_matching_workspace: sin coincidencias falla con codigo 1" {
+@test "find_matching_workspace: no matches fails with code 1" {
     mkdir -p "$TEST_WORKSPACES_DIR/otro-workspace"
 
     run find_matching_workspace "inexistente" "$TEST_WORKSPACES_DIR"
     [ "$status" -eq 1 ]
 }
 
-@test "find_matching_workspace: sin directorio workspaces falla" {
+@test "find_matching_workspace: without workspaces directory fails" {
     rm -rf "$TEST_WORKSPACES_DIR"
 
     run find_matching_workspace "algo" "$TEST_WORKSPACES_DIR"
@@ -163,7 +163,7 @@ teardown() {
 # Tests para find_repos_in_workspace()
 # =============================================================================
 
-@test "find_repos_in_workspace: encuentra repo en raiz" {
+@test "find_repos_in_workspace: finds repo in root" {
     local ws_dir="$TEST_WORKSPACES_DIR/test-ws"
     mkdir -p "$ws_dir/mi-repo"
     cd "$ws_dir/mi-repo"
@@ -174,7 +174,7 @@ teardown() {
     [[ "$result" == *"mi-repo"* ]]
 }
 
-@test "find_repos_in_workspace: encuentra repos en subdirectorios" {
+@test "find_repos_in_workspace: finds repos in subdirectories" {
     local ws_dir="$TEST_WORKSPACES_DIR/test-ws"
     mkdir -p "$ws_dir/libs/mi-lib"
     cd "$ws_dir/libs/mi-lib"
@@ -185,7 +185,7 @@ teardown() {
     [[ "$result" == *"libs/mi-lib"* ]]
 }
 
-@test "find_repos_in_workspace: workspace vacio retorna vacio" {
+@test "find_repos_in_workspace: empty workspace returns empty" {
     local ws_dir="$TEST_WORKSPACES_DIR/empty-ws"
     mkdir -p "$ws_dir"
 
@@ -193,7 +193,7 @@ teardown() {
     [ -z "$result" ]
 }
 
-@test "find_repos_in_workspace: multiples repos ordenados" {
+@test "find_repos_in_workspace: multiple repos sorted" {
     local ws_dir="$TEST_WORKSPACES_DIR/multi-ws"
 
     # Crear varios repos
@@ -218,7 +218,7 @@ teardown() {
 # Tests para detect_current_workspace()
 # =============================================================================
 
-@test "detect_current_workspace: dentro de workspace retorna nombre" {
+@test "detect_current_workspace: inside workspace returns name" {
     mkdir -p "$TEST_WORKSPACES_DIR/mi-workspace/repo"
 
     # La funcion detect_current_workspace usa WS_TOOLS para calcular la ruta
@@ -232,11 +232,11 @@ teardown() {
     skip "Requiere refactoring de detect_current_workspace para ser testeable"
 }
 
-@test "detect_current_workspace: fuera de workspaces retorna vacio" {
+@test "detect_current_workspace: outside workspaces returns empty" {
     skip "Requiere refactoring de detect_current_workspace para ser testeable"
 }
 
-@test "detect_current_workspace: en subdirectorio profundo detecta workspace" {
+@test "detect_current_workspace: in deep subdirectory detects workspace" {
     skip "Requiere refactoring de detect_current_workspace para ser testeable"
 }
 
@@ -244,7 +244,7 @@ teardown() {
 # Tests para copy_workspace_config() - Solo verificar que no falla
 # =============================================================================
 
-@test "copy_workspace_config: ejecuta sin errores en directorio vacio" {
+@test "copy_workspace_config: runs without errors in empty directory" {
     local ws_dir="$TEST_WORKSPACES_DIR/config-test"
     mkdir -p "$ws_dir"
 

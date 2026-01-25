@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # Tests para ws-info
 # Verifica el comportamiento del comando ws info
-# Diferencia clave con ws-switch: auto-detección de workspace
+# Diferencia clave con ws-switch: auto-deteccion de workspace
 
 load 'test_helper'
 
@@ -17,7 +17,7 @@ teardown() {
 # Tests de ayuda
 # =============================================================================
 
-@test "ws-info: -h muestra ayuda" {
+@test "ws-info: -h shows help" {
     run run_ws info -h
 
     [ "$status" -eq 0 ]
@@ -25,14 +25,14 @@ teardown() {
     [[ "$output" == *"auto-detecta"* ]]
 }
 
-@test "ws-info: --help muestra ayuda" {
+@test "ws-info: --help shows help" {
     run run_ws info --help
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Uso: ws info"* ]]
 }
 
-@test "ws-info: ayuda menciona ejemplos" {
+@test "ws-info: help mentions examples" {
     run run_ws info --help
 
     [ "$status" -eq 0 ]
@@ -41,10 +41,10 @@ teardown() {
 }
 
 # =============================================================================
-# Tests de auto-detección (diferencia clave con ws-switch)
+# Tests de auto-deteccion (diferencia clave con ws-switch)
 # =============================================================================
 
-@test "ws-info: sin argumentos fuera de workspace lista disponibles" {
+@test "ws-info: no args outside workspace lists available" {
     mkdir -p "$TEST_WORKSPACES_DIR/workspace-disponible"
 
     # Ejecutar desde fuera del workspace
@@ -56,7 +56,7 @@ teardown() {
     [[ "$output" == *"workspace-disponible"* ]]
 }
 
-@test "ws-info: sin argumentos fuera de workspace muestra uso correcto" {
+@test "ws-info: no args outside workspace shows correct usage" {
     run run_ws info
 
     [ "$status" -eq 0 ]
@@ -64,10 +64,10 @@ teardown() {
     [[ "$output" == *"ws info"* ]]
 }
 
-# Nota: El test de auto-detección dentro de workspace requiere
+# Nota: El test de auto-deteccion dentro de workspace requiere
 # simular estar dentro de un workspace, lo cual es complejo con el
 # helper actual. Se marca como skip por ahora.
-@test "ws-info: auto-detecta workspace desde dentro" {
+@test "ws-info: auto-detects workspace from inside" {
     skip "Requiere refactoring de detect_current_workspace para ser testeable"
 
     mkdir -p "$TEST_WORKSPACES_DIR/auto-detect"
@@ -87,17 +87,17 @@ teardown() {
 }
 
 # =============================================================================
-# Tests de búsqueda de workspace (igual que ws-switch)
+# Tests de busqueda de workspace (igual que ws-switch)
 # =============================================================================
 
-@test "ws-info: workspace inexistente falla con código 1" {
+@test "ws-info: nonexistent workspace fails with code 1" {
     run run_ws info no-existe-xyz
 
     [ "$status" -eq 1 ]
     [[ "$output" == *"No se encontró"* ]] || [[ "$output" == *"no existe"* ]]
 }
 
-@test "ws-info: workspace inexistente muestra workspaces disponibles" {
+@test "ws-info: nonexistent workspace shows available workspaces" {
     mkdir -p "$TEST_WORKSPACES_DIR/mi-workspace"
 
     run run_ws info no-existe
@@ -106,7 +106,7 @@ teardown() {
     [[ "$output" == *"mi-workspace"* ]]
 }
 
-@test "ws-info: coincidencia exacta funciona" {
+@test "ws-info: exact match works" {
     mkdir -p "$TEST_WORKSPACES_DIR/info-test"
     create_test_repo "repo-info"
 
@@ -120,7 +120,7 @@ teardown() {
     [[ "$output" == *"info-test"* ]]
 }
 
-@test "ws-info: búsqueda parcial encuentra workspace" {
+@test "ws-info: partial search finds workspace" {
     mkdir -p "$TEST_WORKSPACES_DIR/feature-NUBA-5678"
 
     run run_ws info 5678
@@ -132,7 +132,7 @@ teardown() {
 # Tests de información mostrada (igual que ws-switch)
 # =============================================================================
 
-@test "ws-info: muestra header con nombre del workspace" {
+@test "ws-info: shows header with workspace name" {
     mkdir -p "$TEST_WORKSPACES_DIR/header-test"
 
     run run_ws info header-test
@@ -141,7 +141,7 @@ teardown() {
     [[ "$output" == *"header-test"* ]]
 }
 
-@test "ws-info: muestra ruta del workspace" {
+@test "ws-info: shows workspace path" {
     mkdir -p "$TEST_WORKSPACES_DIR/ruta-info"
 
     run run_ws info ruta-info
@@ -151,7 +151,7 @@ teardown() {
     [[ "$output" == *"ruta-info"* ]]
 }
 
-@test "ws-info: workspace vacío muestra mensaje informativo" {
+@test "ws-info: empty workspace shows informative message" {
     mkdir -p "$TEST_WORKSPACES_DIR/vacio-info"
 
     run run_ws info vacio-info
@@ -164,7 +164,7 @@ teardown() {
 # Tests con repos
 # =============================================================================
 
-@test "ws-info: muestra repos del workspace" {
+@test "ws-info: shows workspace repos" {
     mkdir -p "$TEST_WORKSPACES_DIR/con-repos-info"
     create_test_repo "repo-visible"
 
@@ -178,7 +178,7 @@ teardown() {
     [[ "$output" == *"repo-visible"* ]]
 }
 
-@test "ws-info: muestra branch de cada repo" {
+@test "ws-info: shows branch of each repo" {
     mkdir -p "$TEST_WORKSPACES_DIR/branch-info"
     create_test_repo "repo-branch"
 
@@ -193,7 +193,7 @@ teardown() {
     [[ "$output" == *"feature/branch-info"* ]]
 }
 
-@test "ws-info: muestra estado sin cambios cuando repo limpio" {
+@test "ws-info: shows clean state when repo is clean" {
     mkdir -p "$TEST_WORKSPACES_DIR/limpio-info"
     create_test_repo "repo-limpio-info"
 
@@ -207,7 +207,7 @@ teardown() {
     [[ "$output" == *"Sin cambios"* ]]
 }
 
-@test "ws-info: muestra advertencia cuando hay cambios sin commitear" {
+@test "ws-info: shows warning when uncommitted changes" {
     mkdir -p "$TEST_WORKSPACES_DIR/cambios-info"
     create_test_repo "repo-cambios-info"
 
@@ -228,7 +228,7 @@ teardown() {
 # Tests de modo offline
 # =============================================================================
 
-@test "ws-info: modo offline muestra indicador [OFFLINE]" {
+@test "ws-info: offline mode shows indicator [OFFLINE]" {
     mkdir -p "$TEST_WORKSPACES_DIR/offline-test"
 
     # Activar modo offline

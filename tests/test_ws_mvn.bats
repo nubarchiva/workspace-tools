@@ -16,7 +16,7 @@ teardown() {
 # Tests de ayuda (no requieren Maven instalado)
 # =============================================================================
 
-@test "ws-mvn: sin argumentos y sin workspace detectado muestra error" {
+@test "ws-mvn: no args and no detected workspace shows error" {
     cd "$TEST_WORKSPACE_ROOT"
     run run_ws mvn
 
@@ -25,7 +25,7 @@ teardown() {
     [[ "$output" == *"no se especificó"* ]] || [[ "$output" == *"no se pudo detectar"* ]] || [[ "$output" == *"argumentos"* ]]
 }
 
-@test "ws-mvn: workspace sin args de maven muestra error" {
+@test "ws-mvn: workspace without maven args shows error" {
     mkdir -p "$TEST_WORKSPACES_DIR/mvn-test"
 
     run run_ws mvn mvn-test
@@ -35,17 +35,17 @@ teardown() {
 }
 
 # =============================================================================
-# Tests de detección de workspace
+# Tests de deteccion de workspace
 # =============================================================================
 
-@test "ws-mvn: workspace inexistente falla" {
+@test "ws-mvn: nonexistent workspace fails" {
     run run_ws mvn no-existe-xyz clean
 
     [ "$status" -eq 1 ]
     [[ "$output" == *"No se encontró"* ]] || [[ "$output" == *"no existe"* ]]
 }
 
-@test "ws-mvn: coincidencia parcial encuentra workspace" {
+@test "ws-mvn: partial match finds workspace" {
     mkdir -p "$TEST_WORKSPACES_DIR/feature-MVN-5678"
 
     run run_ws mvn 5678 clean
@@ -54,7 +54,7 @@ teardown() {
     [[ "$output" == *"MVN-5678"* ]] || [[ "$output" == *"feature-MVN-5678"* ]] || [[ "$output" == *"No hay repos"* ]]
 }
 
-@test "ws-mvn: workspace vacío falla con mensaje claro" {
+@test "ws-mvn: empty workspace fails with clear message" {
     mkdir -p "$TEST_WORKSPACES_DIR/mvn-vacio"
 
     run run_ws mvn mvn-vacio clean
@@ -64,7 +64,7 @@ teardown() {
 }
 
 # =============================================================================
-# Tests de detección inteligente de argumentos
+# Tests de deteccion inteligente de argumentos
 # =============================================================================
 
 @test "ws-mvn: primer arg que no es workspace intenta usar como workspace" {
@@ -87,7 +87,7 @@ teardown() {
     [[ "$output" == *"No se encontró"* ]] || [[ "$output" == *"no se pudo detectar"* ]] || [[ "$output" == *"no se especificó"* ]]
 }
 
-@test "ws-mvn: workspace explícito toma args restantes como maven args" {
+@test "ws-mvn: workspace explicito toma args restantes como maven args" {
     mkdir -p "$TEST_WORKSPACES_DIR/explicit-ws"
     create_test_repo "repo-explicit"
 
@@ -133,7 +133,7 @@ EOF
     [[ "$output" == *"Ignorando"* ]] || [[ "$output" == *"no tiene pom.xml"* ]] || [[ "$output" == *"sin-pom"* ]]
 }
 
-@test "ws-mvn: muestra header con información del workspace" {
+@test "ws-mvn: shows header with workspace info" {
     mkdir -p "$TEST_WORKSPACES_DIR/header-mvn"
     create_test_repo "repo-header-mvn"
 
