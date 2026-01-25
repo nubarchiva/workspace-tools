@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Shell](https://img.shields.io/badge/Shell-Bash%20%7C%20Zsh-green.svg)](https://www.gnu.org/software/bash/)
-[![Version](https://img.shields.io/badge/version-4.1.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-4.2.0-blue.svg)](CHANGELOG.md)
 
 **Gestión de workspaces con Git worktrees para desarrollo paralelo en proyectos multi-repositorio.**
 
@@ -217,4 +217,4 @@ Las contribuciones son bienvenidas:
 
 ---
 
-**Versión:** 4.1.0 | **Actualizado:** Noviembre 2025
+**Versión:** 4.2.0 | **Actualizado:** Enero 2026

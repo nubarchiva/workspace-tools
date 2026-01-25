@@ -7,6 +7,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [4.2.0] - 2026-01-25
+
 ### Añadido
 - **`ws prune [--dry-run] [--force] [--all]`** - Limpia ramas locales huérfanas
   - Elimina ramas locales cuyo remoto ya no existe (marcadas como `gone`)
