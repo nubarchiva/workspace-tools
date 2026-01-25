@@ -22,35 +22,36 @@ REPOS=()
 
 show_help() {
     cat << 'EOF'
-ws prune - Limpia ramas locales huérfanas (sin remoto)
+ws prune - Limpia ramas locales innecesarias
 
 USO:
     ws prune [opciones] [repo...]
 
 DESCRIPCIÓN:
-    Elimina ramas locales cuyo remoto ya no existe (marcadas como 'gone').
-    Por defecto, solo elimina ramas que ya están mergeadas en develop/main.
+    Elimina ramas locales que ya están mergeadas en develop/main.
+    Incluye ramas huérfanas (remoto borrado) y ramas sin cambios.
 
 OPCIONES:
     --dry-run    Muestra qué se borraría sin borrar nada
-    --force      Borra incluso ramas no mergeadas (¡PELIGRO: posible pérdida de datos!)
+    --force      Borra incluso ramas no mergeadas (¡PELIGRO!)
     --all        Aplica a todos los repos del workspace
     -h, --help   Muestra esta ayuda
 
 EJEMPLOS:
-    ws prune                    # Limpia repo actual (solo mergeadas)
+    ws prune                    # Limpia repo actual
     ws prune --dry-run          # Ver qué se borraría
     ws prune --all              # Limpia todos los repos
-    ws prune --force ks-nuba    # Limpia ks-nuba incluyendo no mergeadas
-    ws prune --all --dry-run    # Ver qué se borraría en todos los repos
+    ws prune --force ks-nuba    # Incluye ramas no mergeadas
+    ws prune --all --dry-run    # Ver qué se borraría en todos
 
-SEGURIDAD:
-    Sin --force, solo se borran ramas que:
-    1. Ya no existen en el remoto (': gone]')
-    2. Están completamente mergeadas en develop o main
+PROTECCIONES:
+    NO se borran:
+    - master, main, develop
+    - Rama actual
+    - Ramas en uso por worktrees
 
-    Con --force se borran TODAS las ramas huérfanas, incluso con commits
-    no mergeados. Usar con precaución.
+    Sin --force, solo se borran ramas mergeadas (seguro).
+    Con --force se borran TODAS excepto las protegidas.
 EOF
 }
 
@@ -160,64 +161,86 @@ prune_repo() {
         fi
     fi
 
-    # Buscar ramas huérfanas (gone)
-    local gone_branches=()
-    local merged_branches=()
-    local unmerged_branches=()
+    # Rama actual (no se puede borrar)
+    local current_branch
+    current_branch=$(git branch --show-current 2>/dev/null)
 
-    while IFS= read -r line; do
-        [ -z "$line" ] && continue
-        branch=$(echo "$line" | awk '{print $1}')
+    # Buscar ramas candidatas a limpiar
+    local clean_branches=()      # Sin cambios, seguras de borrar
+    local with_changes=()        # Con cambios, requieren --force
+
+    while IFS= read -r branch; do
         [ -z "$branch" ] && continue
-        gone_branches+=("$branch")
+        # Saltar rama actual
+        [[ "$branch" == "$current_branch" ]] && continue
+        # Saltar ramas base
+        [[ "$branch" == "master" || "$branch" == "main" || "$branch" == "develop" ]] && continue
+        # Saltar ramas en uso por worktrees (marcadas con +)
+        git branch 2>/dev/null | grep -q "^+ *${branch}$" && continue
 
-        # Verificar si está mergeada
-        if git branch --merged "$base_branch" 2>/dev/null | grep -q "^[* ]*${branch}$"; then
-            merged_branches+=("$branch")
-        else
-            unmerged_branches+=("$branch")
+        # Contar commits únicos respecto a base_branch
+        local unique_commits
+        unique_commits=$(git rev-list --count "$base_branch".."$branch" 2>/dev/null || echo "0")
+
+        # Verificar tracking remoto
+        local tracking_info=""
+        if ! git branch -vv 2>/dev/null | grep "^[* ]*${branch} " | grep -q '\[origin/'; then
+            tracking_info=" (sin remote)"
+        elif git branch -vv 2>/dev/null | grep "^[* ]*${branch} " | grep -q ': gone]'; then
+            tracking_info=" (remote borrado)"
         fi
-    done < <(git branch -vv 2>/dev/null | grep ': gone]' | awk '{print $1}')
+
+        if [ "$unique_commits" -eq 0 ]; then
+            clean_branches+=("$branch|$tracking_info")
+        else
+            with_changes+=("$branch|$unique_commits|$tracking_info")
+        fi
+    done < <(git branch --format='%(refname:short)' 2>/dev/null)
 
     # Mostrar resultados
-    local total=${#gone_branches[@]}
-    local merged=${#merged_branches[@]}
-    local unmerged=${#unmerged_branches[@]}
+    local total_clean=${#clean_branches[@]}
+    local total_changes=${#with_changes[@]}
 
-    if [ $total -eq 0 ]; then
-        success "  ✅ $repo_name: Sin ramas huérfanas"
+    if [ $total_clean -eq 0 ] && [ $total_changes -eq 0 ]; then
+        success "  ✅ $repo_name: Limpio"
         return 0
     fi
 
-    echo "  📦 $repo_name: $total huérfanas ($merged mergeadas, $unmerged sin mergear)"
+    echo "  📦 $repo_name: $total_clean sin cambios, $total_changes con cambios"
 
-    # Procesar ramas mergeadas (seguras)
-    for branch in "${merged_branches[@]}"; do
+    # Procesar ramas sin cambios (seguras)
+    for entry in "${clean_branches[@]}"; do
+        local branch="${entry%%|*}"
+        local info="${entry#*|}"
         if $DRY_RUN; then
-            info "      [dry-run] Borraría: $branch (mergeada)"
+            info "      [dry-run] $branch$info"
         else
             if git branch -d "$branch" &>/dev/null; then
-                success "      ✅ Borrada: $branch"
+                success "      ✅ $branch$info"
             else
-                error "      ❌ Error al borrar: $branch"
+                error "      ❌ Error: $branch"
             fi
         fi
     done
 
-    # Procesar ramas no mergeadas (solo con --force)
-    for branch in "${unmerged_branches[@]}"; do
+    # Procesar ramas con cambios (solo con --force)
+    for entry in "${with_changes[@]}"; do
+        local branch="${entry%%|*}"
+        local rest="${entry#*|}"
+        local commits="${rest%%|*}"
+        local info="${rest#*|}"
         if $FORCE; then
             if $DRY_RUN; then
-                warning "      [dry-run] Borraría: $branch (NO mergeada, --force)"
+                warning "      [dry-run] $branch (+$commits commits)$info"
             else
                 if git branch -D "$branch" &>/dev/null; then
-                    warning "      ⚠️  Borrada (forzado): $branch"
+                    warning "      ⚠️  $branch (+$commits commits)$info"
                 else
-                    error "      ❌ Error al borrar: $branch"
+                    error "      ❌ Error: $branch"
                 fi
             fi
         else
-            warning "      ⏭️  Saltada: $branch (no mergeada, usa --force para borrar)"
+            warning "      ⏭️  $branch (+$commits commits)$info"
         fi
     done
 }
