@@ -175,8 +175,11 @@ echo "$repos" | while read -r repo_rel_path; do
                     # Commits de develop que no tenemos
                     behind=$(git rev-list --count "HEAD..$base_branch" 2>/dev/null || echo "0")
 
-                    # Verificar si tiene upstream (branch remota)
-                    upstream=$(git rev-parse --abbrev-ref "@{upstream}" 2>/dev/null)
+                    # Verificar si tiene upstream (branch remota válida)
+                    upstream=""
+                    if git rev-parse --verify "@{upstream}" >/dev/null 2>&1; then
+                        upstream=$(git rev-parse --abbrev-ref "@{upstream}" 2>/dev/null)
+                    fi
 
                     if [ -n "$upstream" ]; then
                         # Commits locales sin push (--first-parent para no contar commits de merges)

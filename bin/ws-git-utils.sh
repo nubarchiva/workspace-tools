@@ -129,22 +129,24 @@ git_count_uncommitted_changes() {
     echo "${count:-0}"
 }
 
-# Verifica si la branch actual tiene upstream configurado
+# Verifica si la branch actual tiene upstream configurado y válido
 # Uso: git_has_upstream [path]
-# Retorna: 0 si tiene upstream, 1 si no
+# Retorna: 0 si tiene upstream válido, 1 si no (incluye upstream 'gone')
 git_has_upstream() {
     local repo_path="${1:-.}"
 
-    (cd "$repo_path" && git rev-parse --abbrev-ref @{u} >/dev/null 2>&1)
+    (cd "$repo_path" && git rev-parse --verify @{u} >/dev/null 2>&1)
 }
 
-# Obtiene el nombre de la branch upstream
+# Obtiene el nombre de la branch upstream (solo si es válida)
 # Uso: git_get_upstream_branch [path]
 # Retorna: nombre de la branch upstream o cadena vacía
 git_get_upstream_branch() {
     local repo_path="${1:-.}"
 
-    cd "$repo_path" && git rev-parse --abbrev-ref @{u} 2>/dev/null
+    if (cd "$repo_path" && git rev-parse --verify @{u} >/dev/null 2>&1); then
+        (cd "$repo_path" && git rev-parse --abbrev-ref @{u} 2>/dev/null)
+    fi
 }
 
 # Obtiene la branch actual
@@ -273,7 +275,8 @@ git_repo_status() {
 
     # Upstream, commits sin pushear y commits sin pullear
     # Nota: unpushed usa --first-parent para no contar commits de merges
-    if git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then
+    # Nota: Usar --verify para evitar que @{u} devuelva literal cuando upstream es 'gone'
+    if git rev-parse --verify @{u} >/dev/null 2>&1; then
         has_upstream=1
         upstream_branch=$(git rev-parse --abbrev-ref @{u} 2>/dev/null)
         unpushed_count=$(git rev-list --first-parent @{u}..HEAD 2>/dev/null | wc -l | tr -d ' ')
@@ -344,9 +347,11 @@ get_sync_status() {
     # Commits de develop que no tenemos
     behind=$(git -C "$repo_path" rev-list --count "HEAD..$base_branch" 2>/dev/null || echo "0")
 
-    # Verificar si tiene upstream (branch remota)
-    local upstream
-    upstream=$(git -C "$repo_path" rev-parse --abbrev-ref "@{upstream}" 2>/dev/null)
+    # Verificar si tiene upstream (branch remota válida)
+    local upstream=""
+    if git -C "$repo_path" rev-parse --verify "@{upstream}" >/dev/null 2>&1; then
+        upstream=$(git -C "$repo_path" rev-parse --abbrev-ref "@{upstream}" 2>/dev/null)
+    fi
 
     if [[ -n "$upstream" ]]; then
         # Commits locales sin push (--first-parent para no contar commits de merges)

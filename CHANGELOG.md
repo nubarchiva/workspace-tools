@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Corregido
+- **Detección de upstream "gone"** - `ws status`/`ws info` mostraban "Sincronizado con develop" en repos cuya rama remota fue borrada, ocultando commits sin push
+  - Todas las funciones de `ws-git-utils.sh` usan ahora `git rev-parse --verify` para validar que el upstream existe realmente
+  - Afecta a: `git_has_upstream`, `git_get_upstream_branch`, `git_repo_status`, `get_sync_status`
+  - Corregido también en `ws-switch` y `ws-git`
+
+### Añadido
+- **Tests unitarios para `ws-git-utils.sh`** - 19 tests incluyendo regresión para upstream "gone"
+
 ## [4.2.0] - 2026-01-25
 
 ### Añadido
