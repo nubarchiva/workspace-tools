@@ -105,8 +105,8 @@ echo "$repos" | while read -r repo_rel_path; do
             if [[ "$GIT_ARGS" == "push"* ]]; then
                 current_branch=$(git branch --show-current)
 
-                # Verificar si hay upstream configurado
-                if ! git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then
+                # Verificar si hay upstream configurado y válido
+                if ! git rev-parse --verify @{u} >/dev/null 2>&1; then
                     # Sin upstream: verificar si hay commits locales que subir
                     # Comparamos con la branch base (develop o master)
                     base_branch="develop"

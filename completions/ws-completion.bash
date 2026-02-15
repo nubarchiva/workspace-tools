@@ -13,7 +13,7 @@ _ws_completion() {
     local workspaces_dir="${WORKSPACES_DIR:-$workspace_root/workspaces}"
 
     # Subcomandos disponibles (incluyendo aliases)
-    local subcommands="new add remove switch list clean mvn git update stash grep templates status rename info origins mode help"
+    local subcommands="new add remove switch list clean mvn git update stash grep templates status rename info origins mode prune help"
     local aliases="ls cd rm mv st tpl"
 
     # Función para obtener workspaces
@@ -107,6 +107,11 @@ _ws_completion() {
                 mode)
                     # Opciones de modo
                     COMPREPLY=($(compgen -W "offline online" -- "$cur"))
+                    ;;
+                prune)
+                    # Opciones de prune y repos
+                    local repos=$(_get_repos)
+                    COMPREPLY=($(compgen -W "--dry-run --force --all $repos" -- "$cur"))
                     ;;
                 help|h|--help|-h)
                     # Sin argumentos

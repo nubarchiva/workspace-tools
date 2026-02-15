@@ -30,6 +30,7 @@ _ws() {
         'info:Muestra información del workspace'
         'origins:Operaciones en repos origen'
         'mode:Gestiona modo online/offline'
+        'prune:Limpia ramas locales sin cambios'
         'help:Muestra ayuda'
         # Aliases
         'ls:Alias de list'
@@ -152,6 +153,11 @@ _ws() {
                         'online:Modo normal (auto-detecta)'
                     )
                     _describe 'mode options' mode_opts
+                    ;;
+                prune)
+                    _alternative \
+                        'options:options:((--dry-run\:"Ver qué se borraría" --force\:"Incluir no mergeadas" --all\:"Todos los repos"))' \
+                        'repos:repo:_get_repos'
                     ;;
             esac
             ;;
