@@ -357,7 +357,7 @@ get_sync_status() {
         # Commits locales sin push (--first-parent para no contar commits de merges)
         unpushed=$(git -C "$repo_path" rev-list --count --first-parent "$upstream..HEAD" 2>/dev/null || echo "0")
         # Commits pusheados pero no en develop
-        pending_merge=$(git -C "$repo_path" rev-list --count "$base_branch..$upstream" 2>/dev/null || echo "0")
+        pending_merge=$(git -C "$repo_path" rev-list --count --no-merges "$base_branch..$upstream" 2>/dev/null || echo "0")
     else
         # Sin upstream: todos los commits adelante de develop son "pending_merge" conceptualmente
         # pero los mostramos como unpushed porque no han sido pusheados

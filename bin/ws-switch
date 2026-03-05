@@ -185,7 +185,7 @@ echo "$repos" | while read -r repo_rel_path; do
                         # Commits locales sin push (--first-parent para no contar commits de merges)
                         unpushed=$(git rev-list --count --first-parent "$upstream..HEAD" 2>/dev/null || echo "0")
                         # Commits pusheados pero no en develop
-                        pending_merge=$(git rev-list --count "$base_branch..$upstream" 2>/dev/null || echo "0")
+                        pending_merge=$(git rev-list --count --no-merges "$base_branch..$upstream" 2>/dev/null || echo "0")
                     else
                         # Sin upstream: todos los commits adelante de develop son unpushed
                         unpushed=$(git rev-list --count --first-parent "$base_branch..HEAD" 2>/dev/null || echo "0")

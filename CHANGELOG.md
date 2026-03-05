@@ -8,6 +8,10 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Corregido
+- **Merge commits inflaban contadores de sincronización** - Los commits de merge de develop INTO feature (ej: `Merge remote-tracking branch 'origin/develop' into feature/...`) se contaban como commits pendientes de merge o commits únicos, dando información engañosa
+  - `get_sync_status` en `ws-git-utils.sh`: `pending_merge` ahora usa `--no-merges`
+  - `ws-switch`: misma corrección en cálculo inline de `pending_merge`
+  - `ws-prune`: `unique_commits` ahora usa `--no-merges` para no considerar ramas con solo merges de develop como "con cambios"
 - **Detección de upstream "gone"** - `ws status`/`ws info` mostraban "Sincronizado con develop" en repos cuya rama remota fue borrada, ocultando commits sin push
   - Todas las funciones de `ws-git-utils.sh` usan ahora `git rev-parse --verify` para validar que el upstream existe realmente
   - Afecta a: `git_has_upstream`, `git_get_upstream_branch`, `git_repo_status`, `get_sync_status`
