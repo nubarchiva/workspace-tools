@@ -67,7 +67,7 @@ _ws_completion() {
             case ${words[1]} in
                 new|mk|create)
                     # Sugerir master/develop o --template
-                    COMPREPLY=($(compgen -W "master develop --template -t" -- "$cur"))
+                    COMPREPLY=($(compgen -W "master develop --template -t --bootstrap -b" -- "$cur"))
                     ;;
                 add|a|switch|cd|sw|clean|rm|del|remove|status|st|.|here|rename|mv|info)
                     # Completar nombre de workspace existente
@@ -129,7 +129,7 @@ _ws_completion() {
                     else
                         # Repos
                         local repos=$(_get_repos)
-                        COMPREPLY=($(compgen -W "$repos --template -t" -- "$cur"))
+                        COMPREPLY=($(compgen -W "$repos --template -t --bootstrap -b" -- "$cur"))
                     fi
                     ;;
                 add|a)

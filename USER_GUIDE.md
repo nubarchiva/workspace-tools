@@ -87,6 +87,11 @@ WS_DEBUG=1
 # Por defecto: ".idea .vscode .kiro .cursor .playwright-mcp AI.md .ai docs README.md"
 # Los enlaces simbólicos siempre se ignoran automáticamente
 WS_CLEAN_IGNORE=".idea .vscode .kiro .cursor .playwright-mcp .claude AI.md .ai docs README.md"
+
+# Aislamiento del repositorio Maven por workspace (opcional)
+WS_MAVEN_ISOLATION=false                  # desactivarlo (por defecto activo)
+WS_MAVEN_HEAD_BASE="$HOME/.m2/wt"         # base de los heads por workspace
+WS_MAVEN_TAIL="$HOME/.m2/repository"      # repositorio compartido (tail)
 ```
 
 ### Prioridad de Configuración
@@ -117,6 +122,36 @@ app
 api
 ```
 
+### Aislamiento del repositorio Maven por workspace
+
+Cuando varios workspaces construyen los mismos GAV `*-SNAPSHOT` desde código
+distinto, sus `mvn install` contra el `~/.m2/repository` compartido se pisan
+los artefactos mutuamente (fallo silencioso: el código de un workspace acaba
+ejecutándose con jars de otro).
+
+Para evitarlo, `ws new` y `ws add` crean `.mvn/maven.config` en cada repo con
+`pom.xml` (requiere Maven >= 3.9):
+
+```
+-Dmaven.repo.local=$HOME/.m2/wt/<workspace>/repository
+-Dmaven.repo.local.tail=$HOME/.m2/repository
+```
+
+- **Escrituras** (`mvn install`, descargas nuevas) van solo al *head* del
+  workspace: ningún workspace puede pisar a otro.
+- **Lecturas**: primero el head; lo que no esté (terceros ya descargados) se
+  lee del *tail* compartido, sin re-descargar ni duplicar disco.
+- El fichero se excluye de git automáticamente (`info/exclude` del repo:
+  contiene rutas absolutas locales).
+
+**Importante**: hasta poblar el head, los GAV propios se leen del tail
+compartido (donde otras sesiones siguen escribiendo). Puebla el head una vez
+con `ws mvn <workspace> install -DskipTests -nsu` (respeta `.ws-build-order`)
+o crea el workspace con `ws new --bootstrap`.
+
+`ws clean` elimina el head del workspace para liberar disco. Configurable con
+`WS_MAVEN_ISOLATION`, `WS_MAVEN_HEAD_BASE` y `WS_MAVEN_TAIL` (ver `~/.wsrc`).
+
 ---
 
 ## Comandos
@@ -132,16 +167,23 @@ ws new <nombre> --template <template> [repos...]
 
 **Opciones:**
 - `--template, -t <nombre>`: Usar repos de un template predefinido
+- `--bootstrap, -b`: Poblar el repositorio Maven del workspace tras crearlo
+  (ejecuta `ws mvn install -DskipTests -nsu`; puede tardar minutos)
 
 **Comportamiento de branches:**
 - `master` o `develop`: Usa esas branches existentes
 - Otros nombres: Crea branch `feature/<nombre>`
+
+**Aislamiento Maven:** en cada repo con `pom.xml` se crea `.mvn/maven.config`
+con un repositorio head propio del workspace (ver [Aislamiento del repositorio
+Maven por workspace](#aislamiento-del-repositorio-maven-por-workspace)).
 
 **Ejemplos:**
 ```bash
 ws new feature-123 app libs/common
 ws new feature-123 --template frontend
 ws new feature-123 -t backend libs/extra
+ws new feature-123 --bootstrap app        # crea y puebla el head Maven
 ws new develop app api                    # usa branch develop
 ```
 
@@ -154,6 +196,11 @@ Añade repos a un workspace existente.
 ```bash
 ws add <workspace> <repo1> [repo2...]
 ```
+
+**Aislamiento Maven:** los repos añadidos con `pom.xml` reciben su
+`.mvn/maven.config` apuntando al head del workspace. Recuerda poblar el head
+(`ws mvn <workspace> install -DskipTests -nsu`) para que los GAV del repo
+añadido no se lean del tail compartido.
 
 **Ejemplos:**
 ```bash
@@ -306,6 +353,9 @@ ws del <workspace>
 - Advierte si hay commits sin pushear
 - Requiere confirmación
 
+**Aislamiento Maven:** elimina también el repositorio head del workspace
+(`~/.m2/wt/<workspace>/`) para liberar disco.
+
 **Archivos ignorados:**
 - Algunos archivos/directorios se ignoran al decidir si el workspace está vacío
 - Por defecto: `.idea`, `.vscode`, `.kiro`, `.cursor`, `.playwright-mcp`, `AI.md`, `.ai`, `docs`, `README.md`, `.DS_Store`
@@ -344,6 +394,8 @@ ws mvn <workspace> <args...>
 - Ejecución paralela con `-T 1C`
 - Resumen de tiempos por proyecto
 - Respeta orden de `.ws-build-order` si existe
+- Ejecuta `mvn` desde la raíz de cada repo, aplicando su `.mvn/maven.config`
+  (aislamiento del repositorio Maven por workspace)
 
 **Ejemplos:**
 ```bash

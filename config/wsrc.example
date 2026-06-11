@@ -42,6 +42,24 @@
 # WS_CLEAN_IGNORE=".idea .vscode .kiro .cursor .playwright-mcp .claude AI.md .ai docs README.md"
 
 # -----------------------------------------------------------------------------
+# Aislamiento del repositorio Maven por workspace
+# -----------------------------------------------------------------------------
+# ws new / ws add crean .mvn/maven.config en cada repo con pom.xml para que
+# las escrituras Maven (mvn install) vayan a un repositorio "head" propio del
+# workspace y las lecturas caigan al repositorio compartido ("tail").
+# Evita que sesiones paralelas se pisen los SNAPSHOT. Requiere Maven >= 3.9.
+# ws clean elimina el head del workspace.
+#
+# Desactivar el aislamiento (por defecto activo):
+# WS_MAVEN_ISOLATION=false
+#
+# Base donde se crean los heads (por defecto $HOME/.m2/wt):
+# WS_MAVEN_HEAD_BASE="$HOME/.m2/wt"
+#
+# Repositorio compartido usado como tail (por defecto $HOME/.m2/repository):
+# WS_MAVEN_TAIL="$HOME/.m2/repository"
+
+# -----------------------------------------------------------------------------
 # Ejemplos de configuraciones avanzadas
 # -----------------------------------------------------------------------------
 

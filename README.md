@@ -157,6 +157,7 @@ wscd .            # raíz del workspace
 ## Características
 
 - **Aislamiento**: Cada workspace es independiente
+- **Aislamiento Maven**: Repositorio local (head) por workspace + `~/.m2` compartido como tail de solo lectura; los `mvn install` de sesiones paralelas no se pisan los SNAPSHOT (requiere Maven 3.9+)
 - **Eficiencia**: Worktrees no duplican el repo completo
 - **Multi-repo**: Opera en todos los repos con un comando
 - **Búsqueda parcial**: `ws cd feat` encuentra `feature-123`
@@ -186,6 +187,7 @@ wscd .            # raíz del workspace
 |------------|----------------|-------|
 | **Bash** | 4.0+ | Requerido (los scripts usan `#!/bin/bash`) |
 | **Git** | 2.15+ | Requerido para worktrees |
+| **Maven** | 3.9+ | Opcional, para el aislamiento del repositorio Maven (`maven.repo.local.tail`) |
 | **Zsh** | 5.0+ | Opcional, para usar como shell interactivo |
 | **OS** | macOS / Linux | Windows no soportado |
 

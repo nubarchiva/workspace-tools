@@ -11,6 +11,7 @@ source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
 
 WORKSPACE_NAME=""
 TEMPLATE_NAME=""
+BOOTSTRAP=false
 REPOS=()
 
 while [[ $# -gt 0 ]]; do
@@ -18,6 +19,10 @@ while [[ $# -gt 0 ]]; do
         --template|-t)
             TEMPLATE_NAME="$2"
             shift 2
+            ;;
+        --bootstrap|-b)
+            BOOTSTRAP=true
+            shift
             ;;
         --help|-h)
             WORKSPACE_NAME=""
@@ -40,6 +45,8 @@ show_help() {
     echo ""
     echo "Opciones:"
     echo "  --template, -t <nombre>  Usar template predefinido de repos"
+    echo "  --bootstrap, -b          Poblar el repositorio Maven del workspace tras crearlo"
+    echo "                           (ejecuta: ws mvn install -DskipTests -nsu; puede tardar minutos)"
     echo "  --help, -h               Mostrar esta ayuda"
     echo ""
     echo "Nombres especiales:"
@@ -153,6 +160,7 @@ echo "${COLOR_DIM}Repos a incluir: ${REPOS[@]}${COLOR_RESET}"
 echo ""
 
 # Crear worktree para cada repo
+MAVEN_ISOLATED=0
 for repo in "${REPOS[@]}"; do
     # El repo puede estar en subdirectorio (ej: libs/marc4j, tools/workspace-tools)
     REPO_PATH="$WORKSPACE_ROOT/$repo"
@@ -194,10 +202,34 @@ for repo in "${REPOS[@]}"; do
             info "  💡 Verifica que la branch no esté siendo usada por otro worktree"
         fi
     fi
+
+    # Aislamiento Maven: head por workspace + tail compartido (.mvn/maven.config)
+    if [ -d "$WORKTREE_PATH" ] && setup_maven_isolation "$WORKTREE_PATH" "$WORKSPACE_NAME"; then
+        echo "  ${COLOR_DIM}🔒 Aislamiento Maven configurado (.mvn/maven.config)${COLOR_RESET}"
+        MAVEN_ISOLATED=$((MAVEN_ISOLATED + 1))
+    fi
 done
 
 # Copiar configuraciones de IDE y AI assistants
 copy_workspace_config "$WORKSPACE_DIR"
+
+# Poblar el head Maven (o avisar de que está vacío)
+if [ "$MAVEN_ISOLATED" -gt 0 ]; then
+    maven_warn_if_no_tail_support
+    if [ "$BOOTSTRAP" = true ]; then
+        echo ""
+        info "📦 Poblando el repositorio Maven del workspace (head)..."
+        if ! "$SCRIPT_DIR/ws-mvn" "$WORKSPACE_NAME" install -DskipTests -nsu; then
+            warning "⚠️  El poblado del head falló; hasta completarlo, los GAV propios se leen del tail compartido"
+            echo "   Reintenta con: ${COLOR_CYAN}ws mvn $WORKSPACE_NAME install -DskipTests -nsu${COLOR_RESET}"
+        fi
+    else
+        echo ""
+        info "💡 Aislamiento Maven activo, pero el head está vacío: hasta poblarlo, los GAV propios se leen del tail compartido"
+        echo "   Puebla el head con: ${COLOR_CYAN}ws mvn $WORKSPACE_NAME install -DskipTests -nsu${COLOR_RESET}"
+        echo "   ${COLOR_DIM}(o usa 'ws new --bootstrap' para hacerlo automáticamente al crear)${COLOR_RESET}"
+    fi
+fi
 
 echo ""
 success "✅ Workspace creado: $WORKSPACE_DIR"

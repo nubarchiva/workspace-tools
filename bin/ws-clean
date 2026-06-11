@@ -41,6 +41,7 @@ show_help() {
     echo ""
     echo "⚠️  Este comando:"
     echo "  • Elimina los directorios de worktree"
+    echo "  • Elimina el repositorio Maven aislado del workspace (~/.m2/wt/<nombre>/)"
     echo "  • Mantiene las branches en los repos principales"
     echo "  • NO elimina commits ni cambios commiteados"
 }
@@ -89,6 +90,15 @@ done
 
 if [ -z "$repos" ] || [ "$repos" = "" ]; then
     echo "  ${COLOR_DIM}(No hay repos en este workspace)${COLOR_RESET}"
+fi
+
+# Repositorio Maven aislado del workspace (head), si existe
+MAVEN_HEAD_DIR="$(maven_head_dir "$WORKSPACE_NAME")"
+if [ -d "$MAVEN_HEAD_DIR" ]; then
+    head_size=$(du -sh "$MAVEN_HEAD_DIR" 2>/dev/null | cut -f1)
+    echo ""
+    echo "También se eliminará el repositorio Maven del workspace:"
+    echo "  • ${COLOR_CYAN}$MAVEN_HEAD_DIR${COLOR_RESET} ${COLOR_DIM}(${head_size:-?})${COLOR_RESET}"
 fi
 
 echo ""
@@ -210,6 +220,13 @@ if [ -d "$WORKSPACE_DIR" ]; then
         # Hay archivos del usuario, no eliminar
         WORKSPACE_FULLY_REMOVED=false
     fi
+fi
+
+# Eliminar el repositorio Maven aislado del workspace (head): los worktrees
+# que lo consumían ya no existen, mantenerlo solo ocupa disco
+if [ -n "$WORKSPACE_NAME" ] && [ -d "$MAVEN_HEAD_DIR" ]; then
+    rm -rf "$MAVEN_HEAD_DIR"
+    success "🧹 Repositorio Maven del workspace eliminado: $MAVEN_HEAD_DIR"
 fi
 
 # Mensaje final coherente según el resultado

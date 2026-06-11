@@ -139,3 +139,38 @@ run_ws_add() {
     local exit_code=$(echo "$result" | grep "EXIT_CODE:" | cut -d: -f2)
     [ "$exit_code" -eq 0 ]
 }
+
+# =============================================================================
+# Tests de aislamiento Maven
+# =============================================================================
+
+@test "ws-add: maven repo gets .mvn/maven.config with workspace head" {
+    mkdir -p "$TEST_WORKSPACES_DIR/iso-add"
+    create_maven_repo "repo-mvn-add"
+
+    run run_ws_add "iso-add" "repo-mvn-add"
+    [ "$status" -eq 0 ]
+
+    config="$TEST_WORKSPACES_DIR/iso-add/repo-mvn-add/.mvn/maven.config"
+    [ -f "$config" ]
+    grep -qxF -- "-Dmaven.repo.local=$WS_MAVEN_HEAD_BASE/iso-add/repository" "$config"
+    grep -qxF -- "-Dmaven.repo.local.tail=$WS_MAVEN_TAIL" "$config"
+}
+
+@test "ws-add: prints hint to populate the maven head" {
+    mkdir -p "$TEST_WORKSPACES_DIR/hint-add"
+    create_maven_repo "repo-mvn-hint"
+
+    run run_ws_add "hint-add" "repo-mvn-hint"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"ws mvn hint-add install -DskipTests -nsu"* ]]
+}
+
+@test "ws-add: repo without pom.xml does not get maven.config" {
+    mkdir -p "$TEST_WORKSPACES_DIR/plain-add"
+    create_test_repo "repo-plain-add"
+
+    run run_ws_add "plain-add" "repo-plain-add"
+    [ "$status" -eq 0 ]
+    [ ! -e "$TEST_WORKSPACES_DIR/plain-add/repo-plain-add/.mvn" ]
+}

@@ -177,3 +177,55 @@ run_ws_new() {
     [ "$status" -eq 0 ]
     [[ "$output" == *"listed-ws"* ]]
 }
+
+# =============================================================================
+# Tests de aislamiento Maven
+# =============================================================================
+
+@test "ws-new: maven repo gets .mvn/maven.config with workspace head" {
+    create_maven_repo "repo-mvn"
+
+    run run_ws_new "iso-ws" "repo-mvn"
+    [ "$status" -eq 0 ]
+
+    config="$TEST_WORKSPACES_DIR/iso-ws/repo-mvn/.mvn/maven.config"
+    [ -f "$config" ]
+    grep -qxF -- "-Dmaven.repo.local=$WS_MAVEN_HEAD_BASE/iso-ws/repository" "$config"
+    grep -qxF -- "-Dmaven.repo.local.tail=$WS_MAVEN_TAIL" "$config"
+}
+
+@test "ws-new: maven.config does not dirty the worktree" {
+    create_maven_repo "repo-mvn"
+
+    run run_ws_new "excl-ws" "repo-mvn"
+    [ "$status" -eq 0 ]
+
+    grep -qxF '.mvn/maven.config' "$TEST_WORKSPACE_ROOT/repo-mvn/.git/info/exclude"
+
+    cd "$TEST_WORKSPACES_DIR/excl-ws/repo-mvn"
+    [ -z "$(git status --porcelain)" ]
+}
+
+@test "ws-new: repo without pom.xml does not get maven.config" {
+    create_test_repo "repo-plain"
+
+    run run_ws_new "plain-ws" "repo-plain"
+    [ "$status" -eq 0 ]
+    [ ! -e "$TEST_WORKSPACES_DIR/plain-ws/repo-plain/.mvn" ]
+}
+
+@test "ws-new: WS_MAVEN_ISOLATION=false disables isolation" {
+    create_maven_repo "repo-mvn"
+
+    WS_MAVEN_ISOLATION=false run run_ws_new "no-iso-ws" "repo-mvn"
+    [ "$status" -eq 0 ]
+    [ ! -e "$TEST_WORKSPACES_DIR/no-iso-ws/repo-mvn/.mvn" ]
+}
+
+@test "ws-new: prints hint to populate the maven head" {
+    create_maven_repo "repo-mvn"
+
+    run run_ws_new "hint-ws" "repo-mvn"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"ws mvn hint-ws install -DskipTests -nsu"* ]]
+}

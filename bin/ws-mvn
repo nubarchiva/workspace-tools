@@ -55,7 +55,8 @@ show_help() {
     echo ""
     echo "Comportamiento:"
     echo "  • Busca pom.xml en la raíz de cada repo del workspace"
-    echo "  • Ejecuta 'mvn <args> -f <repo>/pom.xml' en cada proyecto"
+    echo "  • Ejecuta 'mvn <args>' desde la raíz de cada proyecto"
+    echo "    (aplica el .mvn/maven.config del repo: aislamiento Maven por workspace)"
     echo "  • Se detiene en el primer error"
     echo "  • Ignora repos sin pom.xml con un mensaje informativo"
     echo ""
@@ -145,8 +146,10 @@ echo "$repos" | while read -r repo_rel_path; do
             # Capturar tiempo de inicio
             start_time=$(date +%s)
 
-            # Ejecutar Maven
-            mvn $MVN_ARGS -f "$pom_path"
+            # Ejecutar Maven desde la raíz del repo: Maven localiza .mvn/maven.config
+            # subiendo desde el directorio actual (no desde -f), y ahí vive el
+            # aislamiento del repositorio local por workspace
+            (cd "$repo_path" && mvn $MVN_ARGS)
 
             # Verificar el resultado
             exit_code=$?

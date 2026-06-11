@@ -32,6 +32,10 @@ setup_test_environment() {
     export WORKSPACE_ROOT="$TEST_WORKSPACE_ROOT"
     export WORKSPACES_DIR="$TEST_WORKSPACES_DIR"
 
+    # Aislar el repositorio Maven real (~/.m2) del entorno de prueba
+    export WS_MAVEN_HEAD_BASE="$TEST_TEMP_DIR/m2-heads"
+    export WS_MAVEN_TAIL="$TEST_TEMP_DIR/m2-tail"
+
     # Crear WS_TOOLS temporal que apunte al entorno de prueba pero use los scripts reales
     # Esto es un poco tricky: necesitamos que los scripts lean de TEST pero ejecuten desde WS_TOOLS_ROOT
     export WS_TOOLS="$WS_TOOLS_ROOT"

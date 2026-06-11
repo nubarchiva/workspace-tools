@@ -118,6 +118,12 @@ if [[ -f "$_WS_INIT_DIR/ws-git-utils.sh" ]]; then
     source "$_WS_INIT_DIR/ws-git-utils.sh"
 fi
 
+# Cargar utilidades Maven (aislamiento de repositorio por workspace)
+if [[ -f "$_WS_INIT_DIR/ws-maven-utils.sh" ]]; then
+    # shellcheck source=/dev/null
+    source "$_WS_INIT_DIR/ws-maven-utils.sh"
+fi
+
 # -----------------------------------------------------------------------------
 # Funciones de utilidad adicionales
 # -----------------------------------------------------------------------------

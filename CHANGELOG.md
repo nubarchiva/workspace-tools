@@ -7,7 +7,16 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Añadido
+- **Aislamiento del repositorio Maven por workspace** - Evita que sesiones paralelas (varios worktrees, IDE + CLI) se pisen los `*-SNAPSHOT` al hacer `mvn install` contra el `~/.m2/repository` compartido
+  - `ws new` / `ws add`: crean `.mvn/maven.config` en cada repo con `pom.xml`, con repositorio *head* por workspace (`~/.m2/wt/<workspace>/repository`) y el `~/.m2/repository` compartido como *tail* de solo lectura (requiere Maven >= 3.9); el fichero se excluye de git vía `info/exclude` (contiene rutas absolutas locales)
+  - `ws new --bootstrap` (`-b`): puebla el head tras crear el workspace (`ws mvn install -DskipTests -nsu`); sin el flag se muestra el comando para hacerlo manualmente
+  - `ws clean`: elimina el head del workspace para liberar disco
+  - Nuevo módulo `ws-maven-utils.sh`; configurable en `~/.wsrc` con `WS_MAVEN_ISOLATION`, `WS_MAVEN_HEAD_BASE` y `WS_MAVEN_TAIL`
+  - Aviso si el Maven instalado es < 3.9 (sin `maven.repo.local.tail` se re-descargan dependencias al head)
+
 ### Corregido
+- **`ws mvn` ignoraba `.mvn/maven.config`** - Ejecutaba `mvn -f <repo>/pom.xml` desde fuera del repo; Maven localiza `.mvn/maven.config` subiendo desde el directorio actual, no desde `-f`. Ahora ejecuta `mvn` desde la raíz de cada repo, requisito para que el aislamiento Maven aplique también a `ws mvn` (y a los shortcuts `wmcis`, `wmci`, …)
 - **Merge commits inflaban contadores de sincronización** - Los commits de merge de develop INTO feature (ej: `Merge remote-tracking branch 'origin/develop' into feature/...`) se contaban como commits pendientes de merge o commits únicos, dando información engañosa
   - `get_sync_status` en `ws-git-utils.sh`: `pending_merge` ahora usa `--no-merges`
   - `ws-switch`: misma corrección en cálculo inline de `pending_merge`

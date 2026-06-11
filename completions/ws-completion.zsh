@@ -100,7 +100,7 @@ _ws() {
                 new|mk|create)
                     _alternative \
                         'special:special names:((master\:"branch master" develop\:"branch develop"))' \
-                        'options:options:((--template\:"-t Usar template" -t\:"Usar template"))' \
+                        'options:options:((--template\:"-t Usar template" -t\:"Usar template" --bootstrap\:"-b Poblar repositorio Maven del workspace" -b\:"Poblar repositorio Maven del workspace"))' \
                         'name:workspace name:'
                     ;;
                 add|a|switch|cd|sw|clean|rm|del|remove|status|st|rename|mv|info)
@@ -170,7 +170,7 @@ _ws() {
                     else
                         _alternative \
                             'repos:repo:_get_repos' \
-                            'options:options:((--template\:"-t Usar template" -t\:"Usar template"))'
+                            'options:options:((--template\:"-t Usar template" -t\:"Usar template" --bootstrap\:"-b Poblar repositorio Maven del workspace" -b\:"Poblar repositorio Maven del workspace"))'
                     fi
                     ;;
                 add|a|remove)
