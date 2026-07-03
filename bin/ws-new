@@ -103,20 +103,19 @@ if [ -n "$TEMPLATE_NAME" ]; then
     read -ra TEMPLATE_REPOS_ARRAY <<< "$TEMPLATE_REPOS"
 
     # Combinar: template repos + repos especificados manualmente (sin duplicados)
-    declare -A seen_repos
+    # Nota: sin arrays asociativos (declare -A) porque el bash de macOS es 3.2
     COMBINED_REPOS=()
 
-    for repo in "${TEMPLATE_REPOS_ARRAY[@]}"; do
-        if [ -z "${seen_repos[$repo]}" ]; then
+    for repo in "${TEMPLATE_REPOS_ARRAY[@]}" "${REPOS[@]}"; do
+        duplicate=false
+        for existing in "${COMBINED_REPOS[@]}"; do
+            if [ "$existing" = "$repo" ]; then
+                duplicate=true
+                break
+            fi
+        done
+        if [ "$duplicate" = false ]; then
             COMBINED_REPOS+=("$repo")
-            seen_repos[$repo]=1
-        fi
-    done
-
-    for repo in "${REPOS[@]}"; do
-        if [ -z "${seen_repos[$repo]}" ]; then
-            COMBINED_REPOS+=("$repo")
-            seen_repos[$repo]=1
         fi
     done
 

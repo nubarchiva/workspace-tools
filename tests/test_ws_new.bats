@@ -97,6 +97,43 @@ run_ws_new() {
 }
 
 # =============================================================================
+# Tests de templates
+# =============================================================================
+
+@test "ws-new: template with repo in subdirectory creates all worktrees" {
+    create_test_repo "repo-a"
+    create_test_repo "modules/sub-repo"
+    echo "mi-template: repo-a modules/sub-repo" > "$TEST_WORKSPACE_ROOT/.ws-templates"
+
+    run run_ws_new "tpl-ws" --template "mi-template"
+    [ "$status" -eq 0 ]
+    [ -d "$TEST_WORKSPACES_DIR/tpl-ws/repo-a" ]
+    [ -d "$TEST_WORKSPACES_DIR/tpl-ws/modules/sub-repo" ]
+}
+
+@test "ws-new: template repos combine with manual repos without duplicates" {
+    create_test_repo "repo-a"
+    create_test_repo "modules/sub-repo"
+    create_test_repo "repo-b"
+    echo "mi-template: repo-a modules/sub-repo" > "$TEST_WORKSPACE_ROOT/.ws-templates"
+
+    run run_ws_new "dedup-ws" --template "mi-template" "modules/sub-repo" "repo-b"
+    [ "$status" -eq 0 ]
+    [ -d "$TEST_WORKSPACES_DIR/dedup-ws/repo-a" ]
+    [ -d "$TEST_WORKSPACES_DIR/dedup-ws/modules/sub-repo" ]
+    [ -d "$TEST_WORKSPACES_DIR/dedup-ws/repo-b" ]
+    [[ "$output" == *"Repos a incluir: repo-a modules/sub-repo repo-b"* ]]
+}
+
+@test "ws-new: nonexistent template fails with error" {
+    echo "otro: repo-a" > "$TEST_WORKSPACE_ROOT/.ws-templates"
+
+    run run_ws_new "tpl-ws" --template "no-existe"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"no encontrado"* ]]
+}
+
+# =============================================================================
 # Tests de branches
 # =============================================================================
 
