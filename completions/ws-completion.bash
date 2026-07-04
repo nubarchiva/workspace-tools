@@ -52,9 +52,21 @@ _ws_completion() {
     _get_templates() {
         local templates_file="$workspace_root/.ws-templates"
         if [ -f "$templates_file" ]; then
-            cut -d':' -f1 "$templates_file" 2>/dev/null
+            grep -v '^[[:space:]]*#' "$templates_file" 2>/dev/null | cut -d':' -f1
         fi
     }
+
+    # --template/-t en 'new': completar con los templates configurados,
+    # sea cual sea la posición del flag
+    if [[ "$prev" == "--template" || "$prev" == "-t" ]]; then
+        case ${words[1]} in
+            new|mk|create)
+                local templates=$(_get_templates)
+                COMPREPLY=($(compgen -W "$templates" -- "$cur"))
+                return
+                ;;
+        esac
+    fi
 
     # Posición actual en el comando
     case $cword in
@@ -122,15 +134,9 @@ _ws_completion() {
             # Tercer argumento
             case ${words[1]} in
                 new|mk|create)
-                    if [[ "${words[2]}" == "--template" || "${words[2]}" == "-t" ]]; then
-                        # Completar templates
-                        local templates=$(_get_templates)
-                        COMPREPLY=($(compgen -W "$templates" -- "$cur"))
-                    else
-                        # Repos
-                        local repos=$(_get_repos)
-                        COMPREPLY=($(compgen -W "$repos --template -t --bootstrap -b" -- "$cur"))
-                    fi
+                    # Repos y opciones (el caso --template se resuelve antes por prev)
+                    local repos=$(_get_repos)
+                    COMPREPLY=($(compgen -W "$repos --template -t --bootstrap -b" -- "$cur"))
                     ;;
                 add|a)
                     # Repos
@@ -189,7 +195,12 @@ _ws_completion() {
         *)
             # Argumentos adicionales
             case ${words[1]} in
-                new|mk|create|add|a)
+                new|mk|create)
+                    # Repos adicionales y opciones
+                    local repos=$(_get_repos)
+                    COMPREPLY=($(compgen -W "$repos --template -t --bootstrap -b" -- "$cur"))
+                    ;;
+                add|a)
                     # Repos adicionales
                     local repos=$(_get_repos)
                     COMPREPLY=($(compgen -W "$repos" -- "$cur"))

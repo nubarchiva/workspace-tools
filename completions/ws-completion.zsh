@@ -82,11 +82,20 @@ _ws() {
         local templates_file="$workspace_root/.ws-templates"
         if [[ -f "$templates_file" ]]; then
             while IFS=: read -r name repos_list; do
-                [[ -n "$name" ]] && templates+=("$name:$repos_list")
+                name="${name#"${name%%[![:space:]]*}"}"
+                [[ -z "$name" || "$name" == \#* ]] && continue
+                templates+=("$name:${repos_list## }")
             done < "$templates_file"
         fi
         _describe 'templates' templates
     }
+
+    # --template/-t en 'new': completar con los templates configurados,
+    # sea cual sea la posición del flag
+    if [[ "$words[2]" == (new|mk|create) && "$words[CURRENT-1]" == (--template|-t) ]]; then
+        _get_templates
+        return
+    fi
 
     # Lógica de completado según posición
     case $CURRENT in
@@ -165,13 +174,10 @@ _ws() {
             # Tercer argumento
             case $words[2] in
                 new|mk|create)
-                    if [[ "$words[3]" == "--template" || "$words[3]" == "-t" ]]; then
-                        _get_templates
-                    else
-                        _alternative \
-                            'repos:repo:_get_repos' \
-                            'options:options:((--template\:"-t Usar template" -t\:"Usar template" --bootstrap\:"-b Poblar repositorio Maven del workspace" -b\:"Poblar repositorio Maven del workspace"))'
-                    fi
+                    # Repos y opciones (el caso --template se resuelve antes por palabra previa)
+                    _alternative \
+                        'repos:repo:_get_repos' \
+                        'options:options:((--template\:"-t Usar template" -t\:"Usar template" --bootstrap\:"-b Poblar repositorio Maven del workspace" -b\:"Poblar repositorio Maven del workspace"))'
                     ;;
                 add|a|remove)
                     _get_repos
@@ -248,7 +254,12 @@ _ws() {
         *)
             # Argumentos adicionales
             case $words[2] in
-                new|mk|create|add|a)
+                new|mk|create)
+                    _alternative \
+                        'repos:repo:_get_repos' \
+                        'options:options:((--template\:"-t Usar template" -t\:"Usar template" --bootstrap\:"-b Poblar repositorio Maven del workspace" -b\:"Poblar repositorio Maven del workspace"))'
+                    ;;
+                add|a)
                     _get_repos
                     ;;
                 templates|tpl)
