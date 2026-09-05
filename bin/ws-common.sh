@@ -205,6 +205,12 @@ copy_workspace_config() {
         ln -sf "$config_source/docs" "$workspace_dir/docs"
     fi
 
+    # Crear symlink a nuba-management (gestión de evolutivos, SSOT fuera de producto)
+    if [ -d "$config_source/nuba-management" ]; then
+        echo "  • Enlazando nuba-management/ (gestión de evolutivos)"
+        ln -sf "$config_source/nuba-management" "$workspace_dir/nuba-management"
+    fi
+
     # Copiar .idea/ (IntelliJ IDEA)
     if [ -d "$config_source/.idea" ]; then
         echo "  • Copiando configuración IntelliJ (.idea/)"

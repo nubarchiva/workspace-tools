@@ -1,0 +1,139 @@
+#!/bin/bash
+# mgmt - Consulta en terminal del estado de los evolutivos de nuba-management.
+#
+# PROPUESTA (evolutivo autonomous-development-process, it-03, fase F5): NO instalado.
+# Ficha de instalación en workspace-tools:
+#   1. Copiar este fichero a workspace-tools/bin/mgmt y darle permiso de ejecución.
+#   2. Aplicar proposals/workspace-tools/bin/ws-new.diff (symlink nuba-management en
+#      workspace nuevo, igual que docs/, .ai/ y AI.md).
+#   3. Añadir "mgmt" al PATH del mismo modo que "ws" (mismo bin/).
+#
+# Hermano de `ws`: mismo patrón de dispatch por subcomando (ver bin/ws), pero opera
+# sobre el repositorio de gestión `nuba-management` en vez de sobre workspaces.
+#
+# No duplica el parser de frontmatter: reutiliza las funciones de
+# nuba-management/bin/mgmt-index cargándolo como módulo Python (import por ruta),
+# así que solo hay una implementación del parser YAML de frontmatter.
+
+# Nota: sin "set -euo pipefail" a propósito, igual que el resto de bin/ws-*
+# (ws-init.sh usa variables sin inicializar y no es compatible con "set -u").
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+
+# Reutiliza la detección de workspace de workspace-tools si el script vive en su bin/
+if [ -f "$SCRIPT_DIR/ws-init.sh" ]; then
+    # shellcheck source=/dev/null
+    source "$SCRIPT_DIR/ws-init.sh"
+fi
+
+# Localiza el repositorio nuba-management:
+#   1) symlink dentro del workspace actual (lo crea ws-new, ver ws-new.diff)
+#   2) clon en la raíz del workspace (WORKSPACE_ROOT/nuba-management)
+find_nuba_management() {
+    local current_ws candidate
+
+    if command -v detect_current_workspace >/dev/null 2>&1 && [ -n "${WORKSPACES_DIR:-}" ]; then
+        current_ws="$(detect_current_workspace 2>/dev/null || true)"
+        if [ -n "$current_ws" ]; then
+            candidate="$WORKSPACES_DIR/$current_ws/nuba-management"
+            if [ -d "$candidate" ]; then
+                echo "$candidate"
+                return 0
+            fi
+        fi
+    fi
+
+    if [ -n "${WORKSPACE_ROOT:-}" ] && [ -d "$WORKSPACE_ROOT/nuba-management" ]; then
+        echo "$WORKSPACE_ROOT/nuba-management"
+        return 0
+    fi
+
+    return 1
+}
+
+show_help() {
+    cat <<'EOF'
+Uso: mgmt <comando> [argumentos...]
+
+  status [slug]   Frontmatter de roadmap.md de un evolutivo, o de todos si no
+                   se indica slug, con la marca de desfasado (§4.5 del proceso).
+                   Ejemplos:
+                     mgmt status                          # todos los evolutivos
+                     mgmt status product-metrics          # uno concreto
+
+  help            Muestra esta ayuda
+EOF
+}
+
+cmd_status() {
+    local slug="${1:-}"
+    python3 - "$MGMT_INDEX" "$slug" <<'PYEOF'
+import importlib.machinery
+import importlib.util
+import sys
+
+mgmt_index_path, slug = sys.argv[1], (sys.argv[2] if len(sys.argv) > 2 else "")
+
+# mgmt-index no tiene extension .py: hace falta el loader explicito para que
+# importlib lo reconozca como fuente Python.
+loader = importlib.machinery.SourceFileLoader("mgmt_index", mgmt_index_path)
+spec = importlib.util.spec_from_loader("mgmt_index", loader)
+mgmt_index = importlib.util.module_from_spec(spec)
+loader.exec_module(mgmt_index)  # no ejecuta main() (protegido por __name__)
+
+items = mgmt_index.collect(
+    mgmt_index.REPO_ROOT / "enhancements", "roadmap.md", mgmt_index.ENH_FIELDS
+)
+
+if slug:
+    items = [it for it in items if it["_slug"] == slug]
+    if not items:
+        print(f"No existe el evolutivo '{slug}' bajo enhancements/", file=sys.stderr)
+        sys.exit(1)
+
+if not items:
+    print("No hay evolutivos registrados todavía.")
+    sys.exit(0)
+
+for it in sorted(items, key=lambda x: x["_slug"]):
+    print(f"# {it['_slug']}")
+    for field in mgmt_index.ENH_FIELDS:
+        print(f"  {field}: {mgmt_index.fmt(it.get(field))}")
+    if it["_sin_historial"]:
+        print("  desfasado: sin historial git (no versionado, no verificable)")
+    elif it["_desfasado"]:
+        print(f"  desfasado: sí (último commit {it['_ultimo_commit']})")
+    else:
+        print("  desfasado: no")
+    print()
+PYEOF
+}
+
+NUBA_MANAGEMENT_DIR="$(find_nuba_management || true)"
+if [ -z "$NUBA_MANAGEMENT_DIR" ]; then
+    echo "No se encuentra nuba-management (ni symlink en el workspace actual ni clon en la raíz del workspace)" >&2
+    exit 1
+fi
+
+MGMT_INDEX="$NUBA_MANAGEMENT_DIR/bin/mgmt-index"
+if [ ! -f "$MGMT_INDEX" ]; then
+    echo "No se encuentra $MGMT_INDEX" >&2
+    exit 1
+fi
+
+SUBCOMMAND="${1:-help}"
+[ $# -gt 0 ] && shift || true
+
+case "$SUBCOMMAND" in
+    status)
+        cmd_status "$@"
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        echo "Comando desconocido: $SUBCOMMAND" >&2
+        show_help
+        exit 1
+        ;;
+esac
