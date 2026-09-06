@@ -211,6 +211,24 @@ copy_workspace_config() {
         ln -sf "$config_source/nuba-management" "$workspace_dir/nuba-management"
     fi
 
+    # Permisos del flujo desatendido: /jira-batch-impl commitea y publica por issue y su preflight (§1.5)
+    # exige estas reglas en el worktree. Se crean al montar el workspace, acotadas a él, y solo si no existe
+    # ya un settings.local.json (proceso de desarrollo autónomo de evolutivos, hallazgo H33).
+    local local_settings="$workspace_dir/.claude/settings.local.json"
+    if [ ! -f "$local_settings" ]; then
+        echo "  • Creando .claude/settings.local.json (permisos de commit y push para las fases desatendidas)"
+        cat > "$local_settings" <<'JSON'
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
+    ]
+  }
+}
+JSON
+    fi
+
     # Copiar .idea/ (IntelliJ IDEA)
     if [ -d "$config_source/.idea" ]; then
         echo "  • Copiando configuración IntelliJ (.idea/)"
