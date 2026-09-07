@@ -202,7 +202,7 @@ La verificación de versiones se realiza automáticamente en `install.sh` y `set
 
 - **[USER_GUIDE.md](USER_GUIDE.md)** - Referencia completa de comandos
 - **[CHANGELOG.md](CHANGELOG.md)** - Historial de cambios
-- **[ROADMAP.md](ROADMAP.md)** - Funcionalidades planificadas
+- **ROADMAP.md** - Funcionalidades planificadas; vive en el repositorio de gestión, `nuba-management/implementations/workspace-tools/ROADMAP.md`
 
 ## Contribuir
 

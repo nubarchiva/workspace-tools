@@ -744,4 +744,4 @@ ws list
 
 - **[README.md](README.md)** - Introducción y uso rápido
 - **[CHANGELOG.md](CHANGELOG.md)** - Historial de cambios
-- **[ROADMAP.md](ROADMAP.md)** - Funcionalidades implementadas y futuras
+- **ROADMAP.md** - Funcionalidades implementadas y futuras; vive en el repositorio de gestión, `nuba-management/implementations/workspace-tools/ROADMAP.md`
