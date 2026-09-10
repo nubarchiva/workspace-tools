@@ -123,6 +123,37 @@ ws clean feature-123
 | `ws grep <patrón>` | Buscar en todos los repos |
 | `ws prune [--all]` | Limpiar ramas locales huérfanas |
 | `ws origins git <cmd>` | Git en repos origen |
+| `ws origins clone` | Clonar los repos del manifiesto |
+
+### Primer arranque en una máquina nueva
+
+`ws new` crea worktrees sobre repos ya clonados. En una máquina recién instalada
+no hay ninguno todavía: `ws origins clone` puebla WORKSPACE_ROOT a partir de un
+manifiesto versionado.
+
+```bash
+# Todo el manifiesto
+ws origins clone
+
+# Solo un subconjunto
+ws origins clone --group core
+
+# Ver qué haría, sin clonar
+ws origins clone --dry-run
+
+# Máquina limpia: traer primero el repositorio que contiene el manifiesto
+ws origins clone --seed <url-del-repo-con-el-manifiesto>
+```
+
+No pregunta nada, así que sirve en flujo desatendido: un repo ya clonado se
+salta, el fallo de uno no detiene a los demás, y al terminar informa de qué
+clonó, qué saltó y qué falló. Antes de descargar nada comprueba el acceso a
+cada servidor y traduce el fallo a una causa concreta —el nombre no resuelve,
+la clave del host no está registrada, el servidor rechaza tu clave— en lugar
+de dejar un error opaco de git.
+
+El manifiesto no viene con la herramienta: es de tu proyecto. Formato y
+ubicaciones posibles en [config/manifest.example](config/manifest.example).
 
 ### Templates
 

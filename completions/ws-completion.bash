@@ -109,7 +109,7 @@ _ws_completion() {
                     ;;
                 origins)
                     # Subcomandos de origins
-                    COMPREPLY=($(compgen -W "git list" -- "$cur"))
+                    COMPREPLY=($(compgen -W "clone git list" -- "$cur"))
                     ;;
                 list|ls)
                     # Filtro opcional (workspaces existentes)
@@ -188,6 +188,8 @@ _ws_completion() {
                     if [[ "${words[2]}" == "git" ]]; then
                         # Comandos Git comunes
                         COMPREPLY=($(compgen -W "status pull push fetch log diff" -- "$cur"))
+                    elif [[ "${words[2]}" == "clone" ]]; then
+                        COMPREPLY=($(compgen -W "--group --manifest --seed --include-manual --dry-run --list-groups --help" -- "$cur"))
                     fi
                     ;;
             esac

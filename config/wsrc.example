@@ -42,6 +42,24 @@
 # WS_CLEAN_IGNORE=".idea .vscode .kiro .cursor .playwright-mcp .claude AI.md .ai docs README.md"
 
 # -----------------------------------------------------------------------------
+# Manifiesto de repos origen (ws origins clone)
+# -----------------------------------------------------------------------------
+# Declara qué repositorios forman el proyecto y dónde se clonan, para poblar
+# WORKSPACE_ROOT en una máquina recién instalada. Formato y ejemplo comentado en
+# WS_TOOLS/config/manifest.example
+#
+# Ruta del manifiesto. Admite varios separados por ':', que se componen en orden
+# (a igualdad de destino gana el último): así se separa la parte pública de la
+# privada sin duplicar entradas.
+# WS_MANIFEST="$WORKSPACE_ROOT/gestion/manifests/publico.conf:$WORKSPACE_ROOT/gestion/manifests/privado.conf"
+#
+# Si no se define, se busca en $WORKSPACE_ROOT/.ws-manifest
+# Y siempre, si existe, se compone el último ~/.ws-manifest.local (repos propios)
+#
+# Tiempo de espera al conectar con cada servidor, en segundos (por defecto 10):
+# WS_CLONE_TIMEOUT=10
+
+# -----------------------------------------------------------------------------
 # Aislamiento del repositorio Maven por workspace
 # -----------------------------------------------------------------------------
 # ws new / ws add crean .mvn/maven.config en cada repo con pom.xml para que

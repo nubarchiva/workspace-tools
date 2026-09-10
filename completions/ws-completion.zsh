@@ -147,6 +147,7 @@ _ws() {
                     ;;
                 origins)
                     local -a origins_actions=(
+                        'clone:Clonar los repos del manifiesto'
                         'git:Ejecutar git en repos origen'
                         'list:Listar repos origen'
                     )
@@ -237,7 +238,17 @@ _ws() {
                     esac
                     ;;
                 origins)
-                    if [[ "$words[3]" == "git" ]]; then
+                    if [[ "$words[3]" == "clone" ]]; then
+                        local -a clone_opts=(
+                            '--group:Clonar solo esos grupos'
+                            '--manifest:Manifiesto a usar'
+                            '--seed:Clonar primero el repo del manifiesto'
+                            '--include-manual:Incluir lo marcado manual'
+                            '--dry-run:Mostrar qué haría'
+                            '--list-groups:Listar los grupos del manifiesto'
+                        )
+                        _describe 'clone options' clone_opts
+                    elif [[ "$words[3]" == "git" ]]; then
                         local -a git_cmds=(
                             'status:Estado'
                             'pull:Descargar'

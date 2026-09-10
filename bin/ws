@@ -134,6 +134,16 @@ OPERACIONES MULTI-REPO:
 
 REPOS ORIGEN:
 
+  origins clone [opciones]
+      Clona los repos declarados en un manifiesto (máquina recién instalada)
+      Opciones: --group, --manifest, --seed, --dry-run, --list-groups
+      No pregunta nada y es idempotente: apto para flujo desatendido
+      Ejemplos:
+        ws origins clone --seed <url>       # primer arranque, máquina limpia
+        ws origins clone --group core       # solo un subconjunto
+        ws origins clone --dry-run          # ver el plan sin clonar
+      Ayuda completa: ws origins clone --help
+
   origins git <comando> [args]
       Ejecuta Git en todos los repos origen (WORKSPACE_ROOT)
       Útil para actualizar repos en develop/master

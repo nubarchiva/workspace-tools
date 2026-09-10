@@ -1,0 +1,103 @@
+# =============================================================================
+# Manifiesto de repos origen (ws origins clone)
+# =============================================================================
+#
+# Declara qué repositorios forman el proyecto y dónde se clonan, para que una
+# máquina recién instalada pueda poblar WORKSPACE_ROOT antes de que haya nada
+# sobre lo que crear worktrees.
+#
+# Copia este archivo y ajústalo. workspace-tools no trae ningún manifiesto real:
+# el mecanismo es de la herramienta, la lista de repositorios es de tu proyecto.
+#
+# Dónde ponerlo (por orden de precedencia al resolverlo):
+#   1. ws origins clone --manifest <ruta>      (acumulable)
+#   2. WS_MANIFEST en ~/.wsrc                  (lista separada por ':')
+#   3. <clon de --seed>/.ws-manifest           (primer arranque)
+#   4. $WORKSPACE_ROOT/.ws-manifest
+#   Y siempre, si existe, ~/.ws-manifest.local
+#
+# =============================================================================
+# FORMATO
+# =============================================================================
+#
+#   <destino>  <url>  [grupos]  [flags]  [motivo]
+#
+#   destino  Ruta relativa a WORKSPACE_ROOT. Admite anidamiento (libs/foo).
+#            Es un campo propio, y no se deriva de la URL, porque el nombre del
+#            directorio de trabajo no siempre coincide con el del repositorio.
+#   url      Cualquier URL que entienda 'git clone'.
+#   grupos   Lista separada por comas, para clonar subconjuntos con --group.
+#            '-' si el repositorio no pertenece a ninguno.
+#   flags    Lista separada por comas. Reconocido: 'manual' (ver abajo). '-' si
+#            no tiene ninguno.
+#   motivo   Texto libre hasta el fin de la línea. Se muestra al informar de los
+#            repositorios marcados 'manual'. Puede llevar espacios.
+#
+# Los campos se separan por espacios en blanco; alinea las columnas si quieres.
+# Las líneas vacías y las que empiezan por '#' se ignoran.
+#
+# =============================================================================
+# COMPOSICIÓN: PÚBLICO + PRIVADO + PERSONAL
+# =============================================================================
+#
+# Se pueden componer varios manifiestos: se cargan en orden y, a igualdad de
+# destino, gana el último. Eso permite separar por visibilidad sin duplicar
+# nada, que es lo que necesita un proyecto con parte abierta y parte cerrada:
+#
+#   - Un manifiesto PÚBLICO, versionado con el propio proyecto, con los repos
+#     que cualquiera puede clonar. A quien solo trabaje con la parte abierta le
+#     basta con este.
+#   - Un manifiesto PRIVADO, en un repositorio de acceso restringido, con los
+#     repos internos (personalizaciones de cliente, despliegues, gestión).
+#   - Un manifiesto PERSONAL en ~/.ws-manifest.local, con los repos propios de
+#     cada uno. Nunca se comparte, y se compone siempre el último.
+#
+#   ws origins clone --manifest manifiesto-publico --manifest manifiesto-privado
+#
+# =============================================================================
+# EJEMPLO
+# =============================================================================
+
+# destino              url                                              grupos       flags   motivo
+
+# --- Núcleo: lo mínimo para compilar ---------------------------------------
+app                    git@github.com:ejemplo/app.git                   core,apps    -       -
+libs/common            git@github.com:ejemplo/common.git                core,libs    -       -
+libs/parser            git@github.com:ejemplo/parser.git                core,libs    -       -
+
+# --- Módulos ----------------------------------------------------------------
+# El destino no tiene por qué repetir el nombre del repositorio.
+modules/portal         git@github.com:ejemplo/module-portal.git          modules      -       -
+modules/batch          git@github.com:ejemplo/module-batch.git           modules      -       -
+
+# --- Herramientas -----------------------------------------------------------
+tools/workspace-tools  https://github.com/nubarchiva/workspace-tools.git tools        -       -
+
+# --- Documentación y web ----------------------------------------------------
+docs-site              git@github.com:ejemplo/website.git                web,docs     -       -
+
+# --- Repositorios que necesitan configuración adicional ---------------------
+# 'manual' los deja FUERA del clonado por defecto: se informa del motivo en vez
+# de fallar con un error opaco. Se fuerzan con --include-manual.
+legacy-archive         https://interno.ejemplo.org/git/archive.git       external     manual  requiere certificado de cliente (mTLS)
+
+# =============================================================================
+# NOTAS
+# =============================================================================
+#
+# URLs y nombres de host
+#   Usa el nombre completo (FQDN) del servidor, no un alias corto. Un alias que
+#   solo funcione gracias a una entrada de /etc/hosts obliga a replicar esa
+#   entrada en cada máquina nueva, y puede quedar ambiguo si el dominio de
+#   búsqueda del resolver lo lleva a otro sitio. El FQDN se resuelve por DNS y
+#   sigue heredando lo que ~/.ssh/config declare para él.
+#
+# Un único alias por servidor
+#   Si el mismo servidor es alcanzable por varios nombres, normaliza el
+#   manifiesto a uno solo. Los repositorios ya clonados con otro nombre no se
+#   tocan: 'clone' los salta e informa de que su origin difiere.
+#
+# Grupos
+#   No hay grupos predefinidos: son los que declares. 'ws origins clone
+#   --list-groups' enumera los que haya en el manifiesto cargado. Sin --group
+#   se clona todo lo que no esté marcado 'manual'.

@@ -15,17 +15,22 @@ show_help() {
     echo "desde donde se crean los worktrees."
     echo ""
     echo "Subcomandos:"
-    echo "  git <args>     Ejecuta git en todos los repos origen"
-    echo "  list           Lista todos los repos origen detectados"
+    echo "  clone [opciones]  Clona los repos del manifiesto (máquina nueva)"
+    echo "  git <args>        Ejecuta git en todos los repos origen"
+    echo "  list              Lista todos los repos origen detectados"
     echo ""
     echo "Ejemplos:"
-    echo "  ws origins git pull        # pull en todos los repos origen"
-    echo "  ws origins git status      # status de todos los repos origen"
-    echo "  ws origins git fetch       # fetch en todos los repos origen"
-    echo "  ws origins list            # listar repos detectados"
+    echo "  ws origins clone --seed <url>  # primer arranque en máquina limpia"
+    echo "  ws origins clone --group core  # solo un subconjunto"
+    echo "  ws origins git pull            # pull en todos los repos origen"
+    echo "  ws origins git status          # status de todos los repos origen"
+    echo "  ws origins list                # listar repos detectados"
+    echo ""
+    echo "Ayuda del clonado: ws origins clone --help"
     echo ""
     echo "Archivos de configuración:"
-    echo "  \$WORKSPACE_ROOT/.wsignore  Repos a excluir (uno por línea)"
+    echo "  \$WORKSPACE_ROOT/.wsignore    Repos a excluir (uno por línea)"
+    echo "  \$WORKSPACE_ROOT/.ws-manifest Repos a clonar (ver config/manifest.example)"
     echo ""
     echo "Nota: Los repos origen normalmente están en branch develop o master."
 }
@@ -81,6 +86,452 @@ find_origin_repos() {
                 echo "$repo"
             fi
         done
+}
+
+# =============================================================================
+# clone - Clonado inicial de los repos origen a partir de un manifiesto
+# =============================================================================
+
+show_clone_help() {
+    echo "Uso: ws origins clone [opciones]"
+    echo ""
+    echo "Clona en WORKSPACE_ROOT los repositorios declarados en un manifiesto,"
+    echo "dejándolo poblado para que 'ws new' pueda crear worktrees."
+    echo ""
+    echo "No pregunta nada: es apto para flujo desatendido. Un repositorio ya"
+    echo "clonado se salta, y el fallo de uno no detiene a los demás."
+    echo ""
+    echo "Opciones:"
+    echo "  --group, -g <g1,g2>   Clonar solo esos grupos (acumulable)"
+    echo "  --manifest, -m <ruta> Manifiesto a usar (acumulable, se componen en orden)"
+    echo "  --seed <url>          Clonar primero el repositorio que contiene el"
+    echo "                        manifiesto y leerlo de ahí (primer arranque)"
+    echo "  --include-manual      Clonar también lo marcado 'manual'"
+    echo "  --dry-run             Mostrar qué haría, sin clonar ni tocar la red"
+    echo "  --list-groups         Listar los grupos declarados en el manifiesto"
+    echo "  --help, -h            Mostrar esta ayuda"
+    echo ""
+    echo "Resolución del manifiesto (por orden de precedencia):"
+    echo "  1. --manifest"
+    echo "  2. \$WS_MANIFEST (lista separada por ':')"
+    echo "  3. <clon de --seed>/.ws-manifest"
+    echo "  4. \$WORKSPACE_ROOT/.ws-manifest"
+    echo "  Y siempre, si existe, ~/.ws-manifest.local (repos propios de cada uno)"
+    echo ""
+    echo "Ejemplos:"
+    echo "  ws origins clone --seed <url-del-repo-con-el-manifiesto>"
+    echo "  ws origins clone --group core"
+    echo "  ws origins clone --dry-run"
+    echo ""
+    echo "Formato del manifiesto: ver \$WS_TOOLS/config/manifest.example"
+}
+
+# Comprueba los prerrequisitos que, de faltar, producen un fallo opaco de git
+_clone_check_prerequisites() {
+    if ws_is_offline_mode; then
+        error "❌ Modo offline activo: el clonado necesita red"
+        echo "   Desactívalo con: ${COLOR_CYAN}ws mode online${COLOR_RESET}"
+        return 1
+    fi
+
+    if ! command -v git >/dev/null 2>&1; then
+        error "❌ git no está instalado"
+        return 1
+    fi
+
+    local git_version git_major git_minor
+    git_version=$(git --version | grep -oE '[0-9]+\.[0-9]+' | head -n1)
+    git_major=${git_version%%.*}
+    git_minor=${git_version#*.}
+    if [ "$git_major" -lt 2 ] || { [ "$git_major" -eq 2 ] && [ "$git_minor" -lt 15 ]; }; then
+        error "❌ Git $git_version: se requiere 2.15 o superior"
+        return 1
+    fi
+
+    if [ -z "$WORKSPACE_ROOT" ]; then
+        error "❌ WORKSPACE_ROOT no está definido"
+        echo "   Configúralo en ~/.wsrc"
+        return 1
+    fi
+
+    if [ ! -d "$WORKSPACE_ROOT" ]; then
+        if ! mkdir -p "$WORKSPACE_ROOT" 2>/dev/null; then
+            error "❌ No se puede crear WORKSPACE_ROOT: $WORKSPACE_ROOT"
+            return 1
+        fi
+    fi
+
+    if [ ! -w "$WORKSPACE_ROOT" ]; then
+        error "❌ Sin permiso de escritura en WORKSPACE_ROOT: $WORKSPACE_ROOT"
+        return 1
+    fi
+
+    return 0
+}
+
+# Clona el repositorio que contiene el manifiesto. Idempotente.
+# Imprime en stdout la ruta del clon; los mensajes van a stderr.
+_clone_seed() {
+    local seed_url="$1"
+    local seed_name seed_path
+
+    seed_name=$(basename "$seed_url")
+    seed_name="${seed_name%.git}"
+    seed_path="$WORKSPACE_ROOT/$seed_name"
+
+    if [ -e "$seed_path/.git" ]; then
+        info "🌱 Manifiesto ya sembrado: $seed_name" >&2
+        echo "$seed_path"
+        return 0
+    fi
+
+    info "🌱 Sembrando el manifiesto desde $seed_url" >&2
+
+    if ! manifest_probe_remote "$seed_url"; then
+        error "❌ No se puede acceder al repositorio del manifiesto" >&2
+        manifest_diagnose "$seed_url" "$MANIFEST_PROBE_ERR" | sed 's/^/   /' >&2
+        return 1
+    fi
+
+    if ! GIT_TERMINAL_PROMPT=0 \
+         GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=${WS_CLONE_TIMEOUT:-10}" \
+         git clone --quiet "$seed_url" "$seed_path" >&2; then
+        error "❌ Falló el clonado del repositorio del manifiesto" >&2
+        return 1
+    fi
+
+    success "  ✅ $seed_name" >&2
+    echo "$seed_path"
+}
+
+# Determina qué manifiestos cargar y los compone
+# Uso: _clone_resolve_manifests <seed_path> <manifiestos_explicitos...>
+_clone_resolve_manifests() {
+    local seed_path="$1"; shift
+    local resolved=() m
+
+    if [ $# -gt 0 ]; then
+        for m in "$@"; do
+            # Una ruta relativa se busca primero dentro del clon sembrado
+            if [ "${m#/}" = "$m" ] && [ -n "$seed_path" ] && [ -r "$seed_path/$m" ]; then
+                resolved+=("$seed_path/$m")
+            else
+                resolved+=("$m")
+            fi
+        done
+    elif [ -n "$WS_MANIFEST" ]; then
+        local IFS=':'
+        for m in $WS_MANIFEST; do
+            [ -n "$m" ] && resolved+=("$m")
+        done
+    elif [ -n "$seed_path" ] && [ -r "$seed_path/.ws-manifest" ]; then
+        resolved+=("$seed_path/.ws-manifest")
+    elif [ -r "$WORKSPACE_ROOT/.ws-manifest" ]; then
+        resolved+=("$WORKSPACE_ROOT/.ws-manifest")
+    fi
+
+    # El manifiesto personal se compone siempre el último
+    if [ -r "$HOME/.ws-manifest.local" ]; then
+        resolved+=("$HOME/.ws-manifest.local")
+    fi
+
+    printf '%s\n' "${resolved[@]}"
+}
+
+cmd_clone() {
+    local groups="" dry_run=false include_manual=false list_groups=false
+    local seed_url="" seed_path=""
+    local manifests=()
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --group|-g)
+                [ -z "$2" ] && { error "❌ --group necesita un valor"; return 1; }
+                if [ -z "$groups" ]; then groups="$2"; else groups="$groups,$2"; fi
+                shift 2
+                ;;
+            --manifest|-m)
+                [ -z "$2" ] && { error "❌ --manifest necesita una ruta"; return 1; }
+                manifests+=("$2")
+                shift 2
+                ;;
+            --seed)
+                [ -z "$2" ] && { error "❌ --seed necesita una URL"; return 1; }
+                seed_url="$2"
+                shift 2
+                ;;
+            --include-manual) include_manual=true; shift ;;
+            --dry-run|-n)     dry_run=true; shift ;;
+            --list-groups)    list_groups=true; shift ;;
+            --help|-h)        show_clone_help; return 0 ;;
+            *)
+                error "❌ Opción desconocida: $1"
+                echo ""
+                show_clone_help
+                return 1
+                ;;
+        esac
+    done
+
+    _clone_check_prerequisites || return 1
+
+    # Siembra (solo si hace falta acceder a la red)
+    if [ -n "$seed_url" ]; then
+        if [ "$dry_run" = true ] && [ ! -e "$WORKSPACE_ROOT/$(basename "${seed_url%.git}")/.git" ]; then
+            info "🌱 (--dry-run) Se sembraría el manifiesto desde $seed_url"
+            warning "⚠️  Sin el manifiesto no hay nada más que planificar"
+            return 0
+        fi
+        seed_path=$(_clone_seed "$seed_url") || return 1
+    fi
+
+    # Manifiesto
+    local manifest_files=() f loaded=0
+    while IFS= read -r f; do
+        [ -n "$f" ] && manifest_files+=("$f")
+    done <<< "$(_clone_resolve_manifests "$seed_path" "${manifests[@]}")"
+
+    manifest_reset
+    for f in "${manifest_files[@]}"; do
+        if manifest_load_file "$f"; then
+            loaded=$((loaded + 1))
+        else
+            warning "⚠️  Manifiesto no legible, ignorado: $f"
+        fi
+    done
+
+    if [ "$loaded" -eq 0 ]; then
+        error "❌ No se ha encontrado ningún manifiesto"
+        echo ""
+        # Sembrar y no encontrar el manifiesto dentro es el fallo más probable
+        # del primer arranque: decir dónde se ha buscado ahorra el rastreo.
+        if [ -n "$seed_path" ]; then
+            warning "⚠️  El repositorio sembrado no contiene un manifiesto legible"
+            echo "   Buscado en: ${COLOR_DIM}$seed_path/.ws-manifest${COLOR_RESET}"
+            echo "   Si el manifiesto está en otra ruta dentro de ese repositorio, indícala:"
+            echo "   ${COLOR_CYAN}ws origins clone --seed <url> --manifest <ruta-relativa>${COLOR_RESET}"
+            echo ""
+        fi
+        echo "Indica uno de estas formas:"
+        echo "  ${COLOR_CYAN}ws origins clone --seed <url-del-repo-con-el-manifiesto>${COLOR_RESET}"
+        echo "  ${COLOR_CYAN}ws origins clone --manifest <ruta>${COLOR_RESET}"
+        echo "  ${COLOR_DIM}o crea $WORKSPACE_ROOT/.ws-manifest${COLOR_RESET}"
+        echo ""
+        echo "Formato: ${COLOR_DIM}$WS_TOOLS/config/manifest.example${COLOR_RESET}"
+        return 1
+    fi
+
+    if [ "$(manifest_count)" -eq 0 ]; then
+        error "❌ El manifiesto no declara ningún repositorio"
+        return 1
+    fi
+
+    if [ "$list_groups" = true ]; then
+        print_header "Grupos declarados en el manifiesto"
+        echo ""
+        local g count
+        while IFS= read -r g; do
+            count=0
+            local e
+            for e in "${MANIFEST_ENTRIES[@]}"; do
+                manifest_in_groups "$e" "$g" && count=$((count + 1))
+            done
+            if [ "$count" -eq 1 ]; then
+                echo "  ${COLOR_CYAN}$g${COLOR_RESET} ${COLOR_DIM}(1 repositorio)${COLOR_RESET}"
+            else
+                echo "  ${COLOR_CYAN}$g${COLOR_RESET} ${COLOR_DIM}($count repositorios)${COLOR_RESET}"
+            fi
+        done <<< "$(manifest_groups_list)"
+        echo ""
+        return 0
+    fi
+
+    # Avisar de grupos pedidos que no existen (protege de erratas)
+    if [ -n "$groups" ]; then
+        local available g found
+        available=$(manifest_groups_list)
+        local IFS=','
+        for g in $groups; do
+            found=false
+            local a
+            while IFS= read -r a; do
+                [ "$a" = "$g" ] && found=true
+            done <<< "$available"
+            [ "$found" = false ] && warning "⚠️  El grupo '$g' no aparece en el manifiesto"
+        done
+    fi
+
+    # Clasificar
+    local to_clone=() skipped=() mismatched=() omitted=() failed=()
+    local entry dest url note target
+
+    for entry in "${MANIFEST_ENTRIES[@]}"; do
+        manifest_in_groups "$entry" "$groups" || continue
+
+        dest=$(manifest_field "$entry" dest)
+        url=$(manifest_field "$entry" url)
+        note=$(manifest_field "$entry" note)
+        target="$WORKSPACE_ROOT/$dest"
+
+        if manifest_has_flag "$entry" manual && [ "$include_manual" = false ]; then
+            omitted+=("$dest${_WS_MF_SEP}${note:-requiere configuración adicional}")
+            continue
+        fi
+
+        if [ -e "$target/.git" ]; then
+            local actual
+            actual=$(git -C "$target" remote get-url origin 2>/dev/null)
+            if [ -n "$actual" ] && [ "$actual" != "$url" ]; then
+                mismatched+=("$dest${_WS_MF_SEP}origin actual: $actual")
+            else
+                skipped+=("$dest${_WS_MF_SEP}ya clonado")
+            fi
+            continue
+        fi
+
+        if [ -e "$target" ] && [ -n "$(ls -A "$target" 2>/dev/null)" ]; then
+            failed+=("$dest${_WS_MF_SEP}el destino existe y no está vacío")
+            continue
+        fi
+
+        to_clone+=("$entry")
+    done
+
+    print_header "Clonado de repos origen"
+    echo ""
+    echo "Destino:    ${COLOR_CYAN}$WORKSPACE_ROOT${COLOR_RESET}"
+    echo "Manifiesto: ${COLOR_DIM}${manifest_files[*]}${COLOR_RESET}"
+    [ -n "$groups" ] && echo "Grupos:     ${COLOR_CYAN}$groups${COLOR_RESET}"
+    echo ""
+
+    if [ "$dry_run" = true ]; then
+        info "🔎 --dry-run: no se clona nada ni se consulta la red"
+        echo ""
+        local e
+        for e in "${to_clone[@]}"; do
+            echo "  ${COLOR_GREEN}clonaría${COLOR_RESET}  $(manifest_field "$e" dest)"
+        done
+        _clone_print_annotated "  saltaría  " "$COLOR_DIM" "${skipped[@]}"
+        _clone_print_annotated "  saltaría  " "$COLOR_YELLOW" "${mismatched[@]}"
+        _clone_print_annotated "  omitiría  " "$COLOR_YELLOW" "${omitted[@]}"
+        _clone_print_annotated "  fallaría  " "$COLOR_RED" "${failed[@]}"
+        echo ""
+        echo "${COLOR_DIM}Total: ${#to_clone[@]} a clonar, $((${#skipped[@]} + ${#mismatched[@]})) ya presentes, ${#omitted[@]} omitidos, ${#failed[@]} con problemas${COLOR_RESET}"
+        return 0
+    fi
+
+    # Precomprobación de acceso, una comprobación por host distinto.
+    # Un host inaccesible marca sus repos como fallidos con la causa concreta,
+    # en lugar de dejar que cada git clone falle de forma opaca.
+    local bad_hosts="" hosts=""
+    if [ ${#to_clone[@]} -gt 0 ]; then
+        hosts=$(printf '%s\n' "${to_clone[@]}" | manifest_distinct_hosts)
+    fi
+
+    if [ -n "$hosts" ]; then
+        info "🔌 Comprobando acceso a los remotos..."
+        local host probe_url
+        while IFS="$_WS_MF_SEP" read -r host probe_url; do
+            [ -z "$host" ] && continue
+            if manifest_probe_remote "$probe_url"; then
+                echo "  ${COLOR_GREEN}✓${COLOR_RESET} $host"
+            else
+                echo "  ${COLOR_RED}✗${COLOR_RESET} $host"
+                manifest_diagnose "$probe_url" "$MANIFEST_PROBE_ERR" | sed 's/^/     /'
+                bad_hosts="$bad_hosts|$host|"
+            fi
+        done <<< "$hosts"
+        echo ""
+    fi
+
+    # Clonar
+    local cloned=()
+    for entry in "${to_clone[@]}"; do
+        dest=$(manifest_field "$entry" dest)
+        url=$(manifest_field "$entry" url)
+        target="$WORKSPACE_ROOT/$dest"
+        host=$(manifest_url_host "$url")
+
+        case "$bad_hosts" in
+            *"|$host|"*)
+                failed+=("$dest${_WS_MF_SEP}sin acceso a $host (ver diagnóstico arriba)")
+                continue
+                ;;
+        esac
+
+        echo "📦 ${COLOR_CYAN}$dest${COLOR_RESET}"
+
+        mkdir -p "$(dirname "$target")"
+
+        local err
+        if err=$(GIT_TERMINAL_PROMPT=0 \
+                 GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=${WS_CLONE_TIMEOUT:-10}" \
+                 git clone --quiet "$url" "$target" 2>&1); then
+            success "  ✅ clonado"
+            cloned+=("$dest")
+        else
+            error "  ❌ falló"
+            manifest_diagnose "$url" "$err" | sed 's/^/     /'
+            failed+=("$dest${_WS_MF_SEP}$(echo "$err" | tail -n 1)")
+            # Un clon a medias deja basura que rompería el siguiente intento
+            [ -d "$target" ] && [ ! -e "$target/.git" ] && rmdir "$target" 2>/dev/null
+        fi
+    done
+
+    # Informe
+    echo ""
+    print_separator
+    echo "${COLOR_BOLD}Resumen${COLOR_RESET}"
+    print_separator
+    echo ""
+    echo "  ${COLOR_GREEN}Clonados:${COLOR_RESET} ${#cloned[@]}"
+    local d
+    for d in "${cloned[@]}"; do echo "    • $d"; done
+
+    echo "  ${COLOR_DIM}Saltados:${COLOR_RESET} $((${#skipped[@]} + ${#mismatched[@]}))"
+    _clone_print_annotated "    • " "$COLOR_DIM" "${skipped[@]}"
+
+    if [ ${#mismatched[@]} -gt 0 ]; then
+        echo "  ${COLOR_YELLOW}Ya clonados con un origin distinto al del manifiesto:${COLOR_RESET} ${#mismatched[@]}"
+        _clone_print_annotated "    • " "$COLOR_YELLOW" "${mismatched[@]}"
+        echo "    ${COLOR_DIM}No se tocan. Revísalos si el manifiesto ha normalizado el nombre del servidor.${COLOR_RESET}"
+    fi
+
+    if [ ${#omitted[@]} -gt 0 ]; then
+        echo "  ${COLOR_YELLOW}Omitidos (requieren configuración adicional):${COLOR_RESET} ${#omitted[@]}"
+        _clone_print_annotated "    • " "$COLOR_YELLOW" "${omitted[@]}"
+    fi
+
+    if [ ${#failed[@]} -gt 0 ]; then
+        echo "  ${COLOR_RED}Fallidos:${COLOR_RESET} ${#failed[@]}"
+        _clone_print_annotated "    • " "$COLOR_RED" "${failed[@]}"
+        echo ""
+        warning "⚠️  Reintenta cuando esté resuelto: los ya clonados se saltan"
+        return 1
+    fi
+
+    echo ""
+    success "✅ WORKSPACE_ROOT poblado"
+    echo ""
+    echo "Siguiente paso:"
+    echo "  ${COLOR_CYAN}ws new <nombre> <repo1> <repo2>${COLOR_RESET}"
+    return 0
+}
+
+# Imprime entradas "nombre<TAB>anotación" con un prefijo y un color
+_clone_print_annotated() {
+    local prefix="$1" color="$2"; shift 2
+    local item name annotation
+    for item in "$@"; do
+        [ -z "$item" ] && continue
+        name="${item%%$_WS_MF_SEP*}"
+        annotation="${item#*$_WS_MF_SEP}"
+        if [ "$annotation" = "$item" ] || [ -z "$annotation" ]; then
+            echo "${color}${prefix}${COLOR_RESET}$name"
+        else
+            echo "${color}${prefix}${COLOR_RESET}$name ${COLOR_DIM}($annotation)${COLOR_RESET}"
+        fi
+    done
 }
 
 # Verificar argumentos
@@ -153,6 +604,11 @@ case "$SUBCOMMAND" in
 
         echo "${COLOR_DIM}═══════════════════════════════════════════════════${COLOR_RESET}"
         success "✅ Completado"
+        ;;
+
+    clone)
+        cmd_clone "$@"
+        exit $?
         ;;
 
     list|ls)

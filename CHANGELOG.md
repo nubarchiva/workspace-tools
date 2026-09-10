@@ -8,6 +8,19 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **`ws origins clone`** - Clonado inicial de los repos origen a partir de un manifiesto, para poblar WORKSPACE_ROOT en una máquina recién instalada (hasta ahora `ws new` solo creaba worktrees sobre repos ya clonados)
+  - No interactivo por construcción (`GIT_TERMINAL_PROMPT=0` y `BatchMode=yes` en todas las operaciones): apto para flujo desatendido
+  - Idempotente: un repositorio ya clonado se salta; el fallo de uno no detiene a los demás; código de salida distinto de 0 si hubo alguno
+  - Informe final de clonados, saltados, omitidos y fallidos
+  - Destinos anidados (`libs/marc4j`, `modules/portal`), declarados como campo propio y no derivados de la URL
+  - Selección por grupos: `--group` (acumulable), `--list-groups`
+  - Comprobación previa de acceso, una comprobación por servidor, que traduce el fallo a su causa y su remedio (nombre que no resuelve, host key desconocida con el `ssh-keyscan` literal, clave rechazada, credenciales HTTPS, certificado de cliente, red bloqueada) en lugar de un error opaco de git
+  - Flag `manual` para repositorios que necesitan configuración adicional: quedan fuera del clonado por defecto y se informa de su motivo; `--include-manual` los fuerza
+  - Composición de varios manifiestos (público + privado + `~/.ws-manifest.local` personal), donde a igualdad de destino gana el último cargado
+  - `--seed <url>` clona primero el repositorio que contiene el manifiesto, para el primer arranque en una máquina limpia
+  - `--dry-run` muestra el plan sin clonar ni consultar la red
+  - Nunca sobrescribe: un destino ocupado se reporta; un `origin` divergente del manifiesto se destaca sin tocarlo
+  - Nuevo módulo `ws-manifest-utils.sh`; formato documentado en `config/manifest.example`. workspace-tools no incluye ningún manifiesto real: el mecanismo es de la herramienta, la lista de repositorios es de cada proyecto
 - **Aislamiento del repositorio Maven por workspace** - Evita que sesiones paralelas (varios worktrees, IDE + CLI) se pisen los `*-SNAPSHOT` al hacer `mvn install` contra el `~/.m2/repository` compartido
   - `ws new` / `ws add`: crean `.mvn/maven.config` en cada repo con `pom.xml`, con repositorio *head* por workspace (`~/.m2/wt/<workspace>/repository`) y el `~/.m2/repository` compartido como *tail* de solo lectura (requiere Maven >= 3.9); el fichero se excluye de git vía `info/exclude` (contiene rutas absolutas locales)
   - `ws new --bootstrap` (`-b`): puebla el head tras crear el workspace (`ws mvn install -DskipTests -nsu`); sin el flag se muestra el comando para hacerlo manualmente

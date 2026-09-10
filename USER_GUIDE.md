@@ -564,6 +564,7 @@ ws origins <subcomando> [args...]
 ```
 
 **Subcomandos:**
+- `clone [opciones]`: Clona los repos declarados en un manifiesto (ver más abajo)
 - `git <args>`: Ejecuta git en todos los repos origen
 - `list`: Lista todos los repos origen detectados
 
@@ -597,6 +598,102 @@ ws origins git pull         # pull en todos los repos origen
 ws origins git status       # status de todos
 ws origins git fetch        # fetch en todos
 ws origins list             # listar repos detectados (muestra ignorados)
+```
+
+---
+
+### ws origins clone
+
+Clona en WORKSPACE_ROOT los repositorios declarados en un manifiesto. Es el paso
+previo a todo lo demás: `ws new` crea worktrees sobre repos ya clonados, y en una
+máquina recién instalada todavía no hay ninguno.
+
+```bash
+ws origins clone [opciones]
+```
+
+**Opciones:**
+- `--group, -g <g1,g2>`: clona solo esos grupos (acumulable)
+- `--manifest, -m <ruta>`: manifiesto a usar (acumulable, se componen en orden)
+- `--seed <url>`: clona primero el repositorio que contiene el manifiesto y lo lee de ahí
+- `--include-manual`: clona también lo marcado `manual`
+- `--dry-run`: muestra qué haría, sin clonar ni consultar la red
+- `--list-groups`: lista los grupos declarados en el manifiesto
+
+**Comportamiento:**
+- No pregunta nada: sirve en flujo desatendido
+- Idempotente: un repositorio ya clonado se salta
+- El fallo de uno no detiene a los demás; el código de salida es distinto de 0 si hubo alguno
+- Al terminar informa de qué clonó, qué saltó, qué omitió y qué falló
+- Nunca sobrescribe: si el destino existe y no está vacío, lo reporta y sigue
+- Si un repositorio ya clonado tiene un `origin` distinto al del manifiesto, lo destaca sin tocarlo
+
+**Comprobación previa:**
+
+Antes de descargar nada comprueba cada servidor una vez y traduce el fallo a su
+causa, con el remedio concreto:
+
+| Síntoma | Qué dice |
+|---------|----------|
+| El nombre no resuelve | Sugiere usar el FQDN en vez de un alias de `/etc/hosts` |
+| Host key desconocida | Da el `ssh-keyscan -p <puerto> <host>` literal |
+| Clave rechazada | Recuerda dar de alta la pública y comprobar `ssh-add -l` |
+| HTTPS sin credenciales | Pide configurar un credential helper o usar SSH |
+| Certificado de cliente | Sugiere marcar ese repositorio como `manual` |
+| Conexión bloqueada | Apunta a cortafuegos o proxy |
+
+Un servidor inaccesible marca sus repositorios como fallidos con esa explicación,
+y el resto se clona igualmente.
+
+**El manifiesto:**
+
+No viene con la herramienta: la lista de repositorios es de tu proyecto.
+Una línea por repositorio, cinco campos:
+
+```
+# destino        url                                    grupos      flags   motivo
+app              git@example.com:org/app.git            core,apps   -       -
+libs/common      git@example.com:org/common.git         core,libs   -       -
+modules/portal   git@example.com:org/module-portal.git  modules     -       -
+legacy-archive   https://interno.example.org/a.git      external    manual  requiere certificado de cliente
+```
+
+El destino es la ruta relativa a WORKSPACE_ROOT y admite anidamiento. Es un campo
+propio, y no se deriva de la URL, porque el directorio de trabajo no siempre se
+llama como el repositorio.
+
+Dónde se busca, por orden de precedencia:
+
+1. `--manifest <ruta>`
+2. `WS_MANIFEST` en `~/.wsrc` (lista separada por `:`)
+3. `<clon de --seed>/.ws-manifest`
+4. `$WORKSPACE_ROOT/.ws-manifest`
+
+Y siempre, si existe, `~/.ws-manifest.local`.
+
+**Composición: público + privado + personal**
+
+Se pueden componer varios manifiestos: se cargan en orden y, a igualdad de
+destino, gana el último. Eso permite separar por visibilidad sin duplicar nada,
+que es lo que necesita un proyecto con parte abierta y parte cerrada:
+
+```bash
+ws origins clone --manifest manifiesto-publico --manifest manifiesto-privado
+```
+
+A quien solo trabaje con la parte abierta le basta el manifiesto público. Los
+repositorios propios de cada uno van en `~/.ws-manifest.local`, que nunca se
+comparte y se compone siempre el último.
+
+Formato completo y comentado: `config/manifest.example`.
+
+**Ejemplos:**
+```bash
+ws origins clone                              # todo el manifiesto
+ws origins clone --group core                 # solo el núcleo
+ws origins clone --dry-run                    # ver el plan
+ws origins clone --list-groups                # qué grupos hay
+ws origins clone --seed <url>                 # primer arranque, máquina limpia
 ```
 
 ---
