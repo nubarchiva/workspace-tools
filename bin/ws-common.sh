@@ -54,8 +54,8 @@ find_matching_workspace() {
     local pattern=$1
     local workspaces_dir=$2
 
-    # Si el patrón es exactamente "master" o "develop", retornarlo directamente
-    if [ "$pattern" = "master" ] || [ "$pattern" = "develop" ]; then
+    # Si el patrón designa una rama de integración, retornarlo directamente
+    if is_branch_workspace "$pattern"; then
         echo "$pattern"
         return 0
     fi
@@ -142,16 +142,26 @@ find_matching_workspace() {
     fi
 }
 
+# Indica si el nombre de un workspace designa una rama de integración en lugar
+# de una feature. Es el criterio único: quien lo cambie aquí lo cambia en todos
+# los comandos que distinguen ambos casos.
+# Uso: if is_branch_workspace "$nombre"; then ...
+# Retorna: 0 si es rama de integración, 1 si no
+is_branch_workspace() {
+    case "$1" in
+        master|main|develop) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 # Función para determinar el nombre de la branch según el workspace
 # Uso: get_branch_name <workspace_name>
-# Retorna: nombre de la branch (master, develop, o feature/nombre)
+# Retorna: nombre de la branch (master, main, develop, o feature/nombre)
 get_branch_name() {
     local workspace_name=$1
 
-    if [ "$workspace_name" = "master" ]; then
-        echo "master"
-    elif [ "$workspace_name" = "develop" ]; then
-        echo "develop"
+    if is_branch_workspace "$workspace_name"; then
+        echo "$workspace_name"
     else
         echo "feature/$workspace_name"
     fi

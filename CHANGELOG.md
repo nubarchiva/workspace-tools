@@ -8,6 +8,11 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **Soporte de `main` como rama de integración** - Hasta ahora solo `master` y `develop` se trataban como nombres de rama; `ws new main` creaba la rama `feature/main`, y un repositorio cuya única rama fuese `main` se saltaba en silencio al calcular sincronización o al actualizar
+  - Nuevo `is_branch_workspace()` en `ws-common.sh`: criterio único de qué nombre de workspace designa una rama de integración (`master`, `main`, `develop`), usado por `ws new`, `ws add`, `ws list`, `ws switch` y `ws update`
+  - Nuevo `git_resolve_base_branch()` en `ws-git-utils.sh`: resuelve la rama base con la que comparar, prefiriendo la referencia remota sobre la local y `develop` sobre `main` y `master`; sustituye cuatro copias divergentes de la misma cadena
+  - `ws git push` sin upstream contempla también `main` al contar commits pendientes
+  - Cambio compatible: solo añade comportamiento donde antes no lo había. En un repositorio con `develop`, la rama base sigue siendo `develop`
 - **`ws origins clone`** - Clonado inicial de los repos origen a partir de un manifiesto, para poblar WORKSPACE_ROOT en una máquina recién instalada (hasta ahora `ws new` solo creaba worktrees sobre repos ya clonados)
   - No interactivo por construcción (`GIT_TERMINAL_PROMPT=0` y `BatchMode=yes` en todas las operaciones): apto para flujo desatendido
   - Idempotente: un repositorio ya clonado se salta; el fallo de uno no detiene a los demás; código de salida distinto de 0 si hubo alguno

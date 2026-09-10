@@ -36,6 +36,25 @@ _WS_GIT_UTILS_LOADED=1
 # Cache del estado de conectividad (se evalúa una vez por ejecución)
 _GIT_REMOTE_REACHABLE=""
 
+# Resuelve la rama base con la que comparar una rama de trabajo.
+# Prefiere la referencia remota sobre la local, y develop sobre main y master:
+# en un repositorio con develop y main, develop sigue siendo la de integración.
+# Uso: git_resolve_base_branch [repo_path]
+# Imprime el nombre de la rama base; retorna 1 si no encuentra ninguna
+git_resolve_base_branch() {
+    local repo_path="${1:-.}"
+    local candidate
+
+    for candidate in origin/develop develop origin/main main origin/master master; do
+        if git -C "$repo_path" rev-parse --verify "$candidate" >/dev/null 2>&1; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
 # Verifica si estamos en modo offline forzado
 # Uso: ws_is_offline_mode
 # Retorna: 0 si modo offline, 1 si modo online
@@ -325,17 +344,9 @@ get_sync_status() {
         return
     fi
 
-    # Determinar branch base (develop o master)
-    local base_branch=""
-    if git -C "$repo_path" rev-parse --verify "origin/develop" >/dev/null 2>&1; then
-        base_branch="origin/develop"
-    elif git -C "$repo_path" rev-parse --verify "develop" >/dev/null 2>&1; then
-        base_branch="develop"
-    elif git -C "$repo_path" rev-parse --verify "origin/master" >/dev/null 2>&1; then
-        base_branch="origin/master"
-    elif git -C "$repo_path" rev-parse --verify "master" >/dev/null 2>&1; then
-        base_branch="master"
-    else
+    # Determinar branch base
+    local base_branch
+    if ! base_branch=$(git_resolve_base_branch "$repo_path"); then
         echo "0:0:0"
         return
     fi

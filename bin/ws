@@ -169,7 +169,7 @@ CARACTERÍSTICAS:
   • Búsqueda parcial: usa parte del nombre (ej: ws cd fea)
   • Abreviaturas: n (new), a (add), ls (list), cd (switch), rm (clean)
   • Detección automática de conectividad (timeout 2s)
-  • Nombres especiales: master, develop (usan esas branches)
+  • Nombres especiales: master, main, develop (usan esas branches)
   • Otros nombres: crean branch feature/<nombre>
 
 EJEMPLOS:
