@@ -94,6 +94,28 @@ teardown() {
     [ "$result" = "develop" ]
 }
 
+@test "get_branch_name: main returns main" {
+    result=$(get_branch_name "main")
+    [ "$result" = "main" ]
+}
+
+@test "is_branch_workspace: master, main y develop son ramas de integración" {
+    run is_branch_workspace "master"; [ "$status" -eq 0 ]
+    run is_branch_workspace "main";   [ "$status" -eq 0 ]
+    run is_branch_workspace "develop"; [ "$status" -eq 0 ]
+}
+
+@test "is_branch_workspace: cualquier otro nombre no lo es" {
+    run is_branch_workspace "mi-feature"; [ "$status" -eq 1 ]
+    run is_branch_workspace "NUBA-8400";  [ "$status" -eq 1 ]
+    run is_branch_workspace "";           [ "$status" -eq 1 ]
+}
+
+@test "is_branch_workspace: no confunde un nombre que contiene main" {
+    run is_branch_workspace "main-rc";     [ "$status" -eq 1 ]
+    run is_branch_workspace "domain";      [ "$status" -eq 1 ]
+}
+
 @test "get_branch_name: any other name returns feature/nombre" {
     result=$(get_branch_name "mi-feature")
     [ "$result" = "feature/mi-feature" ]

@@ -7,7 +7,38 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Añadido
+- **Soporte de `main` como rama de integración** - Hasta ahora solo `master` y `develop` se trataban como nombres de rama; `ws new main` creaba la rama `feature/main`, y un repositorio cuya única rama fuese `main` se saltaba en silencio al calcular sincronización o al actualizar
+  - Nuevo `is_branch_workspace()` en `ws-common.sh`: criterio único de qué nombre de workspace designa una rama de integración (`master`, `main`, `develop`), usado por `ws new`, `ws add`, `ws list`, `ws switch` y `ws update`
+  - Nuevo `git_resolve_base_branch()` en `ws-git-utils.sh`: resuelve la rama base con la que comparar, prefiriendo la referencia remota sobre la local y `develop` sobre `main` y `master`; sustituye cuatro copias divergentes de la misma cadena
+  - `ws git push` sin upstream contempla también `main` al contar commits pendientes
+  - Cambio compatible: solo añade comportamiento donde antes no lo había. En un repositorio con `develop`, la rama base sigue siendo `develop`
+- **`ws origins clone`** - Clonado inicial de los repos origen a partir de un manifiesto, para poblar WORKSPACE_ROOT en una máquina recién instalada (hasta ahora `ws new` solo creaba worktrees sobre repos ya clonados)
+  - No interactivo por construcción (`GIT_TERMINAL_PROMPT=0` y `BatchMode=yes` en todas las operaciones): apto para flujo desatendido
+  - Idempotente: un repositorio ya clonado se salta; el fallo de uno no detiene a los demás; código de salida distinto de 0 si hubo alguno
+  - Informe final de clonados, saltados, omitidos y fallidos
+  - Destinos anidados (`libs/marc4j`, `modules/portal`), declarados como campo propio y no derivados de la URL
+  - Selección por grupos: `--group` (acumulable), `--list-groups`
+  - Comprobación previa de acceso, una comprobación por servidor, que traduce el fallo a su causa y su remedio (nombre que no resuelve, host key desconocida con el `ssh-keyscan` literal, clave rechazada, credenciales HTTPS, certificado de cliente, red bloqueada) en lugar de un error opaco de git
+  - Flag `manual` para repositorios que necesitan configuración adicional: quedan fuera del clonado por defecto y se informa de su motivo; `--include-manual` los fuerza
+  - Composición de varios manifiestos (público + privado + `~/.ws-manifest.local` personal), donde a igualdad de destino gana el último cargado
+  - `--seed <url>` clona primero el repositorio que contiene el manifiesto, para el primer arranque en una máquina limpia
+  - `--dry-run` muestra el plan sin clonar ni consultar la red
+  - Nunca sobrescribe: un destino ocupado se reporta; un `origin` divergente del manifiesto se destaca sin tocarlo
+  - Nuevo módulo `ws-manifest-utils.sh`; formato documentado en `config/manifest.example`. workspace-tools no incluye ningún manifiesto real: el mecanismo es de la herramienta, la lista de repositorios es de cada proyecto
+- **Aislamiento del repositorio Maven por workspace** - Evita que sesiones paralelas (varios worktrees, IDE + CLI) se pisen los `*-SNAPSHOT` al hacer `mvn install` contra el `~/.m2/repository` compartido
+  - `ws new` / `ws add`: crean `.mvn/maven.config` en cada repo con `pom.xml`, con repositorio *head* por workspace (`~/.m2/wt/<workspace>/repository`) y el `~/.m2/repository` compartido como *tail* de solo lectura (requiere Maven >= 3.9); el fichero se excluye de git vía `info/exclude` (contiene rutas absolutas locales)
+  - `ws new --bootstrap` (`-b`): puebla el head tras crear el workspace (`ws mvn install -DskipTests -nsu`); sin el flag se muestra el comando para hacerlo manualmente
+  - `ws clean`: elimina el head del workspace para liberar disco
+  - Nuevo módulo `ws-maven-utils.sh`; configurable en `~/.wsrc` con `WS_MAVEN_ISOLATION`, `WS_MAVEN_HEAD_BASE` y `WS_MAVEN_TAIL`
+  - Aviso si el Maven instalado es < 3.9 (sin `maven.repo.local.tail` se re-descargan dependencias al head)
+
 ### Corregido
+- **`ws mvn` ignoraba `.mvn/maven.config`** - Ejecutaba `mvn -f <repo>/pom.xml` desde fuera del repo; Maven localiza `.mvn/maven.config` subiendo desde el directorio actual, no desde `-f`. Ahora ejecuta `mvn` desde la raíz de cada repo, requisito para que el aislamiento Maven aplique también a `ws mvn` (y a los shortcuts `wmcis`, `wmci`, …)
+- **Merge commits inflaban contadores de sincronización** - Los commits de merge de develop INTO feature (ej: `Merge remote-tracking branch 'origin/develop' into feature/...`) se contaban como commits pendientes de merge o commits únicos, dando información engañosa
+  - `get_sync_status` en `ws-git-utils.sh`: `pending_merge` ahora usa `--no-merges`
+  - `ws-switch`: misma corrección en cálculo inline de `pending_merge`
+  - `ws-prune`: `unique_commits` ahora usa `--no-merges` para no considerar ramas con solo merges de develop como "con cambios"
 - **Detección de upstream "gone"** - `ws status`/`ws info` mostraban "Sincronizado con develop" en repos cuya rama remota fue borrada, ocultando commits sin push
   - Todas las funciones de `ws-git-utils.sh` usan ahora `git rev-parse --verify` para validar que el upstream existe realmente
   - Afecta a: `git_has_upstream`, `git_get_upstream_branch`, `git_repo_status`, `get_sync_status`

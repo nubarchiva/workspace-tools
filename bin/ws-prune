@@ -180,7 +180,7 @@ prune_repo() {
 
         # Contar commits únicos respecto a base_branch
         local unique_commits
-        unique_commits=$(git rev-list --count "$base_branch".."$branch" 2>/dev/null || echo "0")
+        unique_commits=$(git rev-list --count --no-merges "$base_branch".."$branch" 2>/dev/null || echo "0")
 
         # Verificar tracking remoto
         local tracking_info=""

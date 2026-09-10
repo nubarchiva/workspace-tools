@@ -46,8 +46,8 @@ show_workspace() {
             local worktree_path="$path/$repo_rel_path"
             local sync_indicator=""
 
-            # Calcular sincronización con develop (solo para workspaces que no son master/develop)
-            if [[ "$name" != "master" && "$name" != "develop" ]] && [ -d "$worktree_path" ]; then
+            # Calcular sincronización (solo para workspaces que no son de rama de integración)
+            if ! is_branch_workspace "$name" && [ -d "$worktree_path" ]; then
                 local sync_status=$(get_sync_status "$worktree_path")
                 # Parsear los 3 valores: unpushed:pending_merge:behind
                 local unpushed=$(echo "$sync_status" | cut -d: -f1)
@@ -116,7 +116,7 @@ show_workspace() {
 workspace_count=0
 filtered_count=0
 
-# Listar todos los workspaces (master, develop y cualquier otro)
+# Listar todos los workspaces (ramas de integración y features)
 if [ -d "$WORKSPACES_DIR" ]; then
     for workspace_dir in "$WORKSPACES_DIR"/*; do
         if [ -d "$workspace_dir" ]; then

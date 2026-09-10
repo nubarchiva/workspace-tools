@@ -87,6 +87,11 @@ WS_DEBUG=1
 # Por defecto: ".idea .vscode .kiro .cursor .playwright-mcp AI.md .ai docs README.md"
 # Los enlaces simbólicos siempre se ignoran automáticamente
 WS_CLEAN_IGNORE=".idea .vscode .kiro .cursor .playwright-mcp .claude AI.md .ai docs README.md"
+
+# Aislamiento del repositorio Maven por workspace (opcional)
+WS_MAVEN_ISOLATION=false                  # desactivarlo (por defecto activo)
+WS_MAVEN_HEAD_BASE="$HOME/.m2/wt"         # base de los heads por workspace
+WS_MAVEN_TAIL="$HOME/.m2/repository"      # repositorio compartido (tail)
 ```
 
 ### Prioridad de Configuración
@@ -117,6 +122,36 @@ app
 api
 ```
 
+### Aislamiento del repositorio Maven por workspace
+
+Cuando varios workspaces construyen los mismos GAV `*-SNAPSHOT` desde código
+distinto, sus `mvn install` contra el `~/.m2/repository` compartido se pisan
+los artefactos mutuamente (fallo silencioso: el código de un workspace acaba
+ejecutándose con jars de otro).
+
+Para evitarlo, `ws new` y `ws add` crean `.mvn/maven.config` en cada repo con
+`pom.xml` (requiere Maven >= 3.9):
+
+```
+-Dmaven.repo.local=$HOME/.m2/wt/<workspace>/repository
+-Dmaven.repo.local.tail=$HOME/.m2/repository
+```
+
+- **Escrituras** (`mvn install`, descargas nuevas) van solo al *head* del
+  workspace: ningún workspace puede pisar a otro.
+- **Lecturas**: primero el head; lo que no esté (terceros ya descargados) se
+  lee del *tail* compartido, sin re-descargar ni duplicar disco.
+- El fichero se excluye de git automáticamente (`info/exclude` del repo:
+  contiene rutas absolutas locales).
+
+**Importante**: hasta poblar el head, los GAV propios se leen del tail
+compartido (donde otras sesiones siguen escribiendo). Puebla el head una vez
+con `ws mvn <workspace> install -DskipTests -nsu` (respeta `.ws-build-order`)
+o crea el workspace con `ws new --bootstrap`.
+
+`ws clean` elimina el head del workspace para liberar disco. Configurable con
+`WS_MAVEN_ISOLATION`, `WS_MAVEN_HEAD_BASE` y `WS_MAVEN_TAIL` (ver `~/.wsrc`).
+
 ---
 
 ## Comandos
@@ -132,16 +167,23 @@ ws new <nombre> --template <template> [repos...]
 
 **Opciones:**
 - `--template, -t <nombre>`: Usar repos de un template predefinido
+- `--bootstrap, -b`: Poblar el repositorio Maven del workspace tras crearlo
+  (ejecuta `ws mvn install -DskipTests -nsu`; puede tardar minutos)
 
 **Comportamiento de branches:**
 - `master` o `develop`: Usa esas branches existentes
 - Otros nombres: Crea branch `feature/<nombre>`
+
+**Aislamiento Maven:** en cada repo con `pom.xml` se crea `.mvn/maven.config`
+con un repositorio head propio del workspace (ver [Aislamiento del repositorio
+Maven por workspace](#aislamiento-del-repositorio-maven-por-workspace)).
 
 **Ejemplos:**
 ```bash
 ws new feature-123 app libs/common
 ws new feature-123 --template frontend
 ws new feature-123 -t backend libs/extra
+ws new feature-123 --bootstrap app        # crea y puebla el head Maven
 ws new develop app api                    # usa branch develop
 ```
 
@@ -154,6 +196,11 @@ Añade repos a un workspace existente.
 ```bash
 ws add <workspace> <repo1> [repo2...]
 ```
+
+**Aislamiento Maven:** los repos añadidos con `pom.xml` reciben su
+`.mvn/maven.config` apuntando al head del workspace. Recuerda poblar el head
+(`ws mvn <workspace> install -DskipTests -nsu`) para que los GAV del repo
+añadido no se lean del tail compartido.
 
 **Ejemplos:**
 ```bash
@@ -306,6 +353,9 @@ ws del <workspace>
 - Advierte si hay commits sin pushear
 - Requiere confirmación
 
+**Aislamiento Maven:** elimina también el repositorio head del workspace
+(`~/.m2/wt/<workspace>/`) para liberar disco.
+
 **Archivos ignorados:**
 - Algunos archivos/directorios se ignoran al decidir si el workspace está vacío
 - Por defecto: `.idea`, `.vscode`, `.kiro`, `.cursor`, `.playwright-mcp`, `AI.md`, `.ai`, `docs`, `README.md`, `.DS_Store`
@@ -344,6 +394,8 @@ ws mvn <workspace> <args...>
 - Ejecución paralela con `-T 1C`
 - Resumen de tiempos por proyecto
 - Respeta orden de `.ws-build-order` si existe
+- Ejecuta `mvn` desde la raíz de cada repo, aplicando su `.mvn/maven.config`
+  (aislamiento del repositorio Maven por workspace)
 
 **Ejemplos:**
 ```bash
@@ -512,6 +564,7 @@ ws origins <subcomando> [args...]
 ```
 
 **Subcomandos:**
+- `clone [opciones]`: Clona los repos declarados en un manifiesto (ver más abajo)
 - `git <args>`: Ejecuta git en todos los repos origen
 - `list`: Lista todos los repos origen detectados
 
@@ -545,6 +598,102 @@ ws origins git pull         # pull en todos los repos origen
 ws origins git status       # status de todos
 ws origins git fetch        # fetch en todos
 ws origins list             # listar repos detectados (muestra ignorados)
+```
+
+---
+
+### ws origins clone
+
+Clona en WORKSPACE_ROOT los repositorios declarados en un manifiesto. Es el paso
+previo a todo lo demás: `ws new` crea worktrees sobre repos ya clonados, y en una
+máquina recién instalada todavía no hay ninguno.
+
+```bash
+ws origins clone [opciones]
+```
+
+**Opciones:**
+- `--group, -g <g1,g2>`: clona solo esos grupos (acumulable)
+- `--manifest, -m <ruta>`: manifiesto a usar (acumulable, se componen en orden)
+- `--seed <url>`: clona primero el repositorio que contiene el manifiesto y lo lee de ahí
+- `--include-manual`: clona también lo marcado `manual`
+- `--dry-run`: muestra qué haría, sin clonar ni consultar la red
+- `--list-groups`: lista los grupos declarados en el manifiesto
+
+**Comportamiento:**
+- No pregunta nada: sirve en flujo desatendido
+- Idempotente: un repositorio ya clonado se salta
+- El fallo de uno no detiene a los demás; el código de salida es distinto de 0 si hubo alguno
+- Al terminar informa de qué clonó, qué saltó, qué omitió y qué falló
+- Nunca sobrescribe: si el destino existe y no está vacío, lo reporta y sigue
+- Si un repositorio ya clonado tiene un `origin` distinto al del manifiesto, lo destaca sin tocarlo
+
+**Comprobación previa:**
+
+Antes de descargar nada comprueba cada servidor una vez y traduce el fallo a su
+causa, con el remedio concreto:
+
+| Síntoma | Qué dice |
+|---------|----------|
+| El nombre no resuelve | Sugiere usar el FQDN en vez de un alias de `/etc/hosts` |
+| Host key desconocida | Da el `ssh-keyscan -p <puerto> <host>` literal |
+| Clave rechazada | Recuerda dar de alta la pública y comprobar `ssh-add -l` |
+| HTTPS sin credenciales | Pide configurar un credential helper o usar SSH |
+| Certificado de cliente | Sugiere marcar ese repositorio como `manual` |
+| Conexión bloqueada | Apunta a cortafuegos o proxy |
+
+Un servidor inaccesible marca sus repositorios como fallidos con esa explicación,
+y el resto se clona igualmente.
+
+**El manifiesto:**
+
+No viene con la herramienta: la lista de repositorios es de tu proyecto.
+Una línea por repositorio, cinco campos:
+
+```
+# destino        url                                    grupos      flags   motivo
+app              git@example.com:org/app.git            core,apps   -       -
+libs/common      git@example.com:org/common.git         core,libs   -       -
+modules/portal   git@example.com:org/module-portal.git  modules     -       -
+legacy-archive   https://interno.example.org/a.git      external    manual  requiere certificado de cliente
+```
+
+El destino es la ruta relativa a WORKSPACE_ROOT y admite anidamiento. Es un campo
+propio, y no se deriva de la URL, porque el directorio de trabajo no siempre se
+llama como el repositorio.
+
+Dónde se busca, por orden de precedencia:
+
+1. `--manifest <ruta>`
+2. `WS_MANIFEST` en `~/.wsrc` (lista separada por `:`)
+3. `<clon de --seed>/.ws-manifest`
+4. `$WORKSPACE_ROOT/.ws-manifest`
+
+Y siempre, si existe, `~/.ws-manifest.local`.
+
+**Composición: público + privado + personal**
+
+Se pueden componer varios manifiestos: se cargan en orden y, a igualdad de
+destino, gana el último. Eso permite separar por visibilidad sin duplicar nada,
+que es lo que necesita un proyecto con parte abierta y parte cerrada:
+
+```bash
+ws origins clone --manifest manifiesto-publico --manifest manifiesto-privado
+```
+
+A quien solo trabaje con la parte abierta le basta el manifiesto público. Los
+repositorios propios de cada uno van en `~/.ws-manifest.local`, que nunca se
+comparte y se compone siempre el último.
+
+Formato completo y comentado: `config/manifest.example`.
+
+**Ejemplos:**
+```bash
+ws origins clone                              # todo el manifiesto
+ws origins clone --group core                 # solo el núcleo
+ws origins clone --dry-run                    # ver el plan
+ws origins clone --list-groups                # qué grupos hay
+ws origins clone --seed <url>                 # primer arranque, máquina limpia
 ```
 
 ---
@@ -692,4 +841,4 @@ ws list
 
 - **[README.md](README.md)** - Introducción y uso rápido
 - **[CHANGELOG.md](CHANGELOG.md)** - Historial de cambios
-- **[ROADMAP.md](ROADMAP.md)** - Funcionalidades implementadas y futuras
+- **ROADMAP.md** - Funcionalidades implementadas y futuras; vive en el repositorio de gestión, `nuba-management/implementations/workspace-tools/ROADMAP.md`

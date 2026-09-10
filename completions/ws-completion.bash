@@ -52,9 +52,21 @@ _ws_completion() {
     _get_templates() {
         local templates_file="$workspace_root/.ws-templates"
         if [ -f "$templates_file" ]; then
-            cut -d':' -f1 "$templates_file" 2>/dev/null
+            grep -v '^[[:space:]]*#' "$templates_file" 2>/dev/null | cut -d':' -f1
         fi
     }
+
+    # --template/-t en 'new': completar con los templates configurados,
+    # sea cual sea la posición del flag
+    if [[ "$prev" == "--template" || "$prev" == "-t" ]]; then
+        case ${words[1]} in
+            new|mk|create)
+                local templates=$(_get_templates)
+                COMPREPLY=($(compgen -W "$templates" -- "$cur"))
+                return
+                ;;
+        esac
+    fi
 
     # Posición actual en el comando
     case $cword in
@@ -67,7 +79,7 @@ _ws_completion() {
             case ${words[1]} in
                 new|mk|create)
                     # Sugerir master/develop o --template
-                    COMPREPLY=($(compgen -W "master develop --template -t" -- "$cur"))
+                    COMPREPLY=($(compgen -W "master develop --template -t --bootstrap -b" -- "$cur"))
                     ;;
                 add|a|switch|cd|sw|clean|rm|del|remove|status|st|.|here|rename|mv|info)
                     # Completar nombre de workspace existente
@@ -97,7 +109,7 @@ _ws_completion() {
                     ;;
                 origins)
                     # Subcomandos de origins
-                    COMPREPLY=($(compgen -W "git list" -- "$cur"))
+                    COMPREPLY=($(compgen -W "clone git list" -- "$cur"))
                     ;;
                 list|ls)
                     # Filtro opcional (workspaces existentes)
@@ -122,15 +134,9 @@ _ws_completion() {
             # Tercer argumento
             case ${words[1]} in
                 new|mk|create)
-                    if [[ "${words[2]}" == "--template" || "${words[2]}" == "-t" ]]; then
-                        # Completar templates
-                        local templates=$(_get_templates)
-                        COMPREPLY=($(compgen -W "$templates" -- "$cur"))
-                    else
-                        # Repos
-                        local repos=$(_get_repos)
-                        COMPREPLY=($(compgen -W "$repos --template -t" -- "$cur"))
-                    fi
+                    # Repos y opciones (el caso --template se resuelve antes por prev)
+                    local repos=$(_get_repos)
+                    COMPREPLY=($(compgen -W "$repos --template -t --bootstrap -b" -- "$cur"))
                     ;;
                 add|a)
                     # Repos
@@ -182,6 +188,8 @@ _ws_completion() {
                     if [[ "${words[2]}" == "git" ]]; then
                         # Comandos Git comunes
                         COMPREPLY=($(compgen -W "status pull push fetch log diff" -- "$cur"))
+                    elif [[ "${words[2]}" == "clone" ]]; then
+                        COMPREPLY=($(compgen -W "--group --manifest --seed --include-manual --dry-run --list-groups --help" -- "$cur"))
                     fi
                     ;;
             esac
@@ -189,7 +197,12 @@ _ws_completion() {
         *)
             # Argumentos adicionales
             case ${words[1]} in
-                new|mk|create|add|a)
+                new|mk|create)
+                    # Repos adicionales y opciones
+                    local repos=$(_get_repos)
+                    COMPREPLY=($(compgen -W "$repos --template -t --bootstrap -b" -- "$cur"))
+                    ;;
+                add|a)
                     # Repos adicionales
                     local repos=$(_get_repos)
                     COMPREPLY=($(compgen -W "$repos" -- "$cur"))

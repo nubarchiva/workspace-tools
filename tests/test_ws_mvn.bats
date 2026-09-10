@@ -190,3 +190,28 @@ EOF
     # Debe mencionar el archivo de orden
     [[ "$output" == *"orden de compilación"* ]] || [[ "$output" == *".ws-build-order"* ]] || [[ "$output" == *"build-order"* ]]
 }
+
+# =============================================================================
+# Tests de directorio de ejecución (aislamiento Maven)
+# =============================================================================
+
+@test "ws-mvn: runs maven from the repo root (picks up .mvn/maven.config)" {
+    mkdir -p "$TEST_WORKSPACES_DIR/cwd-mvn"
+    create_maven_repo "repo-cwd"
+
+    cd "$TEST_WORKSPACE_ROOT/repo-cwd"
+    git worktree add "$TEST_WORKSPACES_DIR/cwd-mvn/repo-cwd" -b feature/cwd-mvn 2>/dev/null || true
+    cd - > /dev/null
+
+    # mvn falso que imprime su directorio de trabajo
+    mkdir -p "$TEST_TEMP_DIR/fakebin"
+    cat > "$TEST_TEMP_DIR/fakebin/mvn" << 'FAKE'
+#!/bin/bash
+echo "FAKE_MVN_PWD:$(pwd)"
+FAKE
+    chmod +x "$TEST_TEMP_DIR/fakebin/mvn"
+
+    PATH="$TEST_TEMP_DIR/fakebin:$PATH" run run_ws mvn cwd-mvn validate
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"FAKE_MVN_PWD:"*"/cwd-mvn/repo-cwd"* ]]
+}

@@ -54,8 +54,8 @@ find_matching_workspace() {
     local pattern=$1
     local workspaces_dir=$2
 
-    # Si el patrón es exactamente "master" o "develop", retornarlo directamente
-    if [ "$pattern" = "master" ] || [ "$pattern" = "develop" ]; then
+    # Si el patrón designa una rama de integración, retornarlo directamente
+    if is_branch_workspace "$pattern"; then
         echo "$pattern"
         return 0
     fi
@@ -142,16 +142,26 @@ find_matching_workspace() {
     fi
 }
 
+# Indica si el nombre de un workspace designa una rama de integración en lugar
+# de una feature. Es el criterio único: quien lo cambie aquí lo cambia en todos
+# los comandos que distinguen ambos casos.
+# Uso: if is_branch_workspace "$nombre"; then ...
+# Retorna: 0 si es rama de integración, 1 si no
+is_branch_workspace() {
+    case "$1" in
+        master|main|develop) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 # Función para determinar el nombre de la branch según el workspace
 # Uso: get_branch_name <workspace_name>
-# Retorna: nombre de la branch (master, develop, o feature/nombre)
+# Retorna: nombre de la branch (master, main, develop, o feature/nombre)
 get_branch_name() {
     local workspace_name=$1
 
-    if [ "$workspace_name" = "master" ]; then
-        echo "master"
-    elif [ "$workspace_name" = "develop" ]; then
-        echo "develop"
+    if is_branch_workspace "$workspace_name"; then
+        echo "$workspace_name"
     else
         echo "feature/$workspace_name"
     fi
@@ -203,6 +213,30 @@ copy_workspace_config() {
     if [ -d "$config_source/docs" ]; then
         echo "  • Enlazando docs/ (documentación compartida)"
         ln -sf "$config_source/docs" "$workspace_dir/docs"
+    fi
+
+    # Crear symlink a nuba-management (gestión de evolutivos, SSOT fuera de producto)
+    if [ -d "$config_source/nuba-management" ]; then
+        echo "  • Enlazando nuba-management/ (gestión de evolutivos)"
+        ln -sf "$config_source/nuba-management" "$workspace_dir/nuba-management"
+    fi
+
+    # Permisos del flujo desatendido: /jira-batch-impl commitea y publica por issue y su preflight (§1.5)
+    # exige estas reglas en el worktree. Se crean al montar el workspace, acotadas a él, y solo si no existe
+    # ya un settings.local.json (proceso de desarrollo autónomo de evolutivos, hallazgo H33).
+    local local_settings="$workspace_dir/.claude/settings.local.json"
+    if [ ! -f "$local_settings" ]; then
+        echo "  • Creando .claude/settings.local.json (permisos de commit y push para las fases desatendidas)"
+        cat > "$local_settings" <<'JSON'
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
+    ]
+  }
+}
+JSON
     fi
 
     # Copiar .idea/ (IntelliJ IDEA)

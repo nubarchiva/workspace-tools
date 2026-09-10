@@ -308,3 +308,76 @@ create_gone_upstream() {
     [ "$status" -eq 0 ]
     [ "$output" = "origin/develop" ]
 }
+
+
+# =============================================================================
+# git_resolve_base_branch
+# =============================================================================
+
+# Crea un repositorio con las ramas indicadas
+# Uso: repo_with_branches <nombre> <rama1> [rama2...]
+repo_with_branches() {
+    local name="$1"; shift
+    local repo="$TEST_TEMP_DIR/$name"
+    git init --quiet --initial-branch="$1" "$repo"
+    git -C "$repo" config user.email "test@test.com"
+    git -C "$repo" config user.name "Test User"
+    echo "x" > "$repo/f.txt"
+    git -C "$repo" add f.txt
+    git -C "$repo" commit --quiet -m "Initial commit"
+    shift
+    local b
+    for b in "$@"; do
+        git -C "$repo" branch "$b"
+    done
+    echo "$repo"
+}
+
+@test "git_resolve_base_branch: prefiere develop sobre main y master" {
+    local repo
+    repo=$(repo_with_branches "r1" develop main master)
+    run git_resolve_base_branch "$repo"
+    [ "$status" -eq 0 ]
+    [ "$output" = "develop" ]
+}
+
+@test "git_resolve_base_branch: encuentra main cuando no hay develop" {
+    local repo
+    repo=$(repo_with_branches "r2" main)
+    run git_resolve_base_branch "$repo"
+    [ "$status" -eq 0 ]
+    [ "$output" = "main" ]
+}
+
+@test "git_resolve_base_branch: prefiere main sobre master" {
+    local repo
+    repo=$(repo_with_branches "r3" main master)
+    run git_resolve_base_branch "$repo"
+    [ "$status" -eq 0 ]
+    [ "$output" = "main" ]
+}
+
+@test "git_resolve_base_branch: cae a master si es lo único que hay" {
+    local repo
+    repo=$(repo_with_branches "r4" master)
+    run git_resolve_base_branch "$repo"
+    [ "$status" -eq 0 ]
+    [ "$output" = "master" ]
+}
+
+@test "git_resolve_base_branch: retorna 1 si no hay ninguna rama base" {
+    local repo
+    repo=$(repo_with_branches "r5" trabajo)
+    run git_resolve_base_branch "$repo"
+    [ "$status" -eq 1 ]
+    [ -z "$output" ]
+}
+
+@test "git_resolve_base_branch: prefiere la referencia remota sobre la local" {
+    create_repo_with_remote
+    git -C "$LOCAL_REPO" branch develop 2>/dev/null || true
+    git -C "$LOCAL_REPO" push --quiet origin develop 2>/dev/null || true
+    run git_resolve_base_branch "$LOCAL_REPO"
+    [ "$status" -eq 0 ]
+    [ "$output" = "origin/develop" ]
+}

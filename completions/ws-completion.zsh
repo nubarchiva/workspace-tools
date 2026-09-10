@@ -82,11 +82,20 @@ _ws() {
         local templates_file="$workspace_root/.ws-templates"
         if [[ -f "$templates_file" ]]; then
             while IFS=: read -r name repos_list; do
-                [[ -n "$name" ]] && templates+=("$name:$repos_list")
+                name="${name#"${name%%[![:space:]]*}"}"
+                [[ -z "$name" || "$name" == \#* ]] && continue
+                templates+=("$name:${repos_list## }")
             done < "$templates_file"
         fi
         _describe 'templates' templates
     }
+
+    # --template/-t en 'new': completar con los templates configurados,
+    # sea cual sea la posición del flag
+    if [[ "$words[2]" == (new|mk|create) && "$words[CURRENT-1]" == (--template|-t) ]]; then
+        _get_templates
+        return
+    fi
 
     # Lógica de completado según posición
     case $CURRENT in
@@ -100,7 +109,7 @@ _ws() {
                 new|mk|create)
                     _alternative \
                         'special:special names:((master\:"branch master" develop\:"branch develop"))' \
-                        'options:options:((--template\:"-t Usar template" -t\:"Usar template"))' \
+                        'options:options:((--template\:"-t Usar template" -t\:"Usar template" --bootstrap\:"-b Poblar repositorio Maven del workspace" -b\:"Poblar repositorio Maven del workspace"))' \
                         'name:workspace name:'
                     ;;
                 add|a|switch|cd|sw|clean|rm|del|remove|status|st|rename|mv|info)
@@ -138,6 +147,7 @@ _ws() {
                     ;;
                 origins)
                     local -a origins_actions=(
+                        'clone:Clonar los repos del manifiesto'
                         'git:Ejecutar git en repos origen'
                         'list:Listar repos origen'
                     )
@@ -165,13 +175,10 @@ _ws() {
             # Tercer argumento
             case $words[2] in
                 new|mk|create)
-                    if [[ "$words[3]" == "--template" || "$words[3]" == "-t" ]]; then
-                        _get_templates
-                    else
-                        _alternative \
-                            'repos:repo:_get_repos' \
-                            'options:options:((--template\:"-t Usar template" -t\:"Usar template"))'
-                    fi
+                    # Repos y opciones (el caso --template se resuelve antes por palabra previa)
+                    _alternative \
+                        'repos:repo:_get_repos' \
+                        'options:options:((--template\:"-t Usar template" -t\:"Usar template" --bootstrap\:"-b Poblar repositorio Maven del workspace" -b\:"Poblar repositorio Maven del workspace"))'
                     ;;
                 add|a|remove)
                     _get_repos
@@ -231,7 +238,17 @@ _ws() {
                     esac
                     ;;
                 origins)
-                    if [[ "$words[3]" == "git" ]]; then
+                    if [[ "$words[3]" == "clone" ]]; then
+                        local -a clone_opts=(
+                            '--group:Clonar solo esos grupos'
+                            '--manifest:Manifiesto a usar'
+                            '--seed:Clonar primero el repo del manifiesto'
+                            '--include-manual:Incluir lo marcado manual'
+                            '--dry-run:Mostrar qué haría'
+                            '--list-groups:Listar los grupos del manifiesto'
+                        )
+                        _describe 'clone options' clone_opts
+                    elif [[ "$words[3]" == "git" ]]; then
                         local -a git_cmds=(
                             'status:Estado'
                             'pull:Descargar'
@@ -248,7 +265,12 @@ _ws() {
         *)
             # Argumentos adicionales
             case $words[2] in
-                new|mk|create|add|a)
+                new|mk|create)
+                    _alternative \
+                        'repos:repo:_get_repos' \
+                        'options:options:((--template\:"-t Usar template" -t\:"Usar template" --bootstrap\:"-b Poblar repositorio Maven del workspace" -b\:"Poblar repositorio Maven del workspace"))'
+                    ;;
+                add|a)
                     _get_repos
                     ;;
                 templates|tpl)

@@ -98,15 +98,7 @@ get_pending_commits() {
     # Determinar branch base si no se especificó
     local local_base="$base_branch"
     if [ -z "$local_base" ]; then
-        if git rev-parse --verify "origin/develop" >/dev/null 2>&1; then
-            local_base="origin/develop"
-        elif git rev-parse --verify "develop" >/dev/null 2>&1; then
-            local_base="develop"
-        elif git rev-parse --verify "origin/master" >/dev/null 2>&1; then
-            local_base="origin/master"
-        elif git rev-parse --verify "master" >/dev/null 2>&1; then
-            local_base="master"
-        else
+        if ! local_base=$(git_resolve_base_branch); then
             echo "0"
             return
         fi
@@ -123,8 +115,8 @@ show_workspace_summary() {
     local ws_name=$1
     local ws_dir=$2
 
-    # Saltar master/develop
-    if [[ "$ws_name" == "master" || "$ws_name" == "develop" ]]; then
+    # Saltar workspaces de rama de integración
+    if is_branch_workspace "$ws_name"; then
         return 1
     fi
 
@@ -255,15 +247,7 @@ update_single_workspace() {
             # Determinar branch base para este repo
             local local_base="$BASE_BRANCH"
             if [ -z "$local_base" ]; then
-                if git rev-parse --verify "origin/develop" >/dev/null 2>&1; then
-                    local_base="origin/develop"
-                elif git rev-parse --verify "develop" >/dev/null 2>&1; then
-                    local_base="develop"
-                elif git rev-parse --verify "origin/master" >/dev/null 2>&1; then
-                    local_base="origin/master"
-                elif git rev-parse --verify "master" >/dev/null 2>&1; then
-                    local_base="master"
-                else
+                if ! local_base=$(git_resolve_base_branch); then
                     warning "⏭️  Saltado (no se encontró branch base)"
                     ((skipped++))
                     echo ""
@@ -390,8 +374,8 @@ if [ "$UPDATE_ALL" = true ]; then
         if [ -d "$ws_dir" ]; then
             ws_name=$(basename "$ws_dir")
 
-            # Saltar master/develop
-            if [[ "$ws_name" == "master" || "$ws_name" == "develop" ]]; then
+            # Saltar workspaces de rama de integración
+            if is_branch_workspace "$ws_name"; then
                 continue
             fi
 
@@ -450,8 +434,8 @@ if [ ! -d "$WORKSPACE_DIR" ]; then
     die "Workspace no existe: $WORKSPACE_NAME"
 fi
 
-# No tiene sentido actualizar master o develop
-if [[ "$WORKSPACE_NAME" == "master" || "$WORKSPACE_NAME" == "develop" ]]; then
+# No tiene sentido actualizar una rama de integración
+if is_branch_workspace "$WORKSPACE_NAME"; then
     error "❌ No tiene sentido actualizar $WORKSPACE_NAME con sí mismo"
     echo ""
     info "💡 Usa 'ws origins git pull' para sincronizar repos origen"

@@ -115,3 +115,24 @@ run_ws_clean() {
     [ "$status" -eq 0 ]
     [ ! -d "$TEST_WORKSPACES_DIR/force-test" ]
 }
+
+# =============================================================================
+# Tests de aislamiento Maven
+# =============================================================================
+
+@test "ws-clean: removes the maven head of the workspace" {
+    mkdir -p "$TEST_WORKSPACES_DIR/con-head"
+    mkdir -p "$WS_MAVEN_HEAD_BASE/con-head/repository/com/test"
+
+    run run_ws_clean "--force" "con-head"
+    [ "$status" -eq 0 ]
+    [ ! -d "$WS_MAVEN_HEAD_BASE/con-head" ]
+}
+
+@test "ws-clean: workspace without maven head cleans normally" {
+    mkdir -p "$TEST_WORKSPACES_DIR/sin-head"
+
+    run run_ws_clean "--force" "sin-head"
+    [ "$status" -eq 0 ]
+    [ ! -d "$TEST_WORKSPACES_DIR/sin-head" ]
+}
