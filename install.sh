@@ -283,7 +283,21 @@ echo ""
 echo -e "${BOLD}2. Configurando permisos...${RESET}"
 echo ""
 
-chmod +x "$SCRIPT_DIR/bin/"* 2>/dev/null || true
+# Solo los ejecutables reales: los ficheros que se sourcean (ws-colors.sh,
+# ws-git-utils.sh, ws-maven-utils.sh) se mantienen sin bit de ejecución a
+# propósito. Un `chmod +x bin/*` en bloque se los daba también, y en un clon eso
+# deja el árbol sucio con cambios de modo que impiden cambiar de rama.
+# En un clon los modos ya vienen correctos de git y esto no cambia nada; hace
+# falta para las instalaciones desde un zip o un tar, que pierden los permisos.
+if git -C "$SCRIPT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+    # Nota: la variable no se llama "path" a propósito; en zsh esa variable está
+    # ligada a PATH y asignarla lo destruye.
+    git -C "$SCRIPT_DIR" ls-files -s bin/ 2>/dev/null | while read -r mode _ _ file; do
+        [ "$mode" = "100755" ] && chmod +x "$SCRIPT_DIR/$file" 2>/dev/null
+    done
+else
+    chmod +x "$SCRIPT_DIR/bin/"* 2>/dev/null || true
+fi
 echo -e "   ${GREEN}✓${RESET} Scripts en $SCRIPT_DIR/bin/"
 
 # 3. Configurar WORKSPACE_ROOT
