@@ -13,7 +13,7 @@ _ws_completion() {
     local workspaces_dir="${WORKSPACES_DIR:-$workspace_root/workspaces}"
 
     # Subcomandos disponibles (incluyendo aliases)
-    local subcommands="new add remove switch list clean mvn git update stash grep templates status rename info origins mode prune help"
+    local subcommands="new add remove switch list clean mvn git update stash grep templates status rename info origins mode prune mgmt-link help"
     local aliases="ls cd rm mv st tpl"
 
     # Función para obtener workspaces
@@ -119,6 +119,11 @@ _ws_completion() {
                 mode)
                     # Opciones de modo
                     COMPREPLY=($(compgen -W "offline online" -- "$cur"))
+                    ;;
+                mgmt-link)
+                    # Régimen de acceso a nuba-management y workspaces
+                    local workspaces=$(_get_workspaces)
+                    COMPREPLY=($(compgen -W "--worktree --symlink --force $workspaces" -- "$cur"))
                     ;;
                 prune)
                     # Opciones de prune y repos

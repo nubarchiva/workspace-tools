@@ -8,6 +8,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **Árbol propio de `nuba-management` por workspace** - Hasta ahora los workspaces llegaban al repositorio de gestión por un symlink al mismo clon, así que compartían árbol de trabajo, índice y rama: un commit se llevaba ficheros de otra sesión, un `push` publicaba lo ajeno y un merge abortaba por trabajo de terceros
+  - `ws new` monta `nuba-management` como worktree de git en la rama `wt/<workspace>`, en la misma ruta que ocupaba el symlink, de modo que las rutas relativas `nuba-management/...` siguen valiendo. Comparte los objetos con el clon principal y da árbol e índice propios
+  - Si el clon principal no existe o no tiene `origin/main`, se mantiene el symlink de siempre y se dice por qué
+  - **Migración perezosa**: un workspace que aún use el symlink se convierte al entrar en él con `ws cd` / `ws switch`, y solo si no hay ningún proceso trabajando dentro; cambiar el acceso bajo una sesión en marcha le rompe el trabajo en curso. Los comandos de consulta (`ws info`, `ws status`) no migran nada
+  - Nuevo `ws mgmt-link [--worktree|--symlink] [--force] [workspace]`: muestra el régimen y lo cambia en los dos sentidos. La vuelta atrás elimina el worktree, hace `git worktree prune` y restituye el symlink, avisando antes si hay cambios sin commitear o commits sin publicar
+  - Nuevo `workspace_live_pids()` en `ws-common.sh`: PID con directorio de trabajo dentro de un workspace, excluyendo el proceso que pregunta, sus antepasados y sus descendientes. Es el guardarraíl de la migración
 - **Soporte de `main` como rama de integración** - Hasta ahora solo `master` y `develop` se trataban como nombres de rama; `ws new main` creaba la rama `feature/main`, y un repositorio cuya única rama fuese `main` se saltaba en silencio al calcular sincronización o al actualizar
   - Nuevo `is_branch_workspace()` en `ws-common.sh`: criterio único de qué nombre de workspace designa una rama de integración (`master`, `main`, `develop`), usado por `ws new`, `ws add`, `ws list`, `ws switch` y `ws update`
   - Nuevo `git_resolve_base_branch()` en `ws-git-utils.sh`: resuelve la rama base con la que comparar, prefiriendo la referencia remota sobre la local y `develop` sobre `main` y `master`; sustituye cuatro copias divergentes de la misma cadena

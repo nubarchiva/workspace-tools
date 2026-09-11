@@ -164,6 +164,14 @@ CONFIGURACIÓN:
         ws mode offline                # forzar modo sin conexión
         ws mode online                 # modo normal (auto-detecta)
 
+  mgmt-link [--worktree|--symlink] [--force] [workspace]
+      Régimen de acceso a nuba-management: árbol propio (worktree en la rama
+      wt/<workspace>) o compartido (symlink al clon principal)
+      Ejemplos:
+        ws mgmt-link                   # régimen del workspace actual
+        ws mgmt-link --worktree fea    # migra a árbol propio
+        ws mgmt-link --symlink         # vuelta atrás
+
 CARACTERÍSTICAS:
 
   • Búsqueda parcial: usa parte del nombre (ej: ws cd fea)
@@ -246,7 +254,7 @@ fi
 
 # Mapear subcomandos a scripts
 case $SUBCOMMAND in
-    new|add|remove|switch|list|clean|mvn|git|update|stash|grep|templates|status|rename|info|origins|mode|prune)
+    new|add|remove|switch|list|clean|mvn|git|update|stash|grep|templates|status|rename|info|origins|mode|prune|mgmt-link)
         SCRIPT_NAME="ws-$SUBCOMMAND"
         SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_NAME"
 

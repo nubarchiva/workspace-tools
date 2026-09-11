@@ -215,11 +215,9 @@ copy_workspace_config() {
         ln -sf "$config_source/docs" "$workspace_dir/docs"
     fi
 
-    # Crear symlink a nuba-management (gestión de evolutivos, SSOT fuera de producto)
-    if [ -d "$config_source/nuba-management" ]; then
-        echo "  • Enlazando nuba-management/ (gestión de evolutivos)"
-        ln -sf "$config_source/nuba-management" "$workspace_dir/nuba-management"
-    fi
+    # Dar acceso a nuba-management (gestión de evolutivos, SSOT fuera de producto)
+    # con árbol propio; ver "Acceso a nuba-management" al final de este fichero
+    setup_management_access "$workspace_dir" "$config_source"
 
     # Permisos del flujo desatendido: /jira-batch-impl commitea y publica por issue y su preflight (§1.5)
     # exige estas reglas en el worktree. Se crean al montar el workspace, acotadas a él, y solo si no existe
@@ -327,4 +325,249 @@ detect_current_workspace() {
     fi
 
     return 1
+}
+
+# =============================================================================
+# Acceso a nuba-management
+# =============================================================================
+# Un workspace llega al repositorio de gestión `nuba-management` en uno de dos
+# regímenes:
+#
+#   • propio      worktree de git en la rama `wt/<workspace>`: árbol e índice
+#                 solo suyos, y por tanto git normal para commitear y publicar
+#   • compartido  symlink al clon principal: árbol e índice únicos para todos
+#                 los workspaces, de donde salían los commits que se llevaban
+#                 ficheros ajenos (hallazgo H173 del evolutivo
+#                 autonomous-development-process)
+#
+# El propio es el régimen actual; el symlink queda como salida cuando no hay un
+# clon del que colgar el worktree. Se reconoce en un comando:
+#
+#     [ -L nuba-management ] && echo compartido || echo propio
+#
+# El worktree se crea en la MISMA ruta que ocupaba el symlink, así que las rutas
+# relativas `nuba-management/...` siguen valiendo sin tocar nada.
+
+MANAGEMENT_DIR_NAME="nuba-management"
+
+# Ruta física de un directorio (sin symlinks intermedios): las rutas que da lsof
+# lo son, y el registro de worktrees de git debe apuntar a la misma
+# Uso interno: _physical_path <dir>
+_physical_path() {
+    (cd "$1" 2>/dev/null && pwd -P)
+}
+
+# Rama del worktree de gestión de un workspace
+# Uso: management_branch <workspace_name>
+management_branch() {
+    echo "wt/$1"
+}
+
+# Régimen de acceso a nuba-management de un workspace
+# Uso: management_regime <workspace_dir>
+# Retorna por stdout: propio | compartido | ninguno
+management_regime() {
+    local link="${1%/}/$MANAGEMENT_DIR_NAME"
+
+    if [ -L "$link" ]; then
+        echo "compartido"
+    elif [ -d "$link" ]; then
+        echo "propio"
+    else
+        echo "ninguno"
+    fi
+}
+
+# Comprueba si un clon de nuba-management admite worktrees
+# Uso: if blocker=$(management_worktree_blocker <repo>); then ... fi
+# Retorna: 0 si admite; 1 con el motivo por stdout si no
+management_worktree_blocker() {
+    local repo=$1
+
+    if ! git -C "$repo" rev-parse --git-dir >/dev/null 2>&1; then
+        echo "no es un repositorio git"
+        return 1
+    fi
+
+    if ! git -C "$repo" show-ref --verify --quiet refs/remotes/origin/main; then
+        echo "no tiene origin/main"
+        return 1
+    fi
+
+    return 0
+}
+
+# Crea el worktree de gestión en una ruta libre
+# Uso interno: _management_add_worktree <repo> <destino> <branch>
+# Retorna: 0 y silencio si lo crea; 1 con la salida de git por stdout si no
+# Nota: el destino no puede llamarse `path`, que en zsh es la variable especial
+# ligada a PATH y dejaría a la función sin comandos
+_management_add_worktree() {
+    local repo=$1
+    local target=$2
+    local branch=$3
+
+    if git -C "$repo" show-ref --verify --quiet "refs/heads/$branch"; then
+        git -C "$repo" worktree add "$target" "$branch" 2>&1
+    else
+        git -C "$repo" worktree add -b "$branch" "$target" origin/main 2>&1
+    fi
+}
+
+# Lista los PID con directorio de trabajo dentro de un workspace, excluyendo el
+# proceso que pregunta, sus antepasados y sus descendientes: un filtro que no se
+# excluya a sí mismo se encuentra siempre, porque el propio comando corre ahí.
+# Uso: workspace_live_pids <workspace_dir>
+# Retorna: 0 con los PID por stdout (vacío si no hay ninguno); 2 si no se puede medir
+workspace_live_pids() {
+    local dir
+    dir=$(_physical_path "${1%/}") || return 2
+    [ -n "$dir" ] || return 2
+
+    if ! command -v lsof >/dev/null 2>&1; then
+        return 2
+    fi
+
+    # El orden importa: primero lsof y después la tabla de procesos, porque lo que
+    # ya no está en esa tabla o ha parado o es la propia medición, que también
+    # trabaja aquí dentro y se ve a sí misma en el listado de lsof
+    { lsof -a -d cwd -Fpn 2>/dev/null; echo "@@@"; ps -eo pid=,ppid=; } | awk -v dir="$dir" -v self="$$" '
+        function is_mine(pid,   p, hops) {
+            if (pid in ancestors) return 1
+            for (p = pid; p != "" && p != "0" && hops++ < 200; p = parent[p]) {
+                if (p == self) return 1
+            }
+            return 0
+        }
+        $1 == "@@@" { ps_section = 1; next }
+        !ps_section {
+            if (substr($0, 1, 1) == "p") { pid = substr($0, 2); next }
+            if (substr($0, 1, 1) == "n") {
+                path = substr($0, 2)
+                if (path == dir || index(path, dir "/") == 1) candidate[pid] = 1
+            }
+            next
+        }
+        { parent[$1] = $2 }
+        END {
+            hops = 0
+            for (p = self; p != "" && p != "0" && hops++ < 200; p = parent[p]) ancestors[p] = 1
+            for (pid in candidate) {
+                if ((pid in parent) && !is_mine(pid)) print pid
+            }
+        }
+    '
+}
+
+# Da acceso a nuba-management a un workspace recién montado: worktree si se
+# puede, symlink al clon compartido si no, diciendo por qué.
+# Uso: setup_management_access <workspace_dir> <config_source>
+setup_management_access() {
+    local workspace_dir
+    local config_source
+    workspace_dir=$(_physical_path "${1%/}") || return 0
+    config_source=$(_physical_path "${2%/}") || return 0
+    local repo="$config_source/$MANAGEMENT_DIR_NAME"
+    local link="$workspace_dir/$MANAGEMENT_DIR_NAME"
+    local branch="$(management_branch "$(basename "$workspace_dir")")"
+
+    [ -d "$repo" ] || return 0
+
+    # Acceso ya resuelto (worktree o symlink de un montaje anterior): no se toca
+    if [ -e "$link" ] || [ -L "$link" ]; then
+        return 0
+    fi
+
+    local blocker
+    if blocker=$(management_worktree_blocker "$repo"); then
+        local output
+        if output=$(_management_add_worktree "$repo" "$link" "$branch"); then
+            echo "  • Creando worktree de nuba-management/ (rama $branch, árbol propio)"
+            return 0
+        fi
+        echo "  ⚠️  No se pudo crear el worktree de nuba-management: $output"
+        blocker="falló git worktree add"
+    fi
+
+    echo "  • Enlazando nuba-management/ (árbol compartido: el clon $blocker)"
+    ln -s "$repo" "$link"
+}
+
+# Convierte el acceso compartido de un workspace en árbol propio, en la misma
+# ruta. No toca un workspace con procesos trabajando dentro: cambiarle el
+# symlink bajo los pies le rompe el trabajo en curso.
+# Uso: management_switch_to_worktree <workspace_dir> [<config_source>]
+# Retorna: 0 migrado; 1 nada que migrar o no se pudo; 2 hay procesos vivos
+management_switch_to_worktree() {
+    local workspace_dir
+    local config_source
+    workspace_dir=$(_physical_path "${1%/}") || return 1
+    config_source=$(_physical_path "${2:-$WORKSPACE_ROOT}") || return 1
+    local repo="$config_source/$MANAGEMENT_DIR_NAME"
+    local link="$workspace_dir/$MANAGEMENT_DIR_NAME"
+    local branch="$(management_branch "$(basename "$workspace_dir")")"
+
+    # Solo el régimen compartido se migra: el propio ya lo está, y un workspace
+    # sin acceso no lo pide
+    [ -L "$link" ] || return 1
+    [ -d "$repo" ] || return 1
+    management_worktree_blocker "$repo" >/dev/null || return 1
+
+    local live
+    live=$(workspace_live_pids "$workspace_dir")
+    if [ $? -ne 0 ] || [ -n "$live" ]; then
+        return 2
+    fi
+
+    rm -f "$link"
+
+    local output
+    if output=$(_management_add_worktree "$repo" "$link" "$branch"); then
+        return 0
+    fi
+
+    # El worktree no salió: el workspace se queda como estaba
+    ln -s "$repo" "$link"
+    echo "  ⚠️  No se pudo migrar nuba-management a árbol propio: $output"
+    return 1
+}
+
+# Vuelta atrás: deshace el árbol propio y restituye el symlink al clon
+# compartido. Elimina el worktree con lo que contenga, así que quien lo llama se
+# encarga de avisar de lo que no esté commiteado.
+# Uso: management_switch_to_shared <workspace_dir> [<config_source>]
+# Retorna: 0 restituido o ya compartido; 1 no hay nada que deshacer
+management_switch_to_shared() {
+    local workspace_dir
+    local config_source
+    workspace_dir=$(_physical_path "${1%/}") || return 1
+    config_source=$(_physical_path "${2:-$WORKSPACE_ROOT}") || return 1
+    local repo="$config_source/$MANAGEMENT_DIR_NAME"
+    local link="$workspace_dir/$MANAGEMENT_DIR_NAME"
+
+    [ -d "$repo" ] || return 1
+    [ -L "$link" ] && return 0
+    [ -d "$link" ] || return 1
+
+    rm -rf "$link"
+    git -C "$repo" worktree prune
+    ln -s "$repo" "$link"
+}
+
+# Migración perezosa en el arranque de un workspace: el que aún llega por
+# symlink pasa a árbol propio la próxima vez que se usa, y solo si no hay nadie
+# trabajando dentro. Imprime lo que ha hecho; calla cuando no hay nada que hacer.
+# Uso: management_migrate_on_start <workspace_dir>
+management_migrate_on_start() {
+    local workspace_dir="${1%/}"
+
+    management_switch_to_worktree "$workspace_dir"
+    case $? in
+        0)
+            echo "🌳 nuba-management migrado a árbol propio (rama $(management_branch "$(basename "$workspace_dir")"))"
+            ;;
+        2)
+            echo "🔗 nuba-management sigue compartido: hay procesos trabajando en este workspace"
+            ;;
+    esac
 }

@@ -31,6 +31,7 @@ _ws() {
         'origins:Operaciones en repos origen'
         'mode:Gestiona modo online/offline'
         'prune:Limpia ramas locales sin cambios'
+        'mgmt-link:Régimen de acceso a nuba-management (worktree o symlink)'
         'help:Muestra ayuda'
         # Aliases
         'ls:Alias de list'
@@ -168,6 +169,11 @@ _ws() {
                     _alternative \
                         'options:options:((--dry-run\:"Ver qué se borraría" --force\:"Incluir no mergeadas" --all\:"Todos los repos"))' \
                         'repos:repo:_get_repos'
+                    ;;
+                mgmt-link)
+                    _alternative \
+                        'options:options:((--worktree\:"Migrar a árbol propio" --symlink\:"Vuelta atrás al árbol compartido" --force\:"No preguntar en la vuelta atrás"))' \
+                        'workspaces:workspace:_get_workspaces'
                     ;;
             esac
             ;;

@@ -44,6 +44,10 @@ ws() {
             return $find_exit_code
         fi
 
+        # Migración perezosa del acceso a nuba-management (ver ws-common.sh): aquí,
+        # porque es donde el usuario entra al workspace y donde se ve el aviso
+        management_migrate_on_start "$WORKSPACES_DIR/$workspace_name"
+
         # Ahora ejecutar ws-switch con el nombre exacto y capturar output
         local switch_output
         switch_output=$("$WS_TOOLS/bin/ws-switch" "$workspace_name" 2>&1)

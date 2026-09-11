@@ -1,0 +1,158 @@
+#!/bin/bash
+# Gestiona el régimen de acceso a nuba-management de un workspace:
+# árbol propio (worktree en la rama wt/<workspace>) o compartido (symlink al clon)
+
+# Inicializacion centralizada
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-git-utils.sh"
+
+show_help() {
+    echo "Uso: ws mgmt-link [--worktree|--symlink] [--force] [workspace]"
+    echo ""
+    echo "Muestra o cambia cómo llega un workspace a nuba-management."
+    echo ""
+    echo "Regímenes:"
+    echo "  propio       worktree de git en la rama wt/<workspace>: árbol e índice"
+    echo "               solo suyos, se commitea y publica con git normal"
+    echo "  compartido   symlink al clon principal: árbol e índice de todos, un"
+    echo "               commit sin '--' se lleva ficheros de otras sesiones"
+    echo ""
+    echo "Opciones:"
+    echo "  --worktree   Migra a árbol propio (no toca un workspace con sesiones vivas)"
+    echo "  --symlink    Vuelta atrás: elimina el worktree y restituye el symlink"
+    echo "  --force      Con --symlink, no pregunta aunque haya trabajo sin publicar"
+    echo "  --help, -h   Muestra esta ayuda"
+    echo ""
+    echo "Sin workspace, usa el actual (auto-detecta)."
+    echo ""
+    echo "Ejemplos:"
+    echo "  ws mgmt-link                       # régimen del workspace actual"
+    echo "  ws mgmt-link --worktree nuba-8926  # migra ese workspace"
+    echo "  ws mgmt-link --symlink             # vuelta atrás en el actual"
+}
+
+ACTION="status"
+FORCE=false
+WORKSPACE_PATTERN=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --worktree) ACTION="worktree"; shift ;;
+        --symlink)  ACTION="symlink";  shift ;;
+        --force)    FORCE=true;        shift ;;
+        --help|-h)  show_help; exit 0 ;;
+        *)          WORKSPACE_PATTERN="$1"; shift ;;
+    esac
+done
+
+resolve_workspace "$WORKSPACE_PATTERN" "ws mgmt-link <workspace>"
+
+LINK="$WORKSPACE_DIR/$MANAGEMENT_DIR_NAME"
+BRANCH="$(management_branch "$WORKSPACE_NAME")"
+REGIME="$(management_regime "$WORKSPACE_DIR")"
+
+# -----------------------------------------------------------------------------
+# Estado
+# -----------------------------------------------------------------------------
+if [ "$ACTION" = "status" ]; then
+    print_header "nuba-management en ${COLOR_BOLD}$WORKSPACE_NAME${COLOR_RESET}"
+
+    case "$REGIME" in
+        propio)
+            success "🌳 Árbol propio (worktree)"
+            echo "   Rama: ${COLOR_CYAN}$(git -C "$LINK" branch --show-current)${COLOR_RESET}"
+            if git_has_uncommitted_changes "$LINK"; then
+                warning "   ⚠️  Con cambios sin commitear"
+            fi
+            echo ""
+            echo "Vuelta atrás: ${COLOR_CYAN}ws mgmt-link --symlink $WORKSPACE_NAME${COLOR_RESET}"
+            ;;
+        compartido)
+            warning "🔗 Árbol compartido (symlink a $(readlink "$LINK"))"
+            echo "   Las reglas de commit con '--' de _lib/jira-common.md siguen valiendo aquí"
+            echo ""
+            echo "Migrar: ${COLOR_CYAN}ws mgmt-link --worktree $WORKSPACE_NAME${COLOR_RESET}"
+            ;;
+        *)
+            info "➖ Este workspace no tiene acceso a nuba-management"
+            ;;
+    esac
+
+    live=$(workspace_live_pids "$WORKSPACE_DIR")
+    if [ $? -ne 0 ]; then
+        echo ""
+        warning "⚠️  No se puede medir si hay sesiones trabajando aquí (falta lsof)"
+    elif [ -n "$live" ]; then
+        echo ""
+        info "👥 Procesos trabajando en este workspace: $(echo "$live" | wc -l | tr -d ' ')"
+    fi
+
+    exit 0
+fi
+
+# -----------------------------------------------------------------------------
+# Migración a árbol propio
+# -----------------------------------------------------------------------------
+if [ "$ACTION" = "worktree" ]; then
+    if [ "$REGIME" = "propio" ]; then
+        info "🌳 $WORKSPACE_NAME ya tiene árbol propio (rama $BRANCH)"
+        exit 0
+    fi
+
+    if [ "$REGIME" = "ninguno" ]; then
+        die "$WORKSPACE_NAME no tiene acceso a nuba-management"
+    fi
+
+    management_switch_to_worktree "$WORKSPACE_DIR"
+    case $? in
+        0)
+            success "🌳 $WORKSPACE_NAME migrado a árbol propio (rama $BRANCH)"
+            ;;
+        2)
+            die "Hay procesos trabajando en $WORKSPACE_NAME: migrarlo ahora rompe su trabajo en curso. Repítelo cuando paren (o entra con 'ws cd', que lo migra solo)"
+            ;;
+        *)
+            die "No se pudo migrar $WORKSPACE_NAME (el acceso se ha dejado como estaba)"
+            ;;
+    esac
+    exit 0
+fi
+
+# -----------------------------------------------------------------------------
+# Vuelta atrás
+# -----------------------------------------------------------------------------
+if [ "$REGIME" = "compartido" ]; then
+    info "🔗 $WORKSPACE_NAME ya usa el árbol compartido"
+    exit 0
+fi
+
+if [ "$REGIME" = "ninguno" ]; then
+    die "$WORKSPACE_NAME no tiene acceso a nuba-management"
+fi
+
+if [ "$FORCE" = false ]; then
+    live=$(workspace_live_pids "$WORKSPACE_DIR")
+    if [ $? -ne 0 ] || [ -n "$live" ]; then
+        die "Hay procesos trabajando en $WORKSPACE_NAME (o no se puede comprobar). Repítelo cuando paren, o con --force"
+    fi
+
+    pending=""
+    git_has_uncommitted_changes "$LINK" && pending="cambios sin commitear"
+    unpublished=$(git -C "$LINK" rev-list --count origin/main..HEAD 2>/dev/null || echo 0)
+    if [ "$unpublished" -gt 0 ]; then
+        pending="${pending:+$pending y }$unpublished commit(s) sin publicar"
+    fi
+
+    if [ -n "$pending" ]; then
+        warning "⚠️  El worktree tiene $pending, y la vuelta atrás lo elimina"
+        echo "   Publícalo primero, o repítelo con --force"
+        exit 1
+    fi
+fi
+
+if management_switch_to_shared "$WORKSPACE_DIR"; then
+    success "🔗 $WORKSPACE_NAME vuelve al árbol compartido"
+    echo "   La rama $BRANCH se conserva en el clon principal: si tenía commits, siguen ahí"
+else
+    die "No se pudo restituir el symlink en $WORKSPACE_NAME"
+fi

@@ -698,6 +698,49 @@ ws origins clone --seed <url>                 # primer arranque, máquina limpia
 
 ---
 
+### ws mgmt-link
+
+Muestra o cambia cómo llega un workspace al repositorio de gestión
+`nuba-management`.
+
+```bash
+ws mgmt-link [--worktree|--symlink] [--force] [workspace]
+```
+
+Hay dos regímenes:
+
+| Régimen        | Qué es                                      | Consecuencia                                                         |
+|----------------|---------------------------------------------|----------------------------------------------------------------------|
+| **propio**     | worktree de git en la rama `wt/<workspace>` | árbol e índice solo suyos: se commitea y publica con git normal       |
+| **compartido** | symlink al clon principal                    | árbol e índice de todos: un commit sin `--` se lleva ficheros ajenos   |
+
+El propio es el régimen actual. `ws new` lo monta así, y un workspace que aún use
+el symlink se convierte solo la próxima vez que se entre en él con `ws cd`,
+siempre que no haya procesos trabajando dentro: cambiarle el acceso a una sesión
+en marcha le rompe el trabajo en curso. El symlink queda como salida cuando no
+hay un clon del que colgar el worktree (sin `origin/main`, por ejemplo).
+
+En cualquier comando, el régimen se reconoce así:
+
+```bash
+[ -L nuba-management ] && echo compartido || echo propio
+```
+
+**Vuelta atrás**: `--symlink` elimina el worktree, hace `git worktree prune` y
+restituye el symlink. Avisa (y no hace nada) si el worktree tiene cambios sin
+commitear o commits sin publicar; `--force` lo hace de todas formas. La rama
+`wt/<workspace>` se conserva en el clon principal, así que los commits no se
+pierden.
+
+**Ejemplos:**
+```bash
+ws mgmt-link                                  # régimen del workspace actual
+ws mgmt-link --worktree nuba-8926             # migrar a árbol propio
+ws mgmt-link --symlink                        # vuelta atrás
+```
+
+---
+
 ### wscd
 
 Navega entre repos del workspace actual.

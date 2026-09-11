@@ -106,6 +106,13 @@ if [ ! -d "$WORKSPACE_DIR" ]; then
     exit 1
 fi
 
+# Migración perezosa del acceso a nuba-management (ver ws-common.sh): arrancar el
+# workspace es el momento de convertir el symlink compartido en árbol propio, y
+# solo se hace al entrar a trabajar, nunca al consultar estado
+if [ "$IS_INFO_MODE" = false ] && [ -z "$WS_STATUS_MODE" ]; then
+    management_migrate_on_start "$WORKSPACE_DIR"
+fi
+
 # Mostrar información del workspace
 print_header "Workspace: ${COLOR_BOLD}$WORKSPACE_NAME${COLOR_RESET}"
 
