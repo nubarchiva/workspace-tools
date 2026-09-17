@@ -116,9 +116,10 @@ _env_fetch() {
         runner=(timeout "$wait_seconds")
     fi
 
-    GIT_TERMINAL_PROMPT=0 \
-    GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=$wait_seconds" \
-        "${runner[@]}" git -C "$1" fetch --quiet >/dev/null 2>&1
+    local err
+    err=$(GIT_TERMINAL_PROMPT=0 \
+          GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=$wait_seconds" \
+          "${runner[@]}" git -C "$1" fetch --quiet 2>&1 >/dev/null)
     rc=$?
 
     if [ $rc -eq 0 ]; then
@@ -128,15 +129,28 @@ _env_fetch() {
 
     if [ $rc -eq 124 ] && [ ${#runner[@]} -gt 0 ]; then
         echo "sin respuesta del remoto en $wait_seconds s"
-    else
-        echo "fetch fallido"
+        return 1
     fi
+
+    case "$(git_error_cause "$err")" in
+        agent) echo "el agente SSH no ha firmado" ;;
+        dns) echo "el nombre del servidor no resuelve" ;;
+        hostkey) echo "clave de host desconocida" ;;
+        publickey) echo "el servidor rechaza la clave SSH" ;;
+        https-auth) echo "faltan credenciales HTTPS" ;;
+        tls) echo "problema con el certificado TLS" ;;
+        network) echo "sin conexión con el servidor" ;;
+        *) echo "fetch fallido" ;;
+    esac
     return 1
 }
 
 # Estado de cada repositorio declarado, una línea por entrada:
-#   etiqueta<TAB>ruta<TAB>estado<TAB>por_detrás<TAB>por_delante<TAB>detalle
+#   etiqueta<TAB>ruta<TAB>estado<TAB>por_detrás<TAB>por_delante<TAB>pendientes<TAB>detalle
 # Estados: ok | ahead | behind | diverged | unchecked (el detalle dice por qué)
+# por_delante cuenta commits; pendientes, los que aportan un cambio que el remoto no
+# tiene: un cherry-pick publicado con otro hash no cuenta. Si solo va por delante, se
+# compara el árbol con el remoto; si ha divergido, cada commit por patch-id (git cherry)
 # Los fetch necesarios se lanzan en paralelo, cada uno con su tiempo de espera.
 # Uso: env_collect <always|ttl|never>
 env_collect() {
@@ -175,10 +189,11 @@ env_collect() {
         wait "$i"
     done
 
-    local behind ahead counts note state
+    local behind ahead pending counts note state
     for ((i = 0; i < n; i++)); do
         behind=0
         ahead=0
+        pending=0
         note="${details[i]}"
         state="unchecked"
 
@@ -186,6 +201,12 @@ env_collect() {
             counts=$(git -C "${paths[i]}" rev-list --left-right --count '@{u}...HEAD' 2>/dev/null)
             behind=$(echo "$counts" | awk '{print $1+0}')
             ahead=$(echo "$counts" | awk '{print $2+0}')
+            if [ "$ahead" -gt 0 ] && [ "$behind" -eq 0 ] && git -C "${paths[i]}" diff --quiet '@{u}' HEAD 2>/dev/null; then
+                # Por delante sin cambiar nada: los commits locales ya están publicados con otro hash
+                pending=0
+            elif [ "$ahead" -gt 0 ]; then
+                pending=$(git -C "${paths[i]}" cherry '@{u}' HEAD 2>/dev/null | grep -c '^+')
+            fi
             [ -s "$results/$i" ] && note=$(cat "$results/$i")
 
             # Un desfase ya conocido es cierto aunque el fetch de ahora no llegue
@@ -202,7 +223,7 @@ env_collect() {
             fi
         fi
 
-        printf '%s\t%s\t%s\t%s\t%s\t%s\n' "${labels[i]}" "${paths[i]}" "$state" "$behind" "$ahead" "$note"
+        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "${labels[i]}" "${paths[i]}" "$state" "$behind" "$ahead" "$pending" "$note"
     done
 
     rm -rf "$results"
@@ -218,10 +239,10 @@ env_repo_head() {
 # Uso: env_collect <modo> | env_render_status
 # Retorna: 0 si todo está al día; 1 si alguno va por detrás, ha divergido o no se ha podido comprobar
 env_render_status() {
-    local label path state behind ahead note head suffix
+    local label path state behind ahead pending note head suffix
     local rc=0
 
-    while IFS=$'\t' read -r label path state behind ahead note; do
+    while IFS=$'\t' read -r label path state behind ahead pending note; do
         head=$(env_repo_head "$path")
         suffix=""
         [ -n "$head" ] && suffix="  ${COLOR_DIM}$head${COLOR_RESET}"
@@ -231,14 +252,18 @@ env_render_status() {
                 echo "  ✅ ${COLOR_CYAN}$label${COLOR_RESET}  al día$suffix"
                 ;;
             ahead)
-                echo "  ✅ ${COLOR_CYAN}$label${COLOR_RESET}  al día, ${COLOR_YELLOW}↑$ahead sin publicar${COLOR_RESET}$suffix"
+                if [ "$pending" -gt 0 ]; then
+                    echo "  ✅ ${COLOR_CYAN}$label${COLOR_RESET}  al día, ${COLOR_YELLOW}↑$pending sin publicar${COLOR_RESET}$suffix"
+                else
+                    echo "  ✅ ${COLOR_CYAN}$label${COLOR_RESET}  al día, sin contenido local pendiente$suffix"
+                fi
                 ;;
             behind)
                 echo "  ⚠️  ${COLOR_CYAN}$label${COLOR_RESET}  ${COLOR_MAGENTA}↓$behind por detrás del remoto${COLOR_RESET}$suffix"
                 rc=1
                 ;;
             diverged)
-                echo "  ❌ ${COLOR_CYAN}$label${COLOR_RESET}  ${COLOR_RED}divergido (↑$ahead ↓$behind)${COLOR_RESET}$suffix"
+                echo "  ❌ ${COLOR_CYAN}$label${COLOR_RESET}  ${COLOR_RED}divergido ($(_env_divergence "$ahead" "$behind" "$pending"))${COLOR_RESET}$suffix"
                 rc=1
                 ;;
             *)
@@ -254,6 +279,17 @@ env_render_status() {
 # Uso: env_print_status <always|ttl|never>
 env_print_status() {
     env_collect "$1" | env_render_status
+}
+
+# Detalle de una divergencia: contadores y, si ningún commit local aporta un cambio
+# que el remoto no tenga, que no hay contenido local pendiente
+# Uso interno: _env_divergence <por_delante> <por_detrás> <pendientes>
+_env_divergence() {
+    if [ "$3" -gt 0 ]; then
+        echo "↑$1 ↓$2"
+    else
+        echo "↑$1 ↓$2, sin contenido local pendiente"
+    fi
 }
 
 # Une los argumentos con ", "
@@ -278,10 +314,10 @@ env_drift_warning() {
     local stale=() unknown=()
     local label path state behind ahead note
 
-    while IFS=$'\t' read -r label path state behind ahead note; do
+    while IFS=$'\t' read -r label path state behind ahead pending note; do
         case "$state" in
             behind) stale+=("$label ↓$behind") ;;
-            diverged) stale+=("$label divergido (↑$ahead ↓$behind)") ;;
+            diverged) stale+=("$label divergido ($(_env_divergence "$ahead" "$behind" "$pending"))") ;;
             unchecked) unknown+=("$label ($note)") ;;
         esac
     done < <(env_collect ttl)

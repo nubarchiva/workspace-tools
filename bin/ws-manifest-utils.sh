@@ -233,32 +233,38 @@ manifest_diagnose() {
     # Una URL local (file://, ruta suelta) no tiene host que nombrar
     [[ -z "$host" ]] && host="$url"
 
-    case "$err" in
-        *"Could not resolve hostname"*|*"Name or service not known"*|*"nodename nor servname"*|*"Temporary failure in name resolution"*)
+    case "$(git_error_cause "$err")" in
+        agent)
+            echo "El agente SSH no ha firmado con la clave para '$host'."
+            echo "Si el agente pide aprobación manual (Touch ID, confirmación), no puede hacerlo sin"
+            echo "terminal; desbloquéalo o apruébalo y reintenta. Claves que ofrece el agente:"
+            echo "    ssh-add -l"
+            ;;
+        dns)
             echo "El nombre '$host' no resuelve en esta máquina."
             echo "Comprueba el DNS de la red, o usa el nombre completo (FQDN) en el manifiesto"
             echo "en lugar de un alias que dependa de /etc/hosts."
             ;;
-        *"Host key verification failed"*|*"No RSA host key is known"*|*"Host key for"*)
+        hostkey)
             echo "La clave del host '$host' no está en ~/.ssh/known_hosts."
             echo "Regístrala y reintenta:"
             echo "    ssh-keyscan -p $port $host >> ~/.ssh/known_hosts"
             ;;
-        *"Permission denied (publickey"*|*"Permission denied, please try again"*|*"Too many authentication failures"*)
+        publickey)
             echo "El servidor '$host' rechaza la clave de este usuario."
             echo "Comprueba que tu clave pública está dada de alta en '$host' y que el agente la ofrece:"
             echo "    ssh-add -l"
             ;;
-        *"could not read Username"*|*"terminal prompts disabled"*|*"Authentication failed"*)
+        https-auth)
             echo "'$host' pide credenciales por HTTPS y no hay ninguna configurada."
             echo "Configura un credential helper, o usa la URL SSH de ese repositorio."
             ;;
-        *"SSL certificate problem"*|*"certificate verify failed"*|*"SSL peer"*|*"alert certificate"*)
+        tls)
             echo "'$host' exige certificado de cliente o no valida su cadena TLS."
             echo "Este repositorio necesita configuración adicional: márcalo como 'manual' en el"
             echo "manifiesto para que quede fuera del clonado por defecto."
             ;;
-        *"Connection timed out"*|*"Connection refused"*|*"Couldn't connect to server"*|*"Failed to connect"*|*"Operation timed out"*)
+        network)
             echo "No hay conexión con '$host' en el puerto $port."
             case "$url" in
                 http://*|https://*)

@@ -744,6 +744,12 @@ contenido.
 **Siempre fast-forward.** Un repositorio divergido (commits locales y remotos a la
 vez) falla sin mezclar nada. Se resuelve a mano en ese repositorio.
 
+**Contenido local pendiente.** Un commit local cuyo cambio ya está en el remoto con
+otro hash (el original de un `cherry-pick`) no cuenta como pendiente. Si ningún
+commit local aporta nada, el estado lo dice: `divergido (↑2 ↓8, sin contenido local
+pendiente)`. Ese repositorio se realinea sin perder trabajo, pero la herramienta no
+lo hace por su cuenta.
+
 **Aviso automático.** `ws switch`, `ws cd` e `ws info` avisan en una línea si algún
 repositorio va por detrás o no se ha podido comprobar:
 
@@ -757,9 +763,11 @@ fetch correcto mientras tenga menos de `WS_ENV_FETCH_TTL` segundos (300 por
 defecto). La hora de ese fetch se guarda en `.git/ws-env-last-fetch` de cada
 repositorio. Respeta `ws mode offline`, que se informa como «sin comprobar».
 
-Los fetch no son interactivos: no piden contraseña ni confirmación. Una clave SSH
-que necesite aprobación manual (un agente con Touch ID, por ejemplo) se informa
-como «fetch fallido» o «sin respuesta del remoto».
+Los fetch no son interactivos: no piden contraseña ni confirmación. Cuando uno
+falla, el aviso dice la causa: «el agente SSH no ha firmado» (un agente que necesita
+aprobación manual, como Touch ID), «el servidor rechaza la clave SSH», «el nombre
+del servidor no resuelve», «sin conexión con el servidor», «sin respuesta del
+remoto en 5 s», entre otras.
 
 **Sesiones vivas.** Un proceso ya arrancado no ve los cambios, o los ve a medias.
 La herramienta no sabe qué procesos usan esos repositorios: se le dice con

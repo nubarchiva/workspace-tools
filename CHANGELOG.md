@@ -14,6 +14,9 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - El aviso reutiliza el último fetch durante `WS_ENV_FETCH_TTL` segundos (300 por defecto). Los fetch necesarios se lanzan en paralelo, cada uno con su tiempo de espera (`WS_ENV_FETCH_TIMEOUT`, 5 s)
   - `ws env status` comprueba sin tocar el árbol de trabajo y muestra el hash y la fecha del último commit de cada repositorio, comparables entre máquinas. Sale con 1 si alguno va por detrás, ha divergido o no se ha podido comprobar
   - `ws env sync` avanza siempre con fast-forward e informa del salto de hash, del número de commits y de los ficheros cambiados. Un repositorio divergido falla sin mezclar nada
+  - El contenido local pendiente se mide por cambios, no por commits: el original de un `cherry-pick` ya publicado con otro hash no cuenta. Un divergido sin nada propio lo indica («sin contenido local pendiente»)
+  - Un fetch fallido dice su causa en el aviso: agente SSH que no firma, clave rechazada, nombre que no resuelve, sin conexión, sin respuesta en el tiempo de espera…
+  - Nuevo `git_error_cause()` en `ws-git-utils.sh`: clasifica los errores de acceso a un remoto. `manifest_diagnose()` (`ws origins clone`) lo usa y reconoce ahora el agente SSH que no firma, que antes diagnosticaba como clave rechazada
   - **Sesiones vivas**: `WS_ENV_BUSY_CMD` declara la orden que lista los PID de quien usa esos repositorios. Si hay algo que actualizar y alguna sesión viva, `sync` avisa y pide confirmación `[s/N]`; sin terminal interactiva cancela salvo `--yes`. `--sessions` las lista. La sesión que lanza la orden no cuenta
   - Nuevo `exclude_own_process_tree()` en `ws-common.sh`: el filtro que descarta el proceso que pregunta, sus antepasados y sus descendientes, extraído de `workspace_live_pids()` para compartirlo
   - Nuevo módulo `ws-env-utils.sh`

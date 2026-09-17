@@ -7,6 +7,7 @@ load 'test_helper'
 setup() {
     setup_test_environment
     source "$WS_TOOLS_ROOT/bin/ws-colors.sh"
+    source "$WS_TOOLS_ROOT/bin/ws-git-utils.sh"
     source "$WS_TOOLS_ROOT/bin/ws-manifest-utils.sh"
     manifest_reset
     MANIFEST_FILE="$TEST_TEMP_DIR/manifest"
@@ -246,6 +247,13 @@ EOF
     run manifest_diagnose "ssh://git@srv.example.com:7999/p/r.git" "ssh: connect to host srv.example.com port 7999: Connection timed out"
     [[ "$output" == *"7999"* ]]
     [[ "$output" != *"https_proxy"* ]]
+}
+
+@test "manifest_diagnose: un agente SSH que no firma no se confunde con una clave rechazada" {
+    run manifest_diagnose "git@github.com:org/repo.git" 'sign_and_send_pubkey: signing failed for ECDSA "id" from agent: agent refused operation
+git@github.com: Permission denied (publickey).'
+    [[ "$output" == *"agente SSH"* ]]
+    [[ "$output" != *"rechaza la clave"* ]]
 }
 
 @test "manifest_distinct_hosts: un host aparece una sola vez" {

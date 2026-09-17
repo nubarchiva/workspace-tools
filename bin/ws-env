@@ -147,7 +147,7 @@ confirm_live_sessions() {
 cmd_sync() {
     local assume_yes="$1"
     local show_sessions="$2"
-    local report label path state behind ahead note
+    local report label path state behind ahead pending note
     local targets=()
     local failed=0
 
@@ -162,7 +162,7 @@ cmd_sync() {
     printf '%s\n' "$report" | env_render_status
     echo ""
 
-    while IFS=$'\t' read -r label path state behind ahead note; do
+    while IFS=$'\t' read -r label path state behind ahead pending note; do
         [ "$state" = "behind" ] && targets+=("$label"$'\t'"$path")
     done <<< "$report"
 

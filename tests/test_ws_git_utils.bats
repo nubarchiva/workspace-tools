@@ -381,3 +381,24 @@ repo_with_branches() {
     [ "$status" -eq 0 ]
     [ "$output" = "origin/develop" ]
 }
+
+# =============================================================================
+# git_error_cause
+# =============================================================================
+
+@test "git_error_cause: clasifica los errores de acceso a un remoto" {
+    [ "$(git_error_cause 'ssh: Could not resolve hostname srv: nodename nor servname provided')" = "dns" ]
+    [ "$(git_error_cause 'Host key verification failed.')" = "hostkey" ]
+    [ "$(git_error_cause 'git@github.com: Permission denied (publickey).')" = "publickey" ]
+    [ "$(git_error_cause 'fatal: could not read Username for https://x: terminal prompts disabled')" = "https-auth" ]
+    [ "$(git_error_cause 'SSL certificate problem: unable to get local issuer certificate')" = "tls" ]
+    [ "$(git_error_cause 'ssh: connect to host srv port 22: Connection refused')" = "network" ]
+    [ "$(git_error_cause 'fatal: algo inesperado')" = "unknown" ]
+}
+
+@test "git_error_cause: el fallo del agente SSH prevalece sobre la clave rechazada" {
+    [ "$(git_error_cause 'sign_and_send_pubkey: signing failed for ECDSA "id" from agent: agent refused operation
+git@github.com: Permission denied (publickey).')" = "agent" ]
+    [ "$(git_error_cause 'sign_and_send_pubkey: signing failed for ECDSA "id" from agent: communication with agent failed
+git@github.com: Permission denied (publickey).')" = "agent" ]
+}

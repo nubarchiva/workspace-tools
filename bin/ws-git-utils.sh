@@ -22,6 +22,7 @@
 #   - git_get_upstream_branch [path]
 #   - git_repo_status [path] - Retorna estado completo en formato parseable
 #   - get_sync_status [path] - Retorna sincronización con develop/master
+#   - git_error_cause <error> - Clasifica un error de acceso a un remoto
 #
 # =============================================================================
 
@@ -432,4 +433,34 @@ git_warn_unpulled() {
         return 0
     fi
     return 1
+}
+
+# -----------------------------------------------------------------------------
+# Diagnóstico de errores de acceso a un remoto
+# -----------------------------------------------------------------------------
+
+# Clasifica la salida de error de git al acceder a un remoto
+# Uso: git_error_cause <texto_de_error>
+# Imprime: agent | dns | hostkey | publickey | https-auth | tls | network | unknown
+# Nota: el fallo del agente SSH se comprueba antes que la clave rechazada, porque
+# ssh informa de los dos cuando el agente no llega a firmar
+git_error_cause() {
+    case "$1" in
+        *"from agent:"*|*"agent refused operation"*|*"communication with agent failed"*)
+            echo "agent" ;;
+        *"Could not resolve hostname"*|*"Name or service not known"*|*"nodename nor servname"*|*"Temporary failure in name resolution"*)
+            echo "dns" ;;
+        *"Host key verification failed"*|*"No RSA host key is known"*|*"Host key for"*)
+            echo "hostkey" ;;
+        *"Permission denied (publickey"*|*"Permission denied, please try again"*|*"Too many authentication failures"*)
+            echo "publickey" ;;
+        *"could not read Username"*|*"terminal prompts disabled"*|*"Authentication failed"*)
+            echo "https-auth" ;;
+        *"SSL certificate problem"*|*"certificate verify failed"*|*"SSL peer"*|*"alert certificate"*)
+            echo "tls" ;;
+        *"Connection timed out"*|*"Connection refused"*|*"Couldn't connect to server"*|*"Failed to connect"*|*"Operation timed out"*)
+            echo "network" ;;
+        *)
+            echo "unknown" ;;
+    esac
 }

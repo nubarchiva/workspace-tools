@@ -13,6 +13,7 @@ setup() {
     source "$WS_TOOLS_ROOT/bin/ws-colors.sh"
     source "$WS_TOOLS_ROOT/bin/ws-common.sh"
     source "$WS_TOOLS_ROOT/bin/ws-git-utils.sh"
+    source "$WS_TOOLS_ROOT/bin/ws-manifest-utils.sh"
     source "$WS_TOOLS_ROOT/bin/ws-env-utils.sh"
 }
 
@@ -158,6 +159,51 @@ stop_foreign_workers() {
     [[ "$output" == *"skills divergido"* ]]
 }
 
+@test "env_drift_warning: divergido sin contenido local pendiente lo dice" {
+    create_env_repo skills
+    local_commit skills
+    # El mismo cambio llega al remoto con otro hash (un cherry-pick ya publicado)
+    cp "$TEST_WORKSPACE_ROOT/skills/local.txt" "$TEST_TEMP_DIR/pub-skills/local.txt"
+    git -C "$TEST_TEMP_DIR/pub-skills" add local.txt
+    git -C "$TEST_TEMP_DIR/pub-skills" commit --quiet -m "Mismo cambio, otro commit"
+    git -C "$TEST_TEMP_DIR/pub-skills" push --quiet origin main
+    WS_ENV_REPOS="skills"
+
+    run env_drift_warning
+
+    [[ "$output" == *"skills divergido (↑1 ↓1, sin contenido local pendiente)"* ]]
+}
+
+@test "env_drift_warning: divergido con contenido local pendiente no lo oculta" {
+    create_env_repo skills
+    publish_commit skills a.txt
+    local_commit skills
+    WS_ENV_REPOS="skills"
+
+    run env_drift_warning
+
+    [[ "$output" == *"skills divergido (↑1 ↓1)"* ]]
+    [[ "$output" != *"sin contenido local pendiente"* ]]
+}
+
+@test "ws env status: commits locales ya publicados con otro hash no cuentan como sin publicar" {
+    create_env_repo skills
+    local_commit skills
+    cp "$TEST_WORKSPACE_ROOT/skills/local.txt" "$TEST_TEMP_DIR/pub-skills/local.txt"
+    git -C "$TEST_TEMP_DIR/pub-skills" add local.txt
+    git -C "$TEST_TEMP_DIR/pub-skills" commit --quiet -m "Mismo cambio, otro commit"
+    git -C "$TEST_TEMP_DIR/pub-skills" push --quiet origin main
+    # Tras mergear el remoto, el commit original queda por delante aunque su cambio ya esté publicado
+    git -C "$TEST_WORKSPACE_ROOT/skills" pull --quiet --no-rebase --no-edit
+    [ "$(git -C "$TEST_WORKSPACE_ROOT/skills" rev-list --count '@{u}..HEAD')" -gt 0 ]
+
+    WS_ENV_REPOS="skills" run run_env status
+
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"al día, sin contenido local pendiente"* ]]
+    [[ "$output" != *"sin publicar"* ]]
+}
+
 @test "env_drift_warning: commits locales sin publicar no son desfase" {
     create_env_repo skills
     local_commit skills
@@ -226,6 +272,36 @@ stop_foreign_workers() {
     run env_drift_warning
 
     [[ "$output" == *"skills (fetch fallido)"* ]]
+}
+
+# Hace que el fetch de un repositorio falle con el error indicado en stderr
+# Uso: fail_fetch_with <nombre> <mensaje>
+fail_fetch_with() {
+    local fake="$TEST_TEMP_DIR/upload-pack-$1"
+    printf '#!/bin/sh\ncat >&2 <<"ERR"\n%s\nERR\nexit 1\n' "$2" > "$fake"
+    chmod +x "$fake"
+    git -C "$TEST_WORKSPACE_ROOT/$1" config remote.origin.uploadpack "$fake"
+}
+
+@test "env_drift_warning: distingue el agente SSH que no firma" {
+    create_env_repo skills
+    fail_fetch_with skills 'sign_and_send_pubkey: signing failed for ECDSA "id" from agent: agent refused operation
+git@github.com: Permission denied (publickey).'
+    WS_ENV_REPOS="skills"
+
+    run env_drift_warning
+
+    [[ "$output" == *"skills (el agente SSH no ha firmado)"* ]]
+}
+
+@test "env_drift_warning: distingue el nombre de servidor que no resuelve" {
+    create_env_repo skills
+    fail_fetch_with skills 'ssh: Could not resolve hostname srv: nodename nor servname provided, or not known'
+    WS_ENV_REPOS="skills"
+
+    run env_drift_warning
+
+    [[ "$output" == *"skills (el nombre del servidor no resuelve)"* ]]
 }
 
 @test "env_drift_warning: un fetch fallido no cuenta como reciente para el TTL" {
