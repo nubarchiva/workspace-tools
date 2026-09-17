@@ -117,8 +117,11 @@ pr_list_branch() {
     # El token llega a curl por la entrada estándar: en la línea de órdenes lo
     # vería cualquier proceso con ps
     body=$(mktemp "${TMPDIR:-/tmp}/ws-pr.XXXXXX") || return 1
+    # -L: un repositorio renombrado en el servidor responde con una redirección
+    # al slug nuevo mientras el remoto local conserve el viejo. curl no arrastra
+    # la cabecera de autorización si la redirección lleva a otro host
     http_code=$(printf 'header = "Authorization: Bearer %s"\n' "$WS_BITBUCKET_TOKEN" | \
-        curl -sS -G -K - -m "${WS_BITBUCKET_TIMEOUT:-5}" -o "$body" -w '%{http_code}' \
+        curl -sS -G -K - -L --max-redirs 3 -m "${WS_BITBUCKET_TIMEOUT:-5}" -o "$body" -w '%{http_code}' \
         -H "Accept: application/json" \
         --data-urlencode "at=refs/heads/$branch" \
         --data-urlencode "direction=OUTGOING" \

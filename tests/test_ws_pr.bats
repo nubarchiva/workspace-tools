@@ -140,6 +140,41 @@ given_workspace_on_server() {
     [ -z "$output" ]
 }
 
+@test "pr_list_branch: follows the redirect of a renamed repository" {
+    # Con curl real contra un servidor efímero en 127.0.0.1: un repositorio
+    # renombrado responde con una redirección al slug nuevo
+    local port=$((20000 + RANDOM % 10000))
+    export WS_BITBUCKET_URL="http://127.0.0.1:$port"
+    export WS_BITBUCKET_TOKEN="secreto"
+    PATH="${PATH#"$FAKEBIN":}"
+
+    python3 - "$port" "$TEST_TEMP_DIR" << 'PY' &
+import socket, sys
+port, tmp = int(sys.argv[1]), sys.argv[2]
+body = b'{"size":1,"values":[{"id":9,"state":"OPEN","toRef":{"displayId":"develop"},"links":{"self":[{"href":"http://x/9"}]}}]}'
+srv = socket.socket(); srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+srv.bind(("127.0.0.1", port)); srv.listen(2); srv.settimeout(10)
+for i in range(2):
+    conn, _ = srv.accept(); conn.settimeout(5)
+    request = conn.recv(8192)
+    open("%s/request-%d.txt" % (tmp, i), "wb").write(request)
+    target = request.split(b" ")[1].decode().replace("/repos/viejo/", "/repos/nuevo/")
+    if i == 0:
+        conn.sendall(b"HTTP/1.1 307 Temporary Redirect\r\nLocation: " + target.encode() + b"\r\nContent-Length: 0\r\n\r\n")
+    else:
+        conn.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n" % len(body) + body)
+    conn.close()
+PY
+    sleep 1
+
+    run pr_list_branch NUBA viejo feature/ws-pr
+    wait
+    [ "$status" -eq 0 ]
+    [ "$output" = $'9\tOPEN\tdevelop\thttp://x/9' ]
+    grep -q "/repos/nuevo/pull-requests" "$TEST_TEMP_DIR/request-1.txt"
+    grep -q "Authorization: Bearer secreto" "$TEST_TEMP_DIR/request-1.txt"
+}
+
 @test "pr_list_branch: rejected token reports the cause" {
     configure_server
     export FAKE_CURL_CODE=401
