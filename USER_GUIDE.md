@@ -23,6 +23,7 @@ Referencia completa de comandos y opciones de Workspace Tools.
 |------------|---------|-------------|-------|
 | Bash | 4.0+ | Sí | Los scripts en `bin/` usan `#!/bin/bash` |
 | Git | 2.15+ | Sí | Worktrees requieren esta versión |
+| curl y jq | - | No | Solo para los pull requests de `ws status` |
 | Zsh | 5.0+ | No | Solo si usas Zsh como shell interactivo |
 | OS | macOS / Linux | Sí | Windows no soportado |
 
@@ -98,6 +99,12 @@ WS_ENV_REPOS="~/.claude:.ai:tools/workspace-tools"
 WS_ENV_FETCH_TTL=300                      # segundos sin repetir fetch en los avisos automáticos
 WS_ENV_FETCH_TIMEOUT=5                    # tiempo de espera de cada fetch
 WS_ENV_BUSY_CMD="pgrep -x claude"         # PID de las sesiones que usan esos repositorios
+
+# Pull requests en ws status: servidor Bitbucket Server / Data Center (opcional, requiere curl y jq)
+WS_BITBUCKET_URL="https://bitbucket.example.com"  # URL base del servidor
+WS_BITBUCKET_TOKEN="..."                  # token de acceso HTTP con permiso de lectura
+WS_BITBUCKET_HOSTS="bitbucket.example.com git.example.com"  # hosts de los remotos git de ese servidor (por defecto, el de la URL)
+WS_BITBUCKET_TIMEOUT=5                    # tiempo de espera de cada consulta
 ```
 
 ### Prioridad de Configuración
@@ -308,6 +315,22 @@ ws here
 
 Si hay repositorios de entorno declarados, muestra además su estado en el
 apartado **Entorno** (ver [ws env](#ws-env)).
+
+**Pull requests:** si hay un servidor Bitbucket declarado en `~/.wsrc`
+(`WS_BITBUCKET_URL` y `WS_BITBUCKET_TOKEN`), cada repo que esté en la rama del
+workspace muestra los pull requests cuyo origen es esa rama, en cualquier estado:
+
+```
+   🔀 PR #42 OPEN → develop https://bitbucket.example.com/projects/PROJ/repos/api/pull-requests/42
+```
+
+- Solo se consultan los repos cuyo remoto `origin` apunta a un host de
+  `WS_BITBUCKET_HOSTS` (por defecto, el host de `WS_BITBUCKET_URL`)
+- Sin pull requests se indica «Sin pull requests»; si la consulta falla, se
+  indica el motivo (token rechazado, servidor inaccesible, repositorio no encontrado…).
+  Un fallo de conexión o de credenciales no se repite en los repos siguientes
+- No se consulta en modo offline, en workspaces de rama de integración
+  (`master`, `main`, `develop`) ni en `ws switch` / `ws info`
 
 **Ejemplos:**
 ```bash

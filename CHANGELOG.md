@@ -8,6 +8,13 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **Pull requests en `ws status`** - El estado de un workspace no decía si sus ramas ya tenían pull request ni en qué situación estaba: había que ir al servidor repo a repo
+  - Cada repo que esté en la rama del workspace muestra los pull requests cuyo origen es esa rama, en cualquier estado: número, estado, rama destino y enlace
+  - Servidor Bitbucket Server / Data Center declarado en `~/.wsrc` con `WS_BITBUCKET_URL` y `WS_BITBUCKET_TOKEN`. Sin ellos no se consulta nada. `WS_BITBUCKET_HOSTS` indica qué hosts de remoto git son de ese servidor (alias del mismo servidor) y `WS_BITBUCKET_TIMEOUT` el tiempo de espera (5 s)
+  - Si la consulta falla, dice el motivo. Un fallo de conexión o de credenciales no se repite en los repos siguientes
+  - No se consulta en modo offline, en workspaces de rama de integración ni en `ws switch` / `ws info`
+  - Requiere `curl` y `jq`
+  - Nuevo módulo `ws-pr-utils.sh`
 - **Repositorios de entorno: `ws env`** - Hay repositorios que el workspace consume pero no desarrolla (configuración de asistentes, directrices, tooling o gestión compartidos). `ws update` no los toca y ningún comando avisaba de que estuvieran desactualizados: una sesión podía arrancar con días de retraso sin que nada lo indicara
   - Cada usuario los declara en `~/.wsrc` con `WS_ENV_REPOS` (rutas separadas por `:`, absolutas, con `~` o relativas a `WORKSPACE_ROOT`). La herramienta no presupone ninguno
   - **Aviso automático**: `ws switch`, `ws cd` e `ws info` avisan en una línea si algún repositorio va por detrás de su remoto o ha divergido, y en otra los que no se han podido comprobar (sin red, modo offline, no es git, sin rama de seguimiento). `ws status` muestra el estado completo en el apartado «Entorno»

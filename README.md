@@ -220,6 +220,7 @@ wscd .            # raíz del workspace
 | **Bash** | 4.0+ | Requerido (los scripts usan `#!/bin/bash`) |
 | **Git** | 2.15+ | Requerido para worktrees |
 | **Maven** | 3.9+ | Opcional, para el aislamiento del repositorio Maven (`maven.repo.local.tail`) |
+| **curl** y **jq** | - | Opcionales, para los pull requests de `ws status` |
 | **Zsh** | 5.0+ | Opcional, para usar como shell interactivo |
 | **OS** | macOS / Linux | Windows no soportado |
 

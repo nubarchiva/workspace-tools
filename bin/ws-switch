@@ -6,6 +6,7 @@
 # Inicializacion centralizada
 source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
 source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-git-utils.sh"
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-pr-utils.sh"
 
 # Detectar modo de invocación (info vs switch)
 SCRIPT_NAME=$(basename "$0")
@@ -224,6 +225,13 @@ echo "$repos" | while read -r repo_rel_path; do
                     if [ "$has_sync_info" = false ]; then
                         echo "   ${COLOR_DIM}↔️  Sincronizado con $base_name${COLOR_RESET}"
                     fi
+                fi
+
+                # Pull requests de la rama del workspace (ver ws-pr-utils.sh): solo en
+                # status, con servidor declarado, en línea y si el repo está en esa rama
+                if [ -n "$WS_STATUS_MODE" ] && [ "$current_branch" = "$BRANCH_NAME" ] \
+                    && pr_is_configured && ! ws_is_offline_mode; then
+                    pr_print_repo "$worktree_path" "$BRANCH_NAME"
                 fi
             else
                 # Para ramas de integración, solo verificar commits sin push

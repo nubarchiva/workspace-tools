@@ -100,6 +100,24 @@
 # WS_ENV_BUSY_CMD="pgrep -x claude"
 
 # -----------------------------------------------------------------------------
+# Pull requests en ws status (Bitbucket Server / Data Center)
+# -----------------------------------------------------------------------------
+# ws status muestra, en cada repo que esté en la rama del workspace, los pull
+# requests cuyo origen es esa rama. Requiere curl y jq. Sin URL y token no se
+# consulta nada.
+#
+# URL base del servidor y token de acceso HTTP con permiso de lectura:
+# WS_BITBUCKET_URL="https://bitbucket.example.com"
+# WS_BITBUCKET_TOKEN="..."
+#
+# Hosts de los remotos git que pertenecen a ese servidor, separados por espacios
+# (por defecto, el host de WS_BITBUCKET_URL):
+# WS_BITBUCKET_HOSTS="bitbucket.example.com git.example.com"
+#
+# Tiempo de espera de cada consulta, en segundos (por defecto 5):
+# WS_BITBUCKET_TIMEOUT=5
+
+# -----------------------------------------------------------------------------
 # Ejemplos de configuraciones avanzadas
 # -----------------------------------------------------------------------------
 
