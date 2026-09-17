@@ -13,8 +13,8 @@ _ws_completion() {
     local workspaces_dir="${WORKSPACES_DIR:-$workspace_root/workspaces}"
 
     # Subcomandos disponibles (incluyendo aliases)
-    local subcommands="new add remove switch list clean mvn git update stash grep templates status rename info origins env mode prune mgmt-link help"
-    local aliases="ls cd rm mv st tpl"
+    local subcommands="new add remove switch list clean mvn git update stash grep templates status rename info origins env mode prune mgmt-link help version"
+    local aliases="ls cd sw rm del mv st . here tpl mk create h"
 
     # Función para obtener workspaces
     _get_workspaces() {
@@ -81,10 +81,15 @@ _ws_completion() {
                     # Sugerir master/develop o --template
                     COMPREPLY=($(compgen -W "master develop --template -t --bootstrap -b" -- "$cur"))
                     ;;
-                add|a|switch|cd|sw|clean|rm|del|remove|status|st|.|here|rename|mv|info)
+                add|a|switch|cd|sw|remove|status|st|.|here|rename|mv|info)
                     # Completar nombre de workspace existente
                     local workspaces=$(_get_workspaces)
                     COMPREPLY=($(compgen -W "$workspaces" -- "$cur"))
+                    ;;
+                clean|rm|del)
+                    # Workspace o --force
+                    local workspaces=$(_get_workspaces)
+                    COMPREPLY=($(compgen -W "$workspaces --force -f" -- "$cur"))
                     ;;
                 mvn|git)
                     # Completar workspace o auto-detectar
@@ -94,7 +99,7 @@ _ws_completion() {
                 update)
                     # Workspace o opciones
                     local workspaces=$(_get_workspaces)
-                    COMPREPLY=($(compgen -W "$workspaces --rebase -r --from -f" -- "$cur"))
+                    COMPREPLY=($(compgen -W "$workspaces --rebase -r --from -f --all -a --dry -d" -- "$cur"))
                     ;;
                 stash)
                     # Acciones de stash
@@ -113,7 +118,7 @@ _ws_completion() {
                     ;;
                 env)
                     # Acciones de env
-                    COMPREPLY=($(compgen -W "status sync --help" -- "$cur"))
+                    COMPREPLY=($(compgen -W "status sync --no-fetch --help" -- "$cur"))
                     ;;
                 list|ls)
                     # Filtro opcional (workspaces existentes)
@@ -127,7 +132,7 @@ _ws_completion() {
                 mgmt-link)
                     # Régimen de acceso a nuba-management y workspaces
                     local workspaces=$(_get_workspaces)
-                    COMPREPLY=($(compgen -W "--worktree --symlink --force $workspaces" -- "$cur"))
+                    COMPREPLY=($(compgen -W "--worktree --symlink --force --help $workspaces" -- "$cur"))
                     ;;
                 prune)
                     # Opciones de prune y repos
@@ -170,7 +175,12 @@ _ws_completion() {
                     ;;
                 update)
                     # Opciones
-                    COMPREPLY=($(compgen -W "--rebase -r --from -f" -- "$cur"))
+                    COMPREPLY=($(compgen -W "--rebase -r --from -f --all -a --dry -d" -- "$cur"))
+                    ;;
+                clean|rm|del)
+                    # --force o workspace, en cualquier orden
+                    local workspaces=$(_get_workspaces)
+                    COMPREPLY=($(compgen -W "$workspaces --force -f" -- "$cur"))
                     ;;
                 stash)
                     # Workspace o mensaje
@@ -180,7 +190,7 @@ _ws_completion() {
                 grep)
                     # Workspace u opciones
                     local workspaces=$(_get_workspaces)
-                    COMPREPLY=($(compgen -W "$workspaces -i -l -n -w -E --type" -- "$cur"))
+                    COMPREPLY=($(compgen -W "$workspaces -i -l -n -c -w -E --type" -- "$cur"))
                     ;;
                 templates|tpl)
                     case ${words[2]} in
@@ -198,14 +208,14 @@ _ws_completion() {
                         # Comandos Git comunes
                         COMPREPLY=($(compgen -W "status pull push fetch log diff" -- "$cur"))
                     elif [[ "${words[2]}" == "clone" ]]; then
-                        COMPREPLY=($(compgen -W "--group --manifest --seed --include-manual --dry-run --list-groups --help" -- "$cur"))
+                        COMPREPLY=($(compgen -W "--group -g --manifest -m --seed --include-manual --dry-run -n --list-groups --help" -- "$cur"))
                     fi
                     ;;
                 env)
                     if [[ "${words[2]}" == "status" ]]; then
-                        COMPREPLY=($(compgen -W "--no-fetch" -- "$cur"))
+                        COMPREPLY=($(compgen -W "--no-fetch --help" -- "$cur"))
                     elif [[ "${words[2]}" == "sync" ]]; then
-                        COMPREPLY=($(compgen -W "--yes --sessions" -- "$cur"))
+                        COMPREPLY=($(compgen -W "--yes -y --sessions --help" -- "$cur"))
                     fi
                     ;;
             esac
@@ -232,7 +242,7 @@ _ws_completion() {
                     ;;
                 grep)
                     # Opciones de grep
-                    COMPREPLY=($(compgen -W "-i -l -n -w -E --type" -- "$cur"))
+                    COMPREPLY=($(compgen -W "-i -l -n -c -w -E --type" -- "$cur"))
                     ;;
             esac
             ;;

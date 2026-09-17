@@ -34,13 +34,21 @@ _ws() {
         'prune:Limpia ramas locales sin cambios'
         'mgmt-link:Régimen de acceso a nuba-management (worktree o symlink)'
         'help:Muestra ayuda'
+        'version:Muestra la versión instalada'
         # Aliases
         'ls:Alias de list'
         'cd:Alias de switch'
+        'sw:Alias de switch'
         'rm:Alias de clean'
+        'del:Alias de clean'
         'mv:Alias de rename'
         'st:Alias de status'
+        'here:Alias de status'
+        '.:Alias de status'
         'tpl:Alias de templates'
+        'mk:Alias de new'
+        'create:Alias de new'
+        'h:Alias de help'
     )
 
     # Función para obtener workspaces disponibles
@@ -50,8 +58,7 @@ _ws() {
             for workspace_dir in "$workspaces_dir"/*(/N); do
                 local ws_name=${workspace_dir:t}
                 local branch="feature/$ws_name"
-                [[ "$ws_name" == "master" ]] && branch="master"
-                [[ "$ws_name" == "develop" ]] && branch="develop"
+                [[ "$ws_name" == (master|main|develop) ]] && branch="$ws_name"
                 workspaces+=("$ws_name:branch $branch")
             done
         fi
@@ -114,8 +121,13 @@ _ws() {
                         'options:options:((--template\:"-t Usar template" -t\:"Usar template" --bootstrap\:"-b Poblar repositorio Maven del workspace" -b\:"Poblar repositorio Maven del workspace"))' \
                         'name:workspace name:'
                     ;;
-                add|a|switch|cd|sw|clean|rm|del|remove|status|st|rename|mv|info)
+                add|a|switch|cd|sw|remove|status|st|here|.|rename|mv|info)
                     _get_workspaces
+                    ;;
+                clean|rm|del)
+                    _alternative \
+                        'workspaces:workspace:_get_workspaces' \
+                        'options:options:((--force\:"-f Omitir confirmación" -f\:"Omitir confirmación"))'
                     ;;
                 mvn|git)
                     _get_workspaces
@@ -123,7 +135,7 @@ _ws() {
                 update)
                     _alternative \
                         'workspaces:workspace:_get_workspaces' \
-                        'options:options:((--rebase\:"-r Usar rebase" -r\:"Usar rebase" --from\:"-f Branch base" -f\:"Branch base"))'
+                        'options:options:((--rebase\:"-r Usar rebase" -r\:"Usar rebase" --from\:"-f Branch base" -f\:"Branch base" --all\:"-a Todos los workspaces" -a\:"Todos los workspaces" --dry\:"-d Mostrar qué haría" -d\:"Mostrar qué haría"))'
                     ;;
                 stash)
                     local -a stash_actions=(
@@ -159,6 +171,8 @@ _ws() {
                     local -a env_actions=(
                         'status:Estado de los repos de entorno'
                         'sync:Avanzar con fast-forward los que van por detrás'
+                        '--no-fetch:Estado solo con datos locales'
+                        '--help:Ayuda completa'
                     )
                     _describe 'env actions' env_actions
                     ;;
@@ -180,7 +194,7 @@ _ws() {
                     ;;
                 mgmt-link)
                     _alternative \
-                        'options:options:((--worktree\:"Migrar a árbol propio" --symlink\:"Vuelta atrás al árbol compartido" --force\:"No preguntar en la vuelta atrás"))' \
+                        'options:options:((--worktree\:"Migrar a árbol propio" --symlink\:"Vuelta atrás al árbol compartido" --force\:"No preguntar en la vuelta atrás" --help\:"Ayuda"))' \
                         'workspaces:workspace:_get_workspaces'
                     ;;
             esac
@@ -230,8 +244,17 @@ _ws() {
                         '-r:Usar rebase'
                         '--from:Branch base'
                         '-f:Branch base'
+                        '--all:Todos los workspaces'
+                        '-a:Todos los workspaces'
+                        '--dry:Mostrar qué haría'
+                        '-d:Mostrar qué haría'
                     )
                     _describe 'update options' update_opts
+                    ;;
+                clean|rm|del)
+                    _alternative \
+                        'workspaces:workspace:_get_workspaces' \
+                        'options:options:((--force\:"-f Omitir confirmación" -f\:"Omitir confirmación"))'
                     ;;
                 stash)
                     _get_workspaces
@@ -239,7 +262,7 @@ _ws() {
                 grep)
                     _alternative \
                         'workspaces:workspace:_get_workspaces' \
-                        'options:options:((-i\:"Case insensitive" -l\:"Solo archivos" -n\:"Números de línea" --type\:"Tipo de archivo"))'
+                        'options:options:((-i\:"Case insensitive" -l\:"Solo archivos" -n\:"Números de línea" -c\:"Contar coincidencias" -w\:"Palabra completa" -E\:"Regex extendida" --type\:"Tipo de archivo"))'
                     ;;
                 templates|tpl)
                     case $words[3] in
@@ -255,11 +278,15 @@ _ws() {
                     if [[ "$words[3]" == "clone" ]]; then
                         local -a clone_opts=(
                             '--group:Clonar solo esos grupos'
+                            '-g:Clonar solo esos grupos'
                             '--manifest:Manifiesto a usar'
+                            '-m:Manifiesto a usar'
                             '--seed:Clonar primero el repo del manifiesto'
                             '--include-manual:Incluir lo marcado manual'
                             '--dry-run:Mostrar qué haría'
+                            '-n:Mostrar qué haría'
                             '--list-groups:Listar los grupos del manifiesto'
+                            '--help:Ayuda del clonado'
                         )
                         _describe 'clone options' clone_opts
                     elif [[ "$words[3]" == "git" ]]; then
@@ -276,12 +303,17 @@ _ws() {
                     ;;
                 env)
                     if [[ "$words[3]" == "status" ]]; then
-                        local -a env_status_opts=('--no-fetch:Solo datos locales')
+                        local -a env_status_opts=(
+                            '--no-fetch:Solo datos locales'
+                            '--help:Ayuda completa'
+                        )
                         _describe 'status options' env_status_opts
                     elif [[ "$words[3]" == "sync" ]]; then
                         local -a env_sync_opts=(
                             '--yes:Actualizar aunque haya sesiones vivas'
+                            '-y:Actualizar aunque haya sesiones vivas'
                             '--sessions:Listar las sesiones vivas'
+                            '--help:Ayuda completa'
                         )
                         _describe 'sync options' env_sync_opts
                     fi
@@ -309,6 +341,7 @@ _ws() {
                         '-i:Case insensitive'
                         '-l:Solo archivos'
                         '-n:Números de línea'
+                        '-c:Contar coincidencias'
                         '-w:Palabra completa'
                         '-E:Regex extendida'
                         '--type:Tipo de archivo'

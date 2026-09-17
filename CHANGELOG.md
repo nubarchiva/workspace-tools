@@ -52,6 +52,11 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Aviso si el Maven instalado es < 3.9 (sin `maven.repo.local.tail` se re-descargan dependencias al head)
 
 ### Corregido
+- **Autocompletado incompleto** - Las completions de bash y zsh no ofrecían parte de lo que aceptan los comandos
+  - `ws update`: `--all`/`-a` y `--dry`/`-d`; `ws clean`: `--force`/`-f`; `ws grep`: `-c` (y en zsh, `-w` y `-E` tras el patrón); `ws origins clone`: `-g`, `-m`, `-n` (y en zsh, `--help`); `ws mgmt-link`: `--help`; `ws env`: `--no-fetch`, `-y` y `--help`
+  - Subcomando `version` y los alias `sw`, `del`, `mk`, `create`, `here`, `.` y `h`
+  - zsh describía el workspace `main` como `feature/main`
+  - Nuevo `tests/test_completions.bats`: comprueba lo que ofrece cada shell sustituyendo las funciones del sistema de completado por dobles
 - **`ws mvn` ignoraba `.mvn/maven.config`** - Ejecutaba `mvn -f <repo>/pom.xml` desde fuera del repo; Maven localiza `.mvn/maven.config` subiendo desde el directorio actual, no desde `-f`. Ahora ejecuta `mvn` desde la raíz de cada repo, requisito para que el aislamiento Maven aplique también a `ws mvn` (y a los shortcuts `wmcis`, `wmci`, …)
 - **Merge commits inflaban contadores de sincronización** - Los commits de merge de develop INTO feature (ej: `Merge remote-tracking branch 'origin/develop' into feature/...`) se contaban como commits pendientes de merge o commits únicos, dando información engañosa
   - `get_sync_status` en `ws-git-utils.sh`: `pending_merge` ahora usa `--no-merges`
