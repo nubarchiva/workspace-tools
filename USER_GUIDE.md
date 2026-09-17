@@ -322,12 +322,15 @@ workspace muestra el pull request más reciente cuyo origen es esa rama, en
 cualquier estado:
 
 ```
-   🔀 PR #42 OPEN → develop https://bitbucket.example.com/projects/PROJ/repos/api/pull-requests/42
+   🔀 PR #42 OPEN ✅ → develop https://bitbucket.example.com/projects/PROJ/repos/api/pull-requests/42
 ```
 
 - Solo se consultan los repos cuyo remoto `origin` apunta a un host de
   `WS_BITBUCKET_HOSTS` (por defecto, el host de `WS_BITBUCKET_URL`)
 - Si la rama tiene varios, solo se muestra el más reciente
+- El indicador tras el estado es la construcción del commit del pull request:
+  ✅ correcta, ❌ fallida, ⏳ en curso. Sin construcciones no aparece nada, y si
+  el servidor no da ese dato el pull request se muestra igual
 - Sin pull requests se indica «Sin pull requests»; si la consulta falla, se
   indica el motivo (token rechazado, servidor inaccesible, repositorio no encontrado…).
   Un fallo de conexión o de credenciales no se repite en los repos siguientes

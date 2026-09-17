@@ -14,9 +14,12 @@ setup() {
     export FAKE_CURL_LOG="$TEST_TEMP_DIR/curl.log"
     export FAKE_CURL_BODY="$TEST_TEMP_DIR/body.json"
     export FAKE_CURL_STDIN="$TEST_TEMP_DIR/curl.stdin"
+    export FAKE_CURL_BUILD_BODY="$TEST_TEMP_DIR/build.json"
     export FAKE_CURL_CODE=200
+    export FAKE_CURL_BUILD_CODE=200
     export FAKE_CURL_RC=0
     echo '{"size":0,"values":[]}' > "$FAKE_CURL_BODY"
+    given_build_stats 0 0 0
     create_fake_curl
 }
 
@@ -34,12 +37,17 @@ echo "$*" >> "$FAKE_CURL_LOG"
 cat >> "$FAKE_CURL_STDIN"
 [ "$FAKE_CURL_RC" -ne 0 ] && exit "$FAKE_CURL_RC"
 out=""
-while [ $# -gt 0 ]; do
-    [ "$1" = "-o" ] && out="$2"
-    shift
+for arg in "$@"; do
+    [ "$previous" = "-o" ] && out="$arg"
+    previous="$arg"
 done
-cp "$FAKE_CURL_BODY" "$out"
-printf '%s' "$FAKE_CURL_CODE"
+if [[ "$*" == *build-status* ]]; then
+    cp "$FAKE_CURL_BUILD_BODY" "$out"
+    printf '%s' "$FAKE_CURL_BUILD_CODE"
+else
+    cp "$FAKE_CURL_BODY" "$out"
+    printf '%s' "$FAKE_CURL_CODE"
+fi
 FAKE
     chmod +x "$FAKEBIN/curl"
     export PATH="$FAKEBIN:$PATH"
@@ -54,12 +62,19 @@ configure_server() {
 given_two_pull_requests() {
     cat > "$FAKE_CURL_BODY" << 'JSON'
 {"size":2,"values":[
- {"id":12,"state":"OPEN","fromRef":{"displayId":"feature/ws-pr"},"toRef":{"displayId":"develop"},
+ {"id":12,"state":"OPEN","fromRef":{"displayId":"feature/ws-pr","latestCommit":"abc123"},"toRef":{"displayId":"develop"},
   "links":{"self":[{"href":"http://bb.test:7990/projects/NUBA/repos/repo-a/pull-requests/12"}]}},
- {"id":7,"state":"MERGED","fromRef":{"displayId":"feature/ws-pr"},"toRef":{"displayId":"master"},
+ {"id":7,"state":"MERGED","fromRef":{"displayId":"feature/ws-pr","latestCommit":"def456"},"toRef":{"displayId":"master"},
   "links":{"self":[{"href":"http://bb.test:7990/projects/NUBA/repos/repo-a/pull-requests/7"}]}}
 ]}
 JSON
+}
+
+# Contadores de construcciones que devuelve el servidor para un commit
+# Uso: given_build_stats <fallidas> <en curso> <correctas>
+given_build_stats() {
+    printf '{"cancelled":0,"successful":%s,"inProgress":%s,"failed":%s,"unknown":0}' \
+        "$3" "$2" "$1" > "$FAKE_CURL_BUILD_BODY"
 }
 
 # Workspace ws-pr con repo-a en la rama feature/ws-pr y remoto del servidor
@@ -119,8 +134,8 @@ given_workspace_on_server() {
     given_two_pull_requests
     run pr_list_branch NUBA repo-a feature/ws-pr
     [ "$status" -eq 0 ]
-    [ "${lines[0]}" = $'12\tOPEN\tdevelop\thttp://bb.test:7990/projects/NUBA/repos/repo-a/pull-requests/12' ]
-    [ "${lines[1]}" = $'7\tMERGED\tmaster\thttp://bb.test:7990/projects/NUBA/repos/repo-a/pull-requests/7' ]
+    [ "${lines[0]}" = $'12\tOPEN\tdevelop\thttp://bb.test:7990/projects/NUBA/repos/repo-a/pull-requests/12\tabc123' ]
+    [ "${lines[1]}" = $'7\tMERGED\tmaster\thttp://bb.test:7990/projects/NUBA/repos/repo-a/pull-requests/7\tdef456' ]
 
     local call
     call=$(cat "$FAKE_CURL_LOG")
@@ -170,7 +185,7 @@ PY
     run pr_list_branch NUBA viejo feature/ws-pr
     wait
     [ "$status" -eq 0 ]
-    [ "$output" = $'9\tOPEN\tdevelop\thttp://x/9' ]
+    [ "$output" = $'9\tOPEN\tdevelop\thttp://x/9\t' ]
     grep -q "/repos/nuevo/pull-requests" "$TEST_TEMP_DIR/request-1.txt"
     grep -q "Authorization: Bearer secreto" "$TEST_TEMP_DIR/request-1.txt"
 }
@@ -200,6 +215,46 @@ PY
 }
 
 # =============================================================================
+# pr_build_state
+# =============================================================================
+
+@test "pr_build_state: a failed build prevails over the ones in progress" {
+    configure_server
+    given_build_stats 1 2 3
+    run pr_build_state abc123
+    [ "$output" = "failed" ]
+    [[ "$(cat "$FAKE_CURL_LOG")" == *"/rest/build-status/latest/commits/stats/abc123"* ]]
+}
+
+@test "pr_build_state: a build in progress prevails over the successful ones" {
+    configure_server
+    given_build_stats 0 1 3
+    run pr_build_state abc123
+    [ "$output" = "running" ]
+}
+
+@test "pr_build_state: only successful builds give ok" {
+    configure_server
+    given_build_stats 0 0 1
+    run pr_build_state abc123
+    [ "$output" = "ok" ]
+}
+
+@test "pr_build_state: without builds it says nothing" {
+    configure_server
+    run pr_build_state abc123
+    [ -z "$output" ]
+}
+
+@test "pr_build_state: a failed query says nothing and does not fail" {
+    configure_server
+    export FAKE_CURL_BUILD_CODE=404
+    run pr_build_state abc123
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+# =============================================================================
 # pr_print_repo
 # =============================================================================
 
@@ -220,6 +275,34 @@ PY
     run pr_print_repo "$TEST_WORKSPACES_DIR/ws-pr/repo-a" feature/ws-pr
     [ "${#lines[@]}" -eq 1 ]
     [[ "$output" == *"PR #12"* ]]
+}
+
+@test "pr_print_repo: the build state of the pull request is shown" {
+    configure_server
+    given_workspace_on_server
+    given_two_pull_requests
+
+    given_build_stats 0 0 1
+    run pr_print_repo "$TEST_WORKSPACES_DIR/ws-pr/repo-a" feature/ws-pr
+    [[ "$output" == *"PR #12"*"✅"*"→ develop"* ]]
+
+    given_build_stats 1 0 0
+    run pr_print_repo "$TEST_WORKSPACES_DIR/ws-pr/repo-a" feature/ws-pr
+    [[ "$output" == *"PR #12"*"❌"*"→ develop"* ]]
+
+    given_build_stats 0 1 0
+    run pr_print_repo "$TEST_WORKSPACES_DIR/ws-pr/repo-a" feature/ws-pr
+    [[ "$output" == *"PR #12"*"⏳"*"→ develop"* ]]
+}
+
+@test "pr_print_repo: an unavailable build state does not hide the pull request" {
+    configure_server
+    given_workspace_on_server
+    given_two_pull_requests
+    export FAKE_CURL_BUILD_CODE=500
+    run pr_print_repo "$TEST_WORKSPACES_DIR/ws-pr/repo-a" feature/ws-pr
+    [[ "$output" == *"PR #12 OPEN → develop"* ]]
+    [[ "$output" != *"✅"* ]]
 }
 
 @test "pr_print_repo: repo whose remote is not the server's prints nothing" {
