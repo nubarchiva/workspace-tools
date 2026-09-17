@@ -9,7 +9,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ### Añadido
 - **Pull requests en `ws status`** - El estado de un workspace no decía si sus ramas ya tenían pull request ni en qué situación estaba: había que ir al servidor repo a repo
-  - Cada repo que esté en la rama del workspace muestra los pull requests cuyo origen es esa rama, en cualquier estado: número, estado, rama destino y enlace
+  - Cada repo que esté en la rama del workspace muestra el pull request más reciente cuyo origen es esa rama, en cualquier estado: número, estado, rama destino y enlace
   - Servidor Bitbucket Server / Data Center declarado en `~/.wsrc` con `WS_BITBUCKET_URL` y `WS_BITBUCKET_TOKEN`. Sin ellos no se consulta nada. `WS_BITBUCKET_HOSTS` indica qué hosts de remoto git son de ese servidor (alias del mismo servidor) y `WS_BITBUCKET_TIMEOUT` el tiempo de espera (5 s)
   - Un repositorio renombrado en el servidor se consulta igual: la redirección al slug nuevo se sigue mientras el remoto local conserve el viejo
   - Si la consulta falla, dice el motivo. Un fallo de conexión o de credenciales no se repite en los repos siguientes
@@ -60,6 +60,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Aviso si el Maven instalado es < 3.9 (sin `maven.repo.local.tail` se re-descargan dependencias al head)
 
 ### Corregido
+- **Un test de `ws clean` se colgaba** - «warns about uncommitted changes» ejecuta `ws clean` sin `--force`, que pide confirmación con `read`. Sin entrada estándar propia, la prueba esperaba indefinidamente una respuesta cuando la batería heredaba una entrada abierta. Ahora responde que no, que es lo que corresponde: lo que comprueba es el aviso
 - **Autocompletado incompleto** - Las completions de bash y zsh no ofrecían parte de lo que aceptan los comandos
   - `ws update`: `--all`/`-a` y `--dry`/`-d`; `ws clean`: `--force`/`-f`; `ws grep`: `-c` (y en zsh, `-w` y `-E` tras el patrón); `ws origins clone`: `-g`, `-m`, `-n` (y en zsh, `--help`); `ws mgmt-link`: `--help`; `ws env`: `--no-fetch`, `-y` y `--help`
   - Subcomando `version` y los alias `sw`, `del`, `mk`, `create`, `here`, `.` y `h`

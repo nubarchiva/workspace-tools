@@ -94,7 +94,10 @@ run_ws_clean() {
     echo "cambio" >> file.txt  # Cambio sin commitear
     cd - > /dev/null
 
-    run run_ws_clean "con-cambios"
+    # Sin --force, ws clean pide confirmación: se responde que no, porque lo que se
+    # comprueba es el aviso. Sin respuesta, la prueba espera para siempre a que
+    # alguien conteste
+    run run_ws_clean "con-cambios" <<< "n"
     [[ "$output" == *"cambios"* ]] || [[ "$output" == *"sin commitear"* ]]
 }
 
