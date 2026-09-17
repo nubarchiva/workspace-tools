@@ -213,6 +213,15 @@ PY
     [ "$(wc -l < "$FAKE_CURL_LOG" | tr -d ' ')" -eq 1 ]
 }
 
+@test "pr_print_repo: several pull requests on the branch print only the most recent" {
+    configure_server
+    given_workspace_on_server
+    given_two_pull_requests
+    run pr_print_repo "$TEST_WORKSPACES_DIR/ws-pr/repo-a" feature/ws-pr
+    [ "${#lines[@]}" -eq 1 ]
+    [[ "$output" == *"PR #12"* ]]
+}
+
 @test "pr_print_repo: repo whose remote is not the server's prints nothing" {
     configure_server
     given_workspace_on_server
@@ -226,14 +235,14 @@ PY
 # ws status
 # =============================================================================
 
-@test "ws status: shows the pull requests of the workspace branch" {
+@test "ws status: shows the most recent pull request of the workspace branch" {
     configure_server
     given_workspace_on_server
     given_two_pull_requests
     run run_ws status ws-pr
     [ "$status" -eq 0 ]
     [[ "$output" == *"PR #12 OPEN → develop http://bb.test:7990/projects/NUBA/repos/repo-a/pull-requests/12"* ]]
-    [[ "$output" == *"PR #7 MERGED → master http://bb.test:7990/projects/NUBA/repos/repo-a/pull-requests/7"* ]]
+    [[ "$output" != *"PR #7"* ]]
 }
 
 @test "ws status: says so when the branch has no pull requests" {

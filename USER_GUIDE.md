@@ -318,7 +318,8 @@ apartado **Entorno** (ver [ws env](#ws-env)).
 
 **Pull requests:** si hay un servidor Bitbucket declarado en `~/.wsrc`
 (`WS_BITBUCKET_URL` y `WS_BITBUCKET_TOKEN`), cada repo que esté en la rama del
-workspace muestra los pull requests cuyo origen es esa rama, en cualquier estado:
+workspace muestra el pull request más reciente cuyo origen es esa rama, en
+cualquier estado:
 
 ```
    🔀 PR #42 OPEN → develop https://bitbucket.example.com/projects/PROJ/repos/api/pull-requests/42
@@ -326,6 +327,7 @@ workspace muestra los pull requests cuyo origen es esa rama, en cualquier estado
 
 - Solo se consultan los repos cuyo remoto `origin` apunta a un host de
   `WS_BITBUCKET_HOSTS` (por defecto, el host de `WS_BITBUCKET_URL`)
+- Si la rama tiene varios, solo se muestra el más reciente
 - Sin pull requests se indica «Sin pull requests»; si la consulta falla, se
   indica el motivo (token rechazado, servidor inaccesible, repositorio no encontrado…).
   Un fallo de conexión o de credenciales no se repite en los repos siguientes

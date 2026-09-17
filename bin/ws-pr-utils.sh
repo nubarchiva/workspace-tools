@@ -158,9 +158,9 @@ pr_list_branch() {
     rm -f "$body"
 }
 
-# Pinta los pull requests de la rama del workspace en un repositorio. Un fallo de
-# conexión con el servidor se recuerda en _WS_PR_SERVER_ERROR y los repositorios
-# siguientes muestran el mismo motivo sin volver a esperar.
+# Pinta el pull request más reciente de la rama del workspace en un repositorio.
+# Un fallo de conexión con el servidor se recuerda en _WS_PR_SERVER_ERROR y los
+# repositorios siguientes muestran el mismo motivo sin volver a esperar.
 # Uso: pr_print_repo <ruta_repo> <rama>
 pr_print_repo() {
     local repo_path="$1" branch="$2"
@@ -195,13 +195,14 @@ pr_print_repo() {
         return 0
     fi
 
+    # Solo el más reciente: la consulta los pide del más reciente al más antiguo
+    # y read se queda con la primera línea
     local id state target link color
-    while IFS=$'\t' read -r id state target link; do
-        case "$state" in
-            OPEN) color="$COLOR_CYAN" ;;
-            MERGED) color="$COLOR_GREEN" ;;
-            *) color="$COLOR_DIM" ;;
-        esac
-        echo "   🔀 PR #$id ${color}$state${COLOR_RESET} → $target ${COLOR_DIM}$link${COLOR_RESET}"
-    done <<< "$lines"
+    IFS=$'\t' read -r id state target link <<< "$lines"
+    case "$state" in
+        OPEN) color="$COLOR_CYAN" ;;
+        MERGED) color="$COLOR_GREEN" ;;
+        *) color="$COLOR_DIM" ;;
+    esac
+    echo "   🔀 PR #$id ${color}$state${COLOR_RESET} → $target ${COLOR_DIM}$link${COLOR_RESET}"
 }

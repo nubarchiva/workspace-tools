@@ -102,8 +102,8 @@
 # -----------------------------------------------------------------------------
 # Pull requests en ws status (Bitbucket Server / Data Center)
 # -----------------------------------------------------------------------------
-# ws status muestra, en cada repo que esté en la rama del workspace, los pull
-# requests cuyo origen es esa rama. Requiere curl y jq. Sin URL y token no se
+# ws status muestra, en cada repo que esté en la rama del workspace, el pull
+# request más reciente cuyo origen es esa rama. Requiere curl y jq. Sin URL y token no se
 # consulta nada.
 #
 # URL base del servidor y token de acceso HTTP con permiso de lectura:
