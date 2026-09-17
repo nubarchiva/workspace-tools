@@ -124,6 +124,12 @@ if [[ -f "$_WS_INIT_DIR/ws-manifest-utils.sh" ]]; then
     source "$_WS_INIT_DIR/ws-manifest-utils.sh"
 fi
 
+# Cargar utilidades de los repositorios de entorno (ws env)
+if [[ -f "$_WS_INIT_DIR/ws-env-utils.sh" ]]; then
+    # shellcheck source=/dev/null
+    source "$_WS_INIT_DIR/ws-env-utils.sh"
+fi
+
 # Cargar utilidades Maven (aislamiento de repositorio por workspace)
 if [[ -f "$_WS_INIT_DIR/ws-maven-utils.sh" ]]; then
     # shellcheck source=/dev/null

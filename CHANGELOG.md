@@ -8,6 +8,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **Repositorios de entorno: `ws env`** - Hay repositorios que el workspace consume pero no desarrolla (configuración de asistentes, directrices, tooling o gestión compartidos). `ws update` no los toca y ningún comando avisaba de que estuvieran desactualizados: una sesión podía arrancar con días de retraso sin que nada lo indicara
+  - Cada usuario los declara en `~/.wsrc` con `WS_ENV_REPOS` (rutas separadas por `:`, absolutas, con `~` o relativas a `WORKSPACE_ROOT`). La herramienta no presupone ninguno
+  - **Aviso automático**: `ws switch`, `ws cd` e `ws info` avisan en una línea si algún repositorio va por detrás de su remoto o ha divergido, y en otra los que no se han podido comprobar (sin red, modo offline, no es git, sin rama de seguimiento). `ws status` muestra el estado completo en el apartado «Entorno»
+  - El aviso reutiliza el último fetch durante `WS_ENV_FETCH_TTL` segundos (300 por defecto). Los fetch necesarios se lanzan en paralelo, cada uno con su tiempo de espera (`WS_ENV_FETCH_TIMEOUT`, 5 s)
+  - `ws env status` comprueba sin tocar el árbol de trabajo y muestra el hash y la fecha del último commit de cada repositorio, comparables entre máquinas. Sale con 1 si alguno va por detrás, ha divergido o no se ha podido comprobar
+  - `ws env sync` avanza siempre con fast-forward e informa del salto de hash, del número de commits y de los ficheros cambiados. Un repositorio divergido falla sin mezclar nada
+  - **Sesiones vivas**: `WS_ENV_BUSY_CMD` declara la orden que lista los PID de quien usa esos repositorios. Si hay algo que actualizar y alguna sesión viva, `sync` avisa y pide confirmación `[s/N]`; sin terminal interactiva cancela salvo `--yes`. `--sessions` las lista. La sesión que lanza la orden no cuenta
+  - Nuevo `exclude_own_process_tree()` en `ws-common.sh`: el filtro que descarta el proceso que pregunta, sus antepasados y sus descendientes, extraído de `workspace_live_pids()` para compartirlo
+  - Nuevo módulo `ws-env-utils.sh`
 - **Árbol propio de `nuba-management` por workspace** - Hasta ahora los workspaces llegaban al repositorio de gestión por un symlink al mismo clon, así que compartían árbol de trabajo, índice y rama: un commit se llevaba ficheros de otra sesión, un `push` publicaba lo ajeno y un merge abortaba por trabajo de terceros
   - `ws new` monta `nuba-management` como worktree de git en la rama `wt/<workspace>`, en la misma ruta que ocupaba el symlink, de modo que las rutas relativas `nuba-management/...` siguen valiendo. Comparte los objetos con el clon principal y da árbol e índice propios
   - Si el clon principal no existe o no tiene `origin/main`, se mantiene el symlink de siempre y se dice por qué

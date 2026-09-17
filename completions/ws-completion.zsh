@@ -29,6 +29,7 @@ _ws() {
         'rename:Renombra un workspace'
         'info:Muestra información del workspace'
         'origins:Operaciones en repos origen'
+        'env:Comprueba o sincroniza los repos de entorno'
         'mode:Gestiona modo online/offline'
         'prune:Limpia ramas locales sin cambios'
         'mgmt-link:Régimen de acceso a nuba-management (worktree o symlink)'
@@ -154,6 +155,13 @@ _ws() {
                     )
                     _describe 'origins actions' origins_actions
                     ;;
+                env)
+                    local -a env_actions=(
+                        'status:Estado de los repos de entorno'
+                        'sync:Avanzar con fast-forward los que van por detrás'
+                    )
+                    _describe 'env actions' env_actions
+                    ;;
                 list|ls)
                     # Filtro opcional
                     _get_workspaces
@@ -264,6 +272,18 @@ _ws() {
                             'diff:Diferencias'
                         )
                         _describe 'git commands' git_cmds
+                    fi
+                    ;;
+                env)
+                    if [[ "$words[3]" == "status" ]]; then
+                        local -a env_status_opts=('--no-fetch:Solo datos locales')
+                        _describe 'status options' env_status_opts
+                    elif [[ "$words[3]" == "sync" ]]; then
+                        local -a env_sync_opts=(
+                            '--yes:Actualizar aunque haya sesiones vivas'
+                            '--sessions:Listar las sesiones vivas'
+                        )
+                        _describe 'sync options' env_sync_opts
                     fi
                     ;;
             esac

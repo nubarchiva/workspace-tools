@@ -124,6 +124,7 @@ ws clean feature-123
 | `ws prune [--all]` | Limpiar ramas locales huérfanas |
 | `ws origins git <cmd>` | Git en repos origen |
 | `ws origins clone` | Clonar los repos del manifiesto |
+| `ws env [sync]` | Comprobar o sincronizar los repos de entorno (`WS_ENV_REPOS`) |
 
 ### Primer arranque en una máquina nueva
 

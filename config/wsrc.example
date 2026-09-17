@@ -78,6 +78,28 @@
 # WS_MAVEN_TAIL="$HOME/.m2/repository"
 
 # -----------------------------------------------------------------------------
+# Repositorios de entorno (ws env)
+# -----------------------------------------------------------------------------
+# Repositorios que el workspace consume pero no desarrolla: configuración de
+# asistentes, directrices, tooling o gestión compartidos. ws env los comprueba y
+# sincroniza (siempre fast-forward); ws switch / ws cd avisan si van por detrás y
+# ws status muestra su estado. Sin declarar, no se hace nada.
+#
+# Rutas separadas por ':'. Absolutas, con ~ o relativas a WORKSPACE_ROOT:
+# WS_ENV_REPOS="~/.claude:.ai:tools/workspace-tools"
+#
+# Segundos durante los que el aviso automático reutiliza el último fetch
+# (por defecto 300):
+# WS_ENV_FETCH_TTL=300
+#
+# Tiempo de espera de cada fetch, en segundos (por defecto 5):
+# WS_ENV_FETCH_TIMEOUT=5
+#
+# Orden que imprime los PID de las sesiones que usan esos repositorios. Con ella,
+# ws env sync avisa y pide confirmación antes de actualizar:
+# WS_ENV_BUSY_CMD="pgrep -x claude"
+
+# -----------------------------------------------------------------------------
 # Ejemplos de configuraciones avanzadas
 # -----------------------------------------------------------------------------
 

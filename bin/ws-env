@@ -1,0 +1,247 @@
+#!/bin/bash
+# Comprueba y sincroniza los repositorios de entorno declarados en WS_ENV_REPOS
+#
+# Todo el cuerpo va dentro de main: bash lee los scripts a medida que los ejecuta,
+# y un sync que actualice el propio workspace-tools cambiaría este fichero debajo
+# de la ejecución en curso.
+
+# Inicializacion centralizada
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
+
+show_help() {
+    cat <<'EOF'
+Uso: ws env [status] [--no-fetch]
+     ws env sync [--yes] [--sessions]
+
+Repositorios de entorno: los que el workspace consume pero no desarrolla
+(configuración de asistentes, directrices, tooling o gestión compartidos).
+Se declaran en ~/.wsrc; sin declaración, no hace nada.
+
+Acciones:
+  status (por defecto)  Hace fetch y muestra, por repositorio, si está al día,
+                        por detrás o divergido, con el hash y la fecha de su
+                        último commit. No toca el árbol de trabajo.
+                        Sale con 1 si alguno va por detrás, ha divergido o no
+                        se ha podido comprobar.
+  sync                  Avanza con fast-forward los que van por detrás. Un
+                        repositorio divergido falla sin mezclar nada.
+
+Opciones:
+  --no-fetch            (status) Usa solo los datos locales
+  --yes, -y             (sync) Actualiza aunque haya sesiones vivas
+  --sessions            (sync) Lista las sesiones vivas
+
+Sesiones vivas:
+  Un proceso ya arrancado no ve los cambios, o los ve a medias. Si se define
+  WS_ENV_BUSY_CMD, sync cuenta esas sesiones y pide confirmación antes de
+  actualizar; sin terminal interactiva cancela salvo --yes. La sesión que
+  lanza la orden no cuenta. Sin WS_ENV_BUSY_CMD no puede saberlo y lo avisa.
+
+Aviso automático:
+  ws switch, ws cd e ws info avisan en una línea si algún repositorio va por
+  detrás o no se ha podido comprobar; ws status muestra el estado completo.
+
+Configuración (~/.wsrc):
+  WS_ENV_REPOS="~/.claude:.ai:tools/workspace-tools"
+                            Rutas separadas por ':'. Absolutas, con ~ o
+                            relativas a WORKSPACE_ROOT
+  WS_ENV_FETCH_TTL=300      Segundos sin repetir fetch en los avisos automáticos
+  WS_ENV_FETCH_TIMEOUT=5    Tiempo de espera de cada fetch
+  WS_ENV_BUSY_CMD="pgrep -x claude"
+                            Orden que imprime los PID de las sesiones vivas
+EOF
+}
+
+explain_configuration() {
+    info "ℹ️  No hay repositorios de entorno declarados"
+    echo ""
+    echo "Decláralos en ~/.wsrc con WS_ENV_REPOS, separados por ':':"
+    echo "  ${COLOR_CYAN}WS_ENV_REPOS=\"~/.claude:.ai:tools/workspace-tools\"${COLOR_RESET}"
+    echo ""
+    echo "Ayuda completa: ws env --help"
+}
+
+cmd_status() {
+    local fetch_mode="$1"
+
+    print_header "Entorno"
+    if [ "$fetch_mode" = "never" ]; then
+        secondary "Datos locales (sin fetch)"
+    elif ws_is_offline_mode; then
+        echo "${COLOR_YELLOW}[OFFLINE]${COLOR_RESET} ${COLOR_DIM}Datos locales (sin fetch)${COLOR_RESET}"
+    fi
+    echo ""
+
+    env_print_status "$fetch_mode"
+}
+
+# Avanza un repositorio con fast-forward e informa de lo que ha cambiado
+# Uso: fast_forward <etiqueta> <ruta>
+fast_forward() {
+    local label="$1"
+    local path="$2"
+    local old new output count files total
+
+    old=$(git -C "$path" rev-parse --short HEAD)
+    if ! output=$(git -C "$path" merge --ff-only --quiet '@{u}' 2>&1); then
+        error "  ❌ $label: no se pudo avanzar con fast-forward"
+        echo "$output" | sed 's/^/     /'
+        return 1
+    fi
+    new=$(git -C "$path" rev-parse --short HEAD)
+
+    count=$(git -C "$path" rev-list --count "$old..$new")
+    success "  ✅ $label: $old..$new, $count commit(s)"
+
+    files=$(git -C "$path" diff --name-only "$old" "$new")
+    total=$(printf '%s\n' "$files" | grep -c .)
+    printf '%s\n' "$files" | head -20 | sed 's/^/     /'
+    if [ "$total" -gt 20 ]; then
+        secondary "     … y $((total - 20)) más"
+    fi
+}
+
+# Decide si se puede actualizar con las sesiones vivas que haya
+# Uso: confirm_live_sessions <assume_yes> <show_sessions>
+# Retorna: 0 si se sigue; 1 si se cancela
+confirm_live_sessions() {
+    local assume_yes="$1"
+    local show_sessions="$2"
+    local pids count pid
+
+    if ! pids=$(env_live_sessions); then
+        secondary "ℹ️  Sin WS_ENV_BUSY_CMD no se puede saber si hay sesiones vivas que no verán estos cambios"
+        return 0
+    fi
+
+    count=$(printf '%s\n' "$pids" | grep -c .)
+    [ "$count" -gt 0 ] || return 0
+
+    warning "⚠️  Hay $count sesión(es) viva(s): no verán estos cambios (o los verán a medias)"
+    if [ "$show_sessions" = true ]; then
+        for pid in $pids; do
+            ps -o pid=,args= -p "$pid" 2>/dev/null | cut -c1-160 | sed 's/^ */     /'
+        done
+    else
+        secondary "   Ver cuáles: ws env sync --sessions"
+    fi
+
+    if [ "$assume_yes" = true ]; then
+        return 0
+    fi
+
+    if [ -t 0 ]; then
+        printf "¿Actualizar igualmente? [s/N] "
+        if env_confirm; then
+            return 0
+        fi
+        echo "Cancelado: no se ha actualizado nada"
+        return 1
+    fi
+
+    error "❌ Sin terminal interactiva no se puede confirmar: no se ha actualizado nada"
+    echo "   Para actualizar igualmente: ${COLOR_CYAN}ws env sync --yes${COLOR_RESET}"
+    return 1
+}
+
+cmd_sync() {
+    local assume_yes="$1"
+    local show_sessions="$2"
+    local report label path state behind ahead note
+    local targets=()
+    local failed=0
+
+    if ws_is_offline_mode; then
+        error "❌ Modo offline activo: la sincronización necesita red"
+        echo "   Desactívalo con: ${COLOR_CYAN}ws mode online${COLOR_RESET}"
+        return 1
+    fi
+
+    print_header "Entorno"
+    report=$(env_collect always)
+    printf '%s\n' "$report" | env_render_status
+    echo ""
+
+    while IFS=$'\t' read -r label path state behind ahead note; do
+        [ "$state" = "behind" ] && targets+=("$label"$'\t'"$path")
+    done <<< "$report"
+
+    if [ ${#targets[@]} -eq 0 ]; then
+        success "Nada que actualizar"
+        printf '%s\n' "$report" | awk -F'\t' '$3 == "ok" || $3 == "ahead" { ok++ } END { exit (ok == NR) ? 0 : 1 }'
+        return $?
+    fi
+
+    confirm_live_sessions "$assume_yes" "$show_sessions" || return 1
+    echo ""
+
+    local target
+    for target in "${targets[@]}"; do
+        fast_forward "${target%%$'\t'*}" "${target#*$'\t'}" || failed=1
+    done
+
+    echo ""
+    echo "Estado final:"
+    env_print_status never || failed=1
+    return $failed
+}
+
+main() {
+    local action="status"
+    local fetch_mode="always"
+    local assume_yes=false
+    local show_sessions=false
+
+    case "${1:-}" in
+        status|sync)
+            action="$1"
+            shift
+            ;;
+        --warn)
+            env_drift_warning
+            return 0
+            ;;
+        -h|--help|help)
+            show_help
+            return 0
+            ;;
+        -*|"")
+            ;;
+        *)
+            error "❌ Acción desconocida: $1"
+            echo "   Usa 'ws env --help' para ver las acciones"
+            return 1
+            ;;
+    esac
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --no-fetch) fetch_mode="never" ;;
+            --yes|-y) assume_yes=true ;;
+            --sessions) show_sessions=true ;;
+            -h|--help)
+                show_help
+                return 0
+                ;;
+            *)
+                error "❌ Opción desconocida: $1"
+                echo "   Usa 'ws env --help' para ver las opciones"
+                return 1
+                ;;
+        esac
+        shift
+    done
+
+    if [ -z "$WS_ENV_REPOS" ]; then
+        explain_configuration
+        return 0
+    fi
+
+    case "$action" in
+        status) cmd_status "$fetch_mode" ;;
+        sync) cmd_sync "$assume_yes" "$show_sessions" ;;
+    esac
+}
+
+main "$@"
+exit $?

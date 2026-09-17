@@ -92,6 +92,12 @@ WS_CLEAN_IGNORE=".idea .vscode .kiro .cursor .playwright-mcp .claude AI.md .ai d
 WS_MAVEN_ISOLATION=false                  # desactivarlo (por defecto activo)
 WS_MAVEN_HEAD_BASE="$HOME/.m2/wt"         # base de los heads por workspace
 WS_MAVEN_TAIL="$HOME/.m2/repository"      # repositorio compartido (tail)
+
+# Repositorios de entorno: los que el workspace consume pero no desarrolla (opcional, ver ws env)
+WS_ENV_REPOS="~/.claude:.ai:tools/workspace-tools"
+WS_ENV_FETCH_TTL=300                      # segundos sin repetir fetch en los avisos automáticos
+WS_ENV_FETCH_TIMEOUT=5                    # tiempo de espera de cada fetch
+WS_ENV_BUSY_CMD="pgrep -x claude"         # PID de las sesiones que usan esos repositorios
 ```
 
 ### Prioridad de Configuración
@@ -270,6 +276,9 @@ ws cd <workspace>
 - `ws switch`: Solo muestra información
 - `ws cd`: Muestra información Y cambia al directorio (requiere setup.sh)
 
+Los dos avisan en una línea si algún repositorio de entorno va por detrás de su
+remoto o no se ha podido comprobar (ver [ws env](#ws-env)).
+
 **Ejemplos:**
 ```bash
 ws switch feature-123
@@ -296,6 +305,9 @@ ws here
   - `← N`: N commits pusheados pendientes de merge a develop
   - `↓ N`: N commits nuevos en develop
   - `↔️`: Sincronizado con develop
+
+Si hay repositorios de entorno declarados, muestra además su estado en el
+apartado **Entorno** (ver [ws env](#ws-env)).
 
 **Ejemplos:**
 ```bash
@@ -694,6 +706,86 @@ ws origins clone --group core                 # solo el núcleo
 ws origins clone --dry-run                    # ver el plan
 ws origins clone --list-groups                # qué grupos hay
 ws origins clone --seed <url>                 # primer arranque, máquina limpia
+```
+
+---
+
+### ws env
+
+Comprueba y sincroniza los repositorios de entorno: los que el workspace consume
+pero no desarrolla, como la configuración de los asistentes, las directrices, el
+tooling o la gestión compartidos. `ws update` no los toca.
+
+```bash
+ws env [status] [--no-fetch]
+ws env sync [--yes] [--sessions]
+```
+
+Cada usuario los declara en `~/.wsrc`. La herramienta no presupone ninguno:
+
+```bash
+WS_ENV_REPOS="~/.claude:.ai:tools/workspace-tools"
+```
+
+Las rutas van separadas por `:` y pueden ser absolutas, empezar por `~` o ser
+relativas a `WORKSPACE_ROOT`. Cada una debe ser la raíz de un repositorio git;
+cualquier otra cosa se lista como «sin comprobar» y no impide tratar las demás.
+
+**Acciones:**
+
+| Acción | Qué hace |
+|--------|----------|
+| `status` (por defecto) | Hace fetch y muestra, por repositorio, si está al día, por detrás o divergido, con el hash y la fecha de su último commit. No toca el árbol de trabajo. Sale con 1 si alguno va por detrás, ha divergido o no se ha podido comprobar |
+| `sync` | Avanza con fast-forward los que van por detrás e informa del salto de hash, del número de commits y de los ficheros cambiados. Termina con el estado final de cada repositorio |
+
+El hash y la fecha permiten comparar dos máquinas: si coinciden, tienen el mismo
+contenido.
+
+**Siempre fast-forward.** Un repositorio divergido (commits locales y remotos a la
+vez) falla sin mezclar nada. Se resuelve a mano en ese repositorio.
+
+**Aviso automático.** `ws switch`, `ws cd` e `ws info` avisan en una línea si algún
+repositorio va por detrás o no se ha podido comprobar:
+
+```
+⚠️  Entorno desactualizado: ~/.claude ↓3 → ws env sync
+ℹ️  Entorno sin comprobar: .ai (sin respuesta del remoto en 5 s)
+```
+
+Para no pagar un fetch en cada cambio de workspace, el aviso reutiliza el último
+fetch correcto mientras tenga menos de `WS_ENV_FETCH_TTL` segundos (300 por
+defecto). La hora de ese fetch se guarda en `.git/ws-env-last-fetch` de cada
+repositorio. Respeta `ws mode offline`, que se informa como «sin comprobar».
+
+Los fetch no son interactivos: no piden contraseña ni confirmación. Una clave SSH
+que necesite aprobación manual (un agente con Touch ID, por ejemplo) se informa
+como «fetch fallido» o «sin respuesta del remoto».
+
+**Sesiones vivas.** Un proceso ya arrancado no ve los cambios, o los ve a medias.
+La herramienta no sabe qué procesos usan esos repositorios: se le dice con
+`WS_ENV_BUSY_CMD`, una orden que imprime sus PID al principio de cada línea.
+
+```bash
+WS_ENV_BUSY_CMD="pgrep -x claude"
+```
+
+Si hay algo que actualizar y alguna sesión viva, `sync` lo avisa y pide
+confirmación `[s/N]`. Sin terminal interactiva cancela, salvo con `--yes`. La
+sesión que lanza la orden no cuenta, ni sus procesos padre. Sin
+`WS_ENV_BUSY_CMD`, `sync` avisa de que no puede saberlo.
+
+**Opciones:**
+- `--no-fetch` (status): usa solo los datos locales
+- `--yes`, `-y` (sync): actualiza aunque haya sesiones vivas
+- `--sessions` (sync): lista las sesiones vivas con su línea de órdenes
+
+**Ejemplos:**
+```bash
+ws env                      # estado del entorno
+ws env status --no-fetch    # sin consultar los remotos
+ws env sync                 # actualizar
+ws env sync --sessions      # ver qué sesiones no verán los cambios
+ws env sync --yes           # flujo desatendido
 ```
 
 ---

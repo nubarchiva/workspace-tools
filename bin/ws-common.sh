@@ -431,7 +431,26 @@ workspace_live_pids() {
     # El orden importa: primero lsof y después la tabla de procesos, porque lo que
     # ya no está en esa tabla o ha parado o es la propia medición, que también
     # trabaja aquí dentro y se ve a sí misma en el listado de lsof
-    { lsof -a -d cwd -Fpn 2>/dev/null; echo "@@@"; ps -eo pid=,ppid=; } | awk -v dir="$dir" -v self="$$" '
+    {
+        lsof -a -d cwd -Fpn 2>/dev/null | awk -v dir="$dir" '
+            substr($0, 1, 1) == "p" { pid = substr($0, 2); next }
+            substr($0, 1, 1) == "n" {
+                path = substr($0, 2)
+                if (path == dir || index(path, dir "/") == 1) print pid
+            }
+        '
+        echo "@@@"
+        ps -eo pid=,ppid=
+    } | exclude_own_process_tree
+}
+
+# Filtra una lista de PID candidatos: deja los que siguen vivos y no son el
+# proceso que pregunta, ni sus antepasados, ni sus descendientes.
+# Entrada por stdin: un PID por línea, una línea "@@@" y la tabla `ps -eo pid=,ppid=`
+# tomada DESPUÉS de obtener los candidatos
+# Uso: { candidatos; echo "@@@"; ps -eo pid=,ppid=; } | exclude_own_process_tree
+exclude_own_process_tree() {
+    awk -v self="$$" '
         function is_mine(pid,   p, hops) {
             if (pid in ancestors) return 1
             for (p = pid; p != "" && p != "0" && hops++ < 200; p = parent[p]) {
@@ -440,14 +459,7 @@ workspace_live_pids() {
             return 0
         }
         $1 == "@@@" { ps_section = 1; next }
-        !ps_section {
-            if (substr($0, 1, 1) == "p") { pid = substr($0, 2); next }
-            if (substr($0, 1, 1) == "n") {
-                path = substr($0, 2)
-                if (path == dir || index(path, dir "/") == 1) candidate[pid] = 1
-            }
-            next
-        }
+        !ps_section { if ($1 != "") candidate[$1] = 1; next }
         { parent[$1] = $2 }
         END {
             hops = 0

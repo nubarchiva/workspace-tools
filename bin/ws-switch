@@ -122,6 +122,20 @@ if ws_is_offline_mode; then
 fi
 echo ""
 
+# Repositorios de entorno (ver ws-env-utils.sh): status muestra su estado completo;
+# switch e info, solo el aviso si algo va por detrás o no se ha podido comprobar
+if [ -n "$WS_STATUS_MODE" ] && [ -n "$WS_ENV_REPOS" ]; then
+    echo "Entorno:"
+    env_print_status ttl
+    echo ""
+elif [ -z "$WS_STATUS_MODE" ] && [ -z "$WS_ENV_NO_WARN" ]; then
+    env_warning=$(env_drift_warning)
+    if [ -n "$env_warning" ]; then
+        echo "$env_warning"
+        echo ""
+    fi
+fi
+
 # Mostrar estado de cada repo (incluyendo subdirectorios)
 echo "Estado de los repos:"
 echo ""

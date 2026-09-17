@@ -155,6 +155,18 @@ REPOS ORIGEN:
   origins list
       Lista todos los repos origen detectados
 
+REPOS DE ENTORNO:
+
+  env [status|sync] [opciones]
+      Repos que el workspace consume pero no desarrolla, declarados en
+      WS_ENV_REPOS (~/.wsrc). status comprueba sin tocar el árbol de trabajo;
+      sync avanza con fast-forward y dice qué ha cambiado
+      Ejemplos:
+        ws env                         # estado, con hash y fecha de cada repo
+        ws env sync                    # actualizar (pide confirmación si hay sesiones vivas)
+        ws env sync --yes              # sin confirmación (flujo desatendido)
+      Ayuda completa: ws env --help
+
 CONFIGURACIÓN:
 
   mode [offline|online]
@@ -208,7 +220,7 @@ fi
 # Función para expandir abreviaturas
 expand_abbreviation() {
     local abbrev=$1
-    local commands="new add remove switch list clean mvn git update stash grep templates status rename info origins mode prune help"
+    local commands="new add remove switch list clean mvn git update stash grep templates status rename info origins env mode prune help"
 
     # Aliases predefinidos
     case $abbrev in
@@ -254,7 +266,7 @@ fi
 
 # Mapear subcomandos a scripts
 case $SUBCOMMAND in
-    new|add|remove|switch|list|clean|mvn|git|update|stash|grep|templates|status|rename|info|origins|mode|prune|mgmt-link)
+    new|add|remove|switch|list|clean|mvn|git|update|stash|grep|templates|status|rename|info|origins|env|mode|prune|mgmt-link)
         SCRIPT_NAME="ws-$SUBCOMMAND"
         SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_NAME"
 

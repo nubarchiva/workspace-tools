@@ -13,7 +13,7 @@ _ws_completion() {
     local workspaces_dir="${WORKSPACES_DIR:-$workspace_root/workspaces}"
 
     # Subcomandos disponibles (incluyendo aliases)
-    local subcommands="new add remove switch list clean mvn git update stash grep templates status rename info origins mode prune mgmt-link help"
+    local subcommands="new add remove switch list clean mvn git update stash grep templates status rename info origins env mode prune mgmt-link help"
     local aliases="ls cd rm mv st tpl"
 
     # Función para obtener workspaces
@@ -111,6 +111,10 @@ _ws_completion() {
                     # Subcomandos de origins
                     COMPREPLY=($(compgen -W "clone git list" -- "$cur"))
                     ;;
+                env)
+                    # Acciones de env
+                    COMPREPLY=($(compgen -W "status sync --help" -- "$cur"))
+                    ;;
                 list|ls)
                     # Filtro opcional (workspaces existentes)
                     local workspaces=$(_get_workspaces)
@@ -195,6 +199,13 @@ _ws_completion() {
                         COMPREPLY=($(compgen -W "status pull push fetch log diff" -- "$cur"))
                     elif [[ "${words[2]}" == "clone" ]]; then
                         COMPREPLY=($(compgen -W "--group --manifest --seed --include-manual --dry-run --list-groups --help" -- "$cur"))
+                    fi
+                    ;;
+                env)
+                    if [[ "${words[2]}" == "status" ]]; then
+                        COMPREPLY=($(compgen -W "--no-fetch" -- "$cur"))
+                    elif [[ "${words[2]}" == "sync" ]]; then
+                        COMPREPLY=($(compgen -W "--yes --sessions" -- "$cur"))
                     fi
                     ;;
             esac

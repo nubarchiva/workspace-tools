@@ -50,7 +50,7 @@ ws() {
 
         # Ahora ejecutar ws-switch con el nombre exacto y capturar output
         local switch_output
-        switch_output=$("$WS_TOOLS/bin/ws-switch" "$workspace_name" 2>&1)
+        switch_output=$(WS_ENV_NO_WARN=1 "$WS_TOOLS/bin/ws-switch" "$workspace_name" 2>&1)
         local exit_code=$?
 
         if [ $exit_code -ne 0 ]; then
@@ -69,6 +69,15 @@ ws() {
             echo "✅ Cambiado a workspace: $workspace_name"
             echo "📁 $workspace_path"
             echo ""
+
+            # Aviso de repositorios de entorno desactualizados o sin comprobar: aquí,
+            # porque la salida de ws-switch se descarta cuando todo va bien
+            local env_warning
+            env_warning=$("$WS_TOOLS/bin/ws-env" --warn 2>/dev/null)
+            if [ -n "$env_warning" ]; then
+                echo "$env_warning"
+                echo ""
+            fi
 
             # Mostrar lista de repos si los hay
             local repos=$(find_repos_in_workspace "$workspace_path" 2>/dev/null)
