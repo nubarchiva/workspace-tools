@@ -328,9 +328,12 @@ cualquier estado:
 - Solo se consultan los repos cuyo remoto `origin` apunta a un host de
   `WS_BITBUCKET_HOSTS` (por defecto, el host de `WS_BITBUCKET_URL`)
 - Si la rama tiene varios, solo se muestra el más reciente
-- El indicador tras el estado es la construcción del commit del pull request:
-  ✅ correcta, ❌ fallida, ⏳ en curso. Sin construcciones no aparece nada, y si
-  el servidor no da ese dato el pull request se muestra igual
+- El indicador tras el estado es la construcción más reciente del commit del
+  pull request: ✅ correcta, ❌ fallida, ⏳ en curso. El servidor registra las
+  construcciones por commit, así que cuenta también la de otro job que haya
+  construido el mismo commit. Sin construcciones, o si la más reciente se
+  canceló, no aparece nada; si el servidor no da ese dato, el pull request se
+  muestra igual
 - Sin pull requests se indica «Sin pull requests»; si la consulta falla, se
   indica el motivo (token rechazado, servidor inaccesible, repositorio no encontrado…).
   Un fallo de conexión o de credenciales no se repite en los repos siguientes

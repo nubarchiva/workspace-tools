@@ -22,7 +22,7 @@
 #   - pr_is_configured              0 si hay servidor y token declarados
 #   - pr_repo_coordinates <url>     "proyecto<TAB>repositorio" de un remoto del servidor
 #   - pr_list_branch <p> <r> <rama> Pull requests de la rama, uno por línea
-#   - pr_build_state <commit>       Estado de la construcción: failed | running | ok
+#   - pr_build_state <commit>       Construcción más reciente: failed | running | ok
 #   - pr_print_repo <ruta> <rama>   Pinta el pull request más reciente de la rama
 #
 # =============================================================================
@@ -173,34 +173,33 @@ pr_list_branch() {
     rm -f "$body"
 }
 
-# Estado de la construcción del commit en el que está el pull request. Un fallo
-# de la consulta no dice nada: el estado de build es información añadida y su
-# ausencia no debe tapar el pull request.
+# Estado de la construcción más reciente del commit en el que está el pull
+# request. El servidor registra las construcciones por commit, no por pull
+# request: otro job que construya el mismo commit también cuenta. Un fallo de la
+# consulta no dice nada: el estado de build es información añadida y su ausencia
+# no debe tapar el pull request.
 # Uso: pr_build_state <commit>
-# Imprime: failed | running | ok, o nada si no hay construcciones o falla
+# Imprime: failed | running | ok, o nada si no hay construcciones, la más
+#          reciente se canceló o la consulta falla
 pr_build_state() {
     local commit="$1"
-    local body stats
+    local body state
 
     [ -n "$commit" ] || return 0
     body=$(mktemp "${TMPDIR:-/tmp}/ws-pr-build.XXXXXX") || return 0
-    if ! _pr_get "build-status/latest/commits/stats/$commit" "$body" 2>/dev/null; then
+    if ! _pr_get "build-status/latest/commits/$commit" "$body" --data-urlencode "limit=100" 2>/dev/null; then
         rm -f "$body"
         return 0
     fi
 
-    stats=$(jq -r '[(.failed // 0), (.inProgress // 0), (.successful // 0)] | @tsv' "$body" 2>/dev/null)
+    state=$(jq -r '[.values[]?] | max_by(.dateAdded) | .state // empty' "$body" 2>/dev/null)
     rm -f "$body"
 
-    local failed in_progress successful
-    IFS=$'\t' read -r failed in_progress successful <<< "$stats"
-    if [ "${failed:-0}" -gt 0 ] 2>/dev/null; then
-        echo "failed"
-    elif [ "${in_progress:-0}" -gt 0 ] 2>/dev/null; then
-        echo "running"
-    elif [ "${successful:-0}" -gt 0 ] 2>/dev/null; then
-        echo "ok"
-    fi
+    case "$state" in
+        FAILED) echo "failed" ;;
+        INPROGRESS) echo "running" ;;
+        SUCCESSFUL) echo "ok" ;;
+    esac
 }
 
 # Pinta el pull request más reciente de la rama del workspace en un repositorio.

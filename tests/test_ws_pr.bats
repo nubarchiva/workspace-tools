@@ -19,7 +19,7 @@ setup() {
     export FAKE_CURL_BUILD_CODE=200
     export FAKE_CURL_RC=0
     echo '{"size":0,"values":[]}' > "$FAKE_CURL_BODY"
-    given_build_stats 0 0 0
+    given_builds
     create_fake_curl
 }
 
@@ -70,11 +70,16 @@ given_two_pull_requests() {
 JSON
 }
 
-# Contadores de construcciones que devuelve el servidor para un commit
-# Uso: given_build_stats <fallidas> <en curso> <correctas>
-given_build_stats() {
-    printf '{"cancelled":0,"successful":%s,"inProgress":%s,"failed":%s,"unknown":0}' \
-        "$3" "$2" "$1" > "$FAKE_CURL_BUILD_BODY"
+# Construcciones que el servidor tiene registradas para un commit, en el orden
+# en que las devuelve, cada una como "fecha_en_ms:ESTADO"
+# Uso: given_builds [fecha:estado...]
+given_builds() {
+    local entry values=""
+    for entry in "$@"; do
+        [ -n "$values" ] && values="$values,"
+        values="$values{\"state\":\"${entry#*:}\",\"key\":\"k${entry%%:*}\",\"dateAdded\":${entry%%:*}}"
+    done
+    printf '{"size":%s,"values":[%s]}' "$#" "$values" > "$FAKE_CURL_BUILD_BODY"
 }
 
 # Workspace ws-pr con repo-a en la rama feature/ws-pr y remoto del servidor
@@ -218,26 +223,35 @@ PY
 # pr_build_state
 # =============================================================================
 
-@test "pr_build_state: a failed build prevails over the ones in progress" {
+@test "pr_build_state: the most recent build decides over an earlier failed one" {
+    # Caso real: el commit lo construyeron el job de otro pull request, que
+    # falló, y después el del propio pull request, que pasó
     configure_server
-    given_build_stats 1 2 3
+    given_builds 1000:FAILED 2000:SUCCESSFUL
     run pr_build_state abc123
-    [ "$output" = "failed" ]
-    [[ "$(cat "$FAKE_CURL_LOG")" == *"/rest/build-status/latest/commits/stats/abc123"* ]]
+    [ "$output" = "ok" ]
+    [[ "$(cat "$FAKE_CURL_LOG")" == *"/rest/build-status/latest/commits/abc123"* ]]
 }
 
-@test "pr_build_state: a build in progress prevails over the successful ones" {
+@test "pr_build_state: a failed build after a successful one gives failed" {
     configure_server
-    given_build_stats 0 1 3
+    given_builds 1000:SUCCESSFUL 2000:FAILED
+    run pr_build_state abc123
+    [ "$output" = "failed" ]
+}
+
+@test "pr_build_state: the order of the answer does not matter, only the date" {
+    configure_server
+    given_builds 1000:FAILED 3000:INPROGRESS 2000:SUCCESSFUL
     run pr_build_state abc123
     [ "$output" = "running" ]
 }
 
-@test "pr_build_state: only successful builds give ok" {
+@test "pr_build_state: a cancelled most recent build says nothing" {
     configure_server
-    given_build_stats 0 0 1
+    given_builds 1000:SUCCESSFUL 2000:CANCELLED
     run pr_build_state abc123
-    [ "$output" = "ok" ]
+    [ -z "$output" ]
 }
 
 @test "pr_build_state: without builds it says nothing" {
@@ -282,15 +296,15 @@ PY
     given_workspace_on_server
     given_two_pull_requests
 
-    given_build_stats 0 0 1
+    given_builds 1000:SUCCESSFUL
     run pr_print_repo "$TEST_WORKSPACES_DIR/ws-pr/repo-a" feature/ws-pr
     [[ "$output" == *"PR #12"*"✅"*"→ develop"* ]]
 
-    given_build_stats 1 0 0
+    given_builds 1000:FAILED
     run pr_print_repo "$TEST_WORKSPACES_DIR/ws-pr/repo-a" feature/ws-pr
     [[ "$output" == *"PR #12"*"❌"*"→ develop"* ]]
 
-    given_build_stats 0 1 0
+    given_builds 1000:INPROGRESS
     run pr_print_repo "$TEST_WORKSPACES_DIR/ws-pr/repo-a" feature/ws-pr
     [[ "$output" == *"PR #12"*"⏳"*"→ develop"* ]]
 }
