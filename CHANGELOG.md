@@ -61,6 +61,9 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Aviso si el Maven instalado es < 3.9 (sin `maven.repo.local.tail` se re-descargan dependencias al head)
 
 ### Corregido
+- **La CI de macOS perdía pruebas por los nombres con tildes** - Llevaba en rojo desde el 5 de septiembre. El trabajo de macOS terminaba con «unknown test name» en las pruebas cuyo nombre contiene una `í` (9 en la última ejecución), sin llegar a ejecutarlas
+  - Causa: `bats_encode_test_name` recorre el nombre carácter a carácter, y la bash 3.2 que trae macOS no trata bien los caracteres multibyte cuando el idioma es UTF-8, que es la configuración del ejecutor de GitHub. Con la misma bash en configuración regional `C`, o con bash 5, no ocurre
+  - El workflow instala ahora también `bash` en macOS y lo antepone al `PATH`, y muestra la versión de bash y el idioma antes de ejecutar las pruebas
 - **Un test de `ws clean` se colgaba** - «warns about uncommitted changes» ejecuta `ws clean` sin `--force`, que pide confirmación con `read`. Sin entrada estándar propia, la prueba esperaba indefinidamente una respuesta cuando la batería heredaba una entrada abierta. Ahora responde que no, que es lo que corresponde: lo que comprueba es el aviso
 - **Autocompletado incompleto** - Las completions de bash y zsh no ofrecían parte de lo que aceptan los comandos
   - `ws update`: `--all`/`-a` y `--dry`/`-d`; `ws clean`: `--force`/`-f`; `ws grep`: `-c` (y en zsh, `-w` y `-E` tras el patrón); `ws origins clone`: `-g`, `-m`, `-n` (y en zsh, `--help`); `ws mgmt-link`: `--help`; `ws env`: `--no-fetch`, `-y` y `--help`

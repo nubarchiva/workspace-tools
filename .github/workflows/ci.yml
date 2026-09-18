@@ -24,8 +24,17 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y bats
           elif [[ "$RUNNER_OS" == "macOS" ]]; then
-            brew install bats-core
+            # Además de bats, una bash moderna: la 3.2 que trae macOS codifica mal
+            # los nombres de test con caracteres multibyte cuando el idioma es UTF-8,
+            # y bats no encuentra esas pruebas ("unknown test name")
+            brew install bats-core bash
+            echo "$(brew --prefix)/bin" >> "$GITHUB_PATH"
           fi
+
+      - name: Show shell versions
+        run: |
+          echo "bash de PATH: $(bash --version | head -1)"
+          echo "idioma: LANG=${LANG:-sin definir} LC_ALL=${LC_ALL:-sin definir}"
 
       - name: Set up Git identity
         run: |
