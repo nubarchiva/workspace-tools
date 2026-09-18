@@ -7,7 +7,8 @@ load 'test_helper'
 
 setup() {
     setup_test_environment
-    unset WS_BITBUCKET_URL WS_BITBUCKET_TOKEN WS_BITBUCKET_HOSTS WS_BITBUCKET_TIMEOUT WS_OFFLINE
+    unset WS_BITBUCKET_URL WS_BITBUCKET_TOKEN WS_BITBUCKET_HOSTS WS_BITBUCKET_TIMEOUT \
+          WS_BITBUCKET_BUILD_STALE_HOURS WS_OFFLINE
     source "$WS_TOOLS_ROOT/bin/ws-colors.sh"
     source "$WS_TOOLS_ROOT/bin/ws-pr-utils.sh"
     FAKEBIN="$TEST_TEMP_DIR/fakebin"
@@ -71,13 +72,15 @@ JSON
 }
 
 # Construcciones que el servidor tiene registradas para un commit, en el orden
-# en que las devuelve, cada una como "fecha_en_ms:ESTADO"
-# Uso: given_builds [fecha:estado...]
+# en que las devuelve, cada una como "minutos_atrás:ESTADO"
+# Uso: given_builds [minutos:estado...]
 given_builds() {
-    local entry values=""
+    local entry values="" added now
+    now=$(date +%s)
     for entry in "$@"; do
+        added=$(( (now - ${entry%%:*} * 60) * 1000 ))
         [ -n "$values" ] && values="$values,"
-        values="$values{\"state\":\"${entry#*:}\",\"key\":\"k${entry%%:*}\",\"dateAdded\":${entry%%:*}}"
+        values="$values{\"state\":\"${entry#*:}\",\"key\":\"k${entry%%:*}\",\"dateAdded\":$added}"
     done
     printf '{"size":%s,"values":[%s]}' "$#" "$values" > "$FAKE_CURL_BUILD_BODY"
 }
@@ -227,7 +230,7 @@ PY
     # Caso real: el commit lo construyeron el job de otro pull request, que
     # falló, y después el del propio pull request, que pasó
     configure_server
-    given_builds 1000:FAILED 2000:SUCCESSFUL
+    given_builds 20:FAILED 10:SUCCESSFUL
     run pr_build_state abc123
     [ "$output" = "ok" ]
     [[ "$(cat "$FAKE_CURL_LOG")" == *"/rest/build-status/latest/commits/abc123"* ]]
@@ -235,23 +238,56 @@ PY
 
 @test "pr_build_state: a failed build after a successful one gives failed" {
     configure_server
-    given_builds 1000:SUCCESSFUL 2000:FAILED
+    given_builds 20:SUCCESSFUL 10:FAILED
     run pr_build_state abc123
     [ "$output" = "failed" ]
 }
 
 @test "pr_build_state: the order of the answer does not matter, only the date" {
     configure_server
-    given_builds 1000:FAILED 3000:INPROGRESS 2000:SUCCESSFUL
+    given_builds 30:FAILED 10:INPROGRESS 20:SUCCESSFUL
     run pr_build_state abc123
     [ "$output" = "running" ]
 }
 
 @test "pr_build_state: a cancelled most recent build says nothing" {
     configure_server
-    given_builds 1000:SUCCESSFUL 2000:CANCELLED
+    given_builds 20:SUCCESSFUL 10:CANCELLED
     run pr_build_state abc123
     [ -z "$output" ]
+}
+
+@test "pr_build_state: a build in progress for longer than the limit is stale" {
+    configure_server
+    given_builds 420:INPROGRESS
+    run pr_build_state abc123
+    [ "$output" = "stale" ]
+}
+
+@test "pr_build_state: a build in progress within the limit is still running" {
+    configure_server
+    given_builds 300:INPROGRESS
+    run pr_build_state abc123
+    [ "$output" = "running" ]
+}
+
+@test "pr_build_state: WS_BITBUCKET_BUILD_STALE_HOURS sets the limit" {
+    configure_server
+    export WS_BITBUCKET_BUILD_STALE_HOURS=1
+    given_builds 90:INPROGRESS
+    run pr_build_state abc123
+    [ "$output" = "stale" ]
+}
+
+@test "pr_build_state: an invalid limit falls back to six hours" {
+    configure_server
+    export WS_BITBUCKET_BUILD_STALE_HOURS=muchas
+    given_builds 300:INPROGRESS
+    run pr_build_state abc123
+    [ "$output" = "running" ]
+    given_builds 420:INPROGRESS
+    run pr_build_state abc123
+    [ "$output" = "stale" ]
 }
 
 @test "pr_build_state: without builds it says nothing" {
@@ -296,17 +332,22 @@ PY
     given_workspace_on_server
     given_two_pull_requests
 
-    given_builds 1000:SUCCESSFUL
+    given_builds 10:SUCCESSFUL
     run pr_print_repo "$TEST_WORKSPACES_DIR/ws-pr/repo-a" feature/ws-pr
     [[ "$output" == *"PR #12"*"✅"*"→ develop"* ]]
 
-    given_builds 1000:FAILED
+    given_builds 10:FAILED
     run pr_print_repo "$TEST_WORKSPACES_DIR/ws-pr/repo-a" feature/ws-pr
     [[ "$output" == *"PR #12"*"❌"*"→ develop"* ]]
 
-    given_builds 1000:INPROGRESS
+    given_builds 10:INPROGRESS
     run pr_print_repo "$TEST_WORKSPACES_DIR/ws-pr/repo-a" feature/ws-pr
     [[ "$output" == *"PR #12"*"⏳"*"→ develop"* ]]
+
+    given_builds 420:INPROGRESS
+    run pr_print_repo "$TEST_WORKSPACES_DIR/ws-pr/repo-a" feature/ws-pr
+    [[ "$output" == *"PR #12"*"⚠️ sin terminar"*"→ develop"* ]]
+    [[ "$output" != *"⏳"* ]]
 }
 
 @test "pr_print_repo: an unavailable build state does not hide the pull request" {

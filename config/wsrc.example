@@ -116,6 +116,10 @@
 #
 # Tiempo de espera de cada consulta, en segundos (por defecto 5):
 # WS_BITBUCKET_TIMEOUT=5
+#
+# Horas a partir de las cuales una construcción en curso se muestra como
+# «sin terminar» (por defecto 6):
+# WS_BITBUCKET_BUILD_STALE_HOURS=6
 
 # -----------------------------------------------------------------------------
 # Ejemplos de configuraciones avanzadas

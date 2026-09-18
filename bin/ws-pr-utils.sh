@@ -15,6 +15,9 @@
 #                          el host de WS_BITBUCKET_URL)
 #   WS_BITBUCKET_TIMEOUT   Tiempo de espera de cada consulta, en segundos (por
 #                          defecto 5)
+#   WS_BITBUCKET_BUILD_STALE_HOURS
+#                          Horas a partir de las cuales una construcción en
+#                          curso se da por no terminada (por defecto 6)
 #
 # Requiere curl y jq.
 #
@@ -22,7 +25,7 @@
 #   - pr_is_configured              0 si hay servidor y token declarados
 #   - pr_repo_coordinates <url>     "proyecto<TAB>repositorio" de un remoto del servidor
 #   - pr_list_branch <p> <r> <rama> Pull requests de la rama, uno por línea
-#   - pr_build_state <commit>       Construcción más reciente: failed | running | ok
+#   - pr_build_state <commit>       Construcción más reciente: failed | running | stale | ok
 #   - pr_print_repo <ruta> <rama>   Pinta el pull request más reciente de la rama
 #
 # =============================================================================
@@ -178,12 +181,15 @@ pr_list_branch() {
 # request: otro job que construya el mismo commit también cuenta. Un fallo de la
 # consulta no dice nada: el estado de build es información añadida y su ausencia
 # no debe tapar el pull request.
+# Una construcción en curso desde hace más de WS_BITBUCKET_BUILD_STALE_HOURS
+# horas se da por no terminada: el servidor conserva el «en curso» de un build
+# que desapareció sin publicar su final.
 # Uso: pr_build_state <commit>
-# Imprime: failed | running | ok, o nada si no hay construcciones, la más
-#          reciente se canceló o la consulta falla
+# Imprime: failed | running | stale | ok, o nada si no hay construcciones, la
+#          más reciente se canceló o la consulta falla
 pr_build_state() {
     local commit="$1"
-    local body state
+    local body build state added
 
     [ -n "$commit" ] || return 0
     body=$(mktemp "${TMPDIR:-/tmp}/ws-pr-build.XXXXXX") || return 0
@@ -192,12 +198,21 @@ pr_build_state() {
         return 0
     fi
 
-    state=$(jq -r '[.values[]?] | max_by(.dateAdded) | .state // empty' "$body" 2>/dev/null)
+    build=$(jq -r '[.values[]?] | max_by(.dateAdded) | select(. != null) | [.state, ((.dateAdded // 0) / 1000 | floor)] | @tsv' "$body" 2>/dev/null)
     rm -f "$body"
+    IFS=$'\t' read -r state added <<< "$build"
 
     case "$state" in
         FAILED) echo "failed" ;;
-        INPROGRESS) echo "running" ;;
+        INPROGRESS)
+            local stale_hours="${WS_BITBUCKET_BUILD_STALE_HOURS:-6}"
+            [[ "$stale_hours" =~ ^[0-9]+$ ]] || stale_hours=6
+            if [[ "$added" =~ ^[0-9]+$ ]] && [ $(( $(date +%s) - added )) -gt $(( stale_hours * 3600 )) ]; then
+                echo "stale"
+            else
+                echo "running"
+            fi
+            ;;
         SUCCESSFUL) echo "ok" ;;
     esac
 }
@@ -253,6 +268,7 @@ pr_print_repo() {
     case "$build" in
         failed) badge=" ${COLOR_RED}❌${COLOR_RESET}" ;;
         running) badge=" ${COLOR_YELLOW}⏳${COLOR_RESET}" ;;
+        stale) badge=" ${COLOR_YELLOW}⚠️ sin terminar${COLOR_RESET}" ;;
         ok) badge=" ${COLOR_GREEN}✅${COLOR_RESET}" ;;
         *) badge="" ;;
     esac

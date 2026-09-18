@@ -105,6 +105,7 @@ WS_BITBUCKET_URL="https://bitbucket.example.com"  # URL base del servidor
 WS_BITBUCKET_TOKEN="..."                  # token de acceso HTTP con permiso de lectura
 WS_BITBUCKET_HOSTS="bitbucket.example.com git.example.com"  # hosts de los remotos git de ese servidor (por defecto, el de la URL)
 WS_BITBUCKET_TIMEOUT=5                    # tiempo de espera de cada consulta
+WS_BITBUCKET_BUILD_STALE_HOURS=6          # horas tras las que un build en curso se da por no terminado
 ```
 
 ### Prioridad de Configuración
@@ -334,6 +335,9 @@ cualquier estado:
   construido el mismo commit. Sin construcciones, o si la más reciente se
   canceló, no aparece nada; si el servidor no da ese dato, el pull request se
   muestra igual
+- Una construcción en curso desde hace más de `WS_BITBUCKET_BUILD_STALE_HOURS`
+  horas (6 por defecto) se muestra como `⚠️ sin terminar`: el servidor conserva
+  el «en curso» de un build que desapareció sin publicar su final
 - Sin pull requests se indica «Sin pull requests»; si la consulta falla, se
   indica el motivo (token rechazado, servidor inaccesible, repositorio no encontrado…).
   Un fallo de conexión o de credenciales no se repite en los repos siguientes
