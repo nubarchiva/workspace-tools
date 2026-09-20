@@ -189,7 +189,9 @@ wscd .            # raíz del workspace
 ## Características
 
 - **Aislamiento**: Cada workspace es independiente
-- **Aislamiento Maven**: Repositorio local (head) por workspace + `~/.m2` compartido como tail de solo lectura; los `mvn install` de sesiones paralelas no se pisan los SNAPSHOT (requiere Maven 3.9+)
+- **Aislamiento Maven**: Repositorio local (head) por workspace + `~/.m2` compartido como tail de solo lectura; los `mvn install` de sesiones paralelas no se pisan los SNAPSHOT (requiere Maven 3.9+).
+  Los clones de la raíz —los que están en `develop`/`main`— **no llevan repositorio propio: son los dueños de `~/.m2`**, que es la cola que leen todos los workspaces. Que no tengan `.mvn/maven.config` es el diseño, no un descuido.
+  El fichero `.mvn/maven.config` de cada workspace **no se versiona**: lleva rutas absolutas, y lo escribe `ws-new`/`ws-add` al crear el workspace.
 - **Eficiencia**: Worktrees no duplican el repo completo
 - **Multi-repo**: Opera en todos los repos con un comando
 - **Búsqueda parcial**: `ws cd feat` encuentra `feature-123`
