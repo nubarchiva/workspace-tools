@@ -62,6 +62,10 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Aviso si el Maven instalado es < 3.9 (sin `maven.repo.local.tail` se re-descargan dependencias al head)
 
 ### Corregido
+- **No se detectaba el workspace al entrar por un symlink** - Dentro de un workspace al que se había llegado por un symlink a la raíz (`~/wrkspc/workspaces/<nombre>` con `~/wrkspc` → `Documents/wrkspc.nubarchiva`), `ws status` respondía «No estás dentro de un workspace». Afectaba a todos los comandos que detectan el workspace por el directorio actual: `ws status`, `ws git`, `ws mvn`, `ws add`, `ws remove`, `ws switch`, `ws update`, `ws repo-path` y `mgmt`
+  - Causa: `detect_current_workspace()` comparaba como texto la ruta del directorio actual, con el symlink, con `WORKSPACES_DIR`, que es la ruta física
+  - Si la ruta tal como se ha escrito no coincide, se comparan las dos rutas físicas. Se sigue detectando un workspace que sea él mismo un symlink
+  - Los tests de `detect_current_workspace()`, que estaban desactivados, se ejecutan ahora y cubren estos casos
 - **La CI de macOS perdía pruebas por los nombres con tildes** - Llevaba en rojo desde el 5 de septiembre. El trabajo de macOS terminaba con «unknown test name» en las pruebas cuyo nombre contiene una `í` (9 en la última ejecución), sin llegar a ejecutarlas
   - Causa: `bats_encode_test_name` recorre el nombre carácter a carácter, y la bash 3.2 que trae macOS no trata bien los caracteres multibyte cuando el idioma es UTF-8, que es la configuración del ejecutor de GitHub. Con la misma bash en configuración regional `C`, o con bash 5, no ocurre
   - El workflow instala ahora también `bash` en macOS y lo antepone al `PATH`, y muestra la versión de bash y el idioma antes de ejecutar las pruebas

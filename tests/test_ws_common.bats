@@ -242,24 +242,66 @@ teardown() {
 
 @test "detect_current_workspace: inside workspace returns name" {
     mkdir -p "$TEST_WORKSPACES_DIR/mi-workspace/repo"
-
-    # La funcion detect_current_workspace usa WS_TOOLS para calcular la ruta
-    # Necesitamos ajustar el entorno para que funcione en test
-    # Por ahora verificamos que la funcion existe y es callable
     cd "$TEST_WORKSPACES_DIR/mi-workspace/repo"
 
-    # Llamar con el WORKSPACES_DIR correcto (la funcion lee de variable global)
-    # Nota: esta funcion tiene dependencia de WS_TOOLS que complica el test
-    # La marcamos como skip temporal
-    skip "Requiere refactoring de detect_current_workspace para ser testeable"
+    run detect_current_workspace
+
+    [ "$status" -eq 0 ]
+    [ "$output" = "mi-workspace" ]
 }
 
 @test "detect_current_workspace: outside workspaces returns empty" {
-    skip "Requiere refactoring de detect_current_workspace para ser testeable"
+    mkdir -p "$TEST_TEMP_DIR/fuera"
+    cd "$TEST_TEMP_DIR/fuera"
+
+    run detect_current_workspace
+
+    [ "$status" -eq 1 ]
+    [ -z "$output" ]
 }
 
 @test "detect_current_workspace: in deep subdirectory detects workspace" {
-    skip "Requiere refactoring de detect_current_workspace para ser testeable"
+    mkdir -p "$TEST_WORKSPACES_DIR/mi-workspace/libs/lib-a/src/main"
+    cd "$TEST_WORKSPACES_DIR/mi-workspace/libs/lib-a/src/main"
+
+    run detect_current_workspace
+
+    [ "$status" -eq 0 ]
+    [ "$output" = "mi-workspace" ]
+}
+
+@test "detect_current_workspace: entering through a symlink to the root detects workspace" {
+    mkdir -p "$TEST_WORKSPACES_DIR/mi-workspace/repo"
+    ln -s "$TEST_WORKSPACE_ROOT" "$TEST_TEMP_DIR/atajo"
+    cd "$TEST_TEMP_DIR/atajo/workspaces/mi-workspace/repo"
+
+    run detect_current_workspace
+
+    [ "$status" -eq 0 ]
+    [ "$output" = "mi-workspace" ]
+}
+
+@test "detect_current_workspace: WORKSPACES_DIR through a symlink detects workspace" {
+    mkdir -p "$TEST_WORKSPACES_DIR/mi-workspace/repo"
+    ln -s "$TEST_WORKSPACE_ROOT" "$TEST_TEMP_DIR/atajo"
+    export WORKSPACES_DIR="$TEST_TEMP_DIR/atajo/workspaces"
+    cd -P "$TEST_WORKSPACES_DIR/mi-workspace/repo"
+
+    run detect_current_workspace
+
+    [ "$status" -eq 0 ]
+    [ "$output" = "mi-workspace" ]
+}
+
+@test "detect_current_workspace: workspace that is itself a symlink is detected" {
+    mkdir -p "$TEST_TEMP_DIR/externo/repo"
+    ln -s "$TEST_TEMP_DIR/externo" "$TEST_WORKSPACES_DIR/mi-workspace"
+    cd "$TEST_WORKSPACES_DIR/mi-workspace/repo"
+
+    run detect_current_workspace
+
+    [ "$status" -eq 0 ]
+    [ "$output" = "mi-workspace" ]
 }
 
 # =============================================================================

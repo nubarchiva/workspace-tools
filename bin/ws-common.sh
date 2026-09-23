@@ -314,17 +314,27 @@ detect_current_workspace() {
         workspaces_dir=~/projects/workspaces
     fi
 
-    # Verificar si estamos dentro de un workspace
     # Los workspaces están en $workspaces_dir/<nombre>/...
-    if [[ "$current_dir" == "$workspaces_dir"/* ]]; then
-        # Extraer el nombre del workspace (primer nivel después de workspaces/)
-        local workspace_name="${current_dir#$workspaces_dir/}"
-        workspace_name="${workspace_name%%/*}"
-        echo "$workspace_name"
-        return 0
-    fi
+    # Se compara primero la ruta tal como se ha escrito y después la física, de
+    # modo que se detecta el workspace tanto si se entra por un symlink a la raíz
+    # como si el propio workspace es un symlink
+    _workspace_name_under "$current_dir" "$workspaces_dir" && return 0
 
-    return 1
+    local physical_workspaces_dir
+    physical_workspaces_dir=$(_physical_path "$workspaces_dir") || return 1
+    _workspace_name_under "$(pwd -P)" "$physical_workspaces_dir"
+}
+
+# Nombre del workspace que contiene un directorio: el primer nivel bajo el
+# directorio de workspaces
+# Uso interno: _workspace_name_under <dir> <workspaces_dir>
+_workspace_name_under() {
+    local dir="$1" workspaces_dir="$2"
+
+    [[ "$dir" == "$workspaces_dir"/* ]] || return 1
+
+    local workspace_name="${dir#"$workspaces_dir"/}"
+    echo "${workspace_name%%/*}"
 }
 
 # =============================================================================
