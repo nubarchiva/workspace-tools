@@ -64,12 +64,7 @@ teardown() {
     [[ "$output" == *"ws info"* ]]
 }
 
-# Nota: El test de auto-deteccion dentro de workspace requiere
-# simular estar dentro de un workspace, lo cual es complejo con el
-# helper actual. Se marca como skip por ahora.
 @test "ws-info: auto-detects workspace from inside" {
-    skip "Requiere refactoring de detect_current_workspace para ser testeable"
-
     mkdir -p "$TEST_WORKSPACES_DIR/auto-detect"
     create_test_repo "repo-auto"
 
@@ -77,9 +72,9 @@ teardown() {
     git worktree add "$TEST_WORKSPACES_DIR/auto-detect/repo-auto" -b feature/auto-detect 2>/dev/null || true
     cd - > /dev/null
 
-    # Simular estar dentro del workspace
+    # run_ws se ejecuta desde bin/: aquí hay que invocar ws desde el workspace
     cd "$TEST_WORKSPACES_DIR/auto-detect"
-    run run_ws info
+    run "$WS_TOOLS_ROOT/bin/ws" info
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Workspace detectado"* ]]
