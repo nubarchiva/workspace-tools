@@ -7,6 +7,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Cambiado
+- **`ws cd` ya no consulta el estado de los repos** - Tardaba varios segundos porque calculaba el estado de cada repo, con fetch incluido, y después descartaba esa salida
+  - `ws cd <workspace>` y `ws switch <workspace>` solo cambian de directorio, avisan de los repositorios de entorno y listan los repos
+  - `--status` / `-s` muestra además el estado de cada repo, que antes no llegaba a verse
+  - El autocompletado de bash y zsh ofrece la opción
+
 ### Añadido
 - **`wscd` fuera de un workspace** - Fuera de un workspace, `wscd <patrón>` respondía «No estás dentro de un workspace» sin decir cómo entrar en uno
   - Si el patrón coincide con algún workspace, hace lo mismo que `ws cd <patrón>`: `wscd solr` desde el directorio personal entra en el workspace que contiene «solr»

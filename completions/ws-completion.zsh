@@ -121,7 +121,12 @@ _ws() {
                         'options:options:((--template\:"-t Usar template" -t\:"Usar template" --bootstrap\:"-b Poblar repositorio Maven del workspace" -b\:"Poblar repositorio Maven del workspace"))' \
                         'name:workspace name:'
                     ;;
-                add|a|switch|cd|sw|remove|status|st|here|.|rename|mv|info)
+                switch|cd|sw)
+                    _alternative \
+                        'workspaces:workspace:_get_workspaces' \
+                        'options:options:((--status\:"-s Mostrar el estado de los repos" -s\:"Mostrar el estado de los repos"))'
+                    ;;
+                add|a|remove|status|st|here|.|rename|mv|info)
                     _get_workspaces
                     ;;
                 clean|rm|del)

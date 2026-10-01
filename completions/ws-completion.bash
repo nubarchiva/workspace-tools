@@ -81,7 +81,12 @@ _ws_completion() {
                     # Sugerir master/develop o --template
                     COMPREPLY=($(compgen -W "master develop --template -t --bootstrap -b" -- "$cur"))
                     ;;
-                add|a|switch|cd|sw|remove|status|st|.|here|rename|mv|info)
+                switch|cd|sw)
+                    # Workspace o --status
+                    local workspaces=$(_get_workspaces)
+                    COMPREPLY=($(compgen -W "$workspaces --status -s" -- "$cur"))
+                    ;;
+                add|a|remove|status|st|.|here|rename|mv|info)
                     # Completar nombre de workspace existente
                     local workspaces=$(_get_workspaces)
                     COMPREPLY=($(compgen -W "$workspaces" -- "$cur"))

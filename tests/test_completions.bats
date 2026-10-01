@@ -112,6 +112,11 @@ assert_offers() {
     assert_offers "$output" --force -f feat
 }
 
+@test "bash: ws cd ofrece --status" {
+    run bash_complete cd ""
+    assert_offers "$output" --status -s feat
+}
+
 @test "bash: ws grep ofrece --count" {
     run bash_complete grep patron ""
     assert_offers "$output" -c
@@ -151,7 +156,7 @@ assert_offers() {
 
 @test "zsh: main se describe como rama de integración" {
     require_zsh
-    run zsh_complete switch ""
+    run zsh_complete info ""
     assert_offers "$output" "main"
     [[ "$output" == *"main:branch main"* ]]
 }
@@ -184,6 +189,12 @@ assert_offers() {
     require_zsh
     run zsh_complete clean ""
     assert_offers "$output" --force -f
+}
+
+@test "zsh: ws cd ofrece --status" {
+    require_zsh
+    run zsh_complete cd ""
+    assert_offers "$output" --status -s
 }
 
 @test "zsh: ws grep ofrece --count, -w y -E" {

@@ -43,12 +43,12 @@ GESTIÓN DE WORKSPACES:
         ws ls 8089                     # solo los que contienen "8089"
         ws ls NUBA                     # solo los que contienen "NUBA"
 
-  switch <workspace> (cd)
-      Muestra información del workspace
-      Con 'ws cd' cambia automáticamente al directorio
+  switch <workspace> [--status|-s] (cd)
+      Cambia al directorio del workspace
+      Con --status muestra además el estado de los repos
       Ejemplos:
-        ws switch feature-123
         ws cd feature-123              # cambia al directorio
+        ws cd feature-123 --status     # y muestra el estado de los repos
 
   rename <actual> <nuevo> (mv)
       Renombra un workspace (directorio + branches + worktrees)

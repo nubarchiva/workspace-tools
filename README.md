@@ -105,7 +105,7 @@ ws clean feature-123
 |---------|-------------|
 | `ws new <nombre> [repos...]` | Crear workspace |
 | `ws list` / `ws ls` | Listar workspaces |
-| `ws cd <nombre>` | Cambiar a workspace |
+| `ws cd <nombre> [--status]` | Cambiar a workspace (con `--status`, y ver el estado de sus repos) |
 | `ws .` / `ws status` | Estado del workspace actual |
 | `ws add <nombre> <repos...>` | Añadir repos |
 | `ws remove <nombre> <repos...>` | Quitar repos |

@@ -273,24 +273,26 @@ ws ls feature          # filtrar por "feature"
 
 ### ws switch / ws cd
 
-Muestra información del workspace y opcionalmente cambia de directorio.
+Cambia al directorio del workspace (requiere `setup.sh`). Son el mismo comando.
 
 ```bash
-ws switch <workspace>
-ws cd <workspace>
+ws cd <workspace> [--status|-s]
+ws switch <workspace> [--status|-s]
 ```
 
-**Diferencia:**
-- `ws switch`: Solo muestra información
-- `ws cd`: Muestra información Y cambia al directorio (requiere setup.sh)
+**Comportamiento:**
+- Sin opciones: cambia al directorio y lista sus repos, sin consultar su estado
+- `--status` / `-s`: muestra además el estado de cada repo (rama, cambios y sincronización con el remoto). Es más lento: consulta el remoto de cada repo
 
 Los dos avisan en una línea si algún repositorio de entorno va por detrás de su
 remoto o no se ha podido comprobar (ver [ws env](#ws-env)).
 
+Sin `setup.sh` cargado, `ws switch <workspace>` solo muestra el estado de los repos.
+
 **Ejemplos:**
 ```bash
-ws switch feature-123
 ws cd feat              # búsqueda parcial
+ws cd feat --status     # y estado de los repos
 ```
 
 ---

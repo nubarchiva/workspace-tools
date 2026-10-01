@@ -13,9 +13,19 @@ ws() {
 
     local ws_bin="$WS_TOOLS/bin/ws"
 
-    # Si es 'cd' o 'switch', intentar cambiar directorio
+    # Si es 'cd' o 'switch', cambiar de directorio; con --status/-s, mostrar además
+    # el estado de los repos
     if [ "$1" = "cd" ] || [ "$1" = "switch" ]; then
-        local workspace_pattern="$2"
+        shift
+        local workspace_pattern=""
+        local show_status=false
+        local arg
+        for arg in "$@"; do
+            case "$arg" in
+                --status|-s) show_status=true ;;
+                *) [ -z "$workspace_pattern" ] && workspace_pattern="$arg" ;;
+            esac
+        done
 
         # Si no hay patrón y es switch, solo mostrar lista
         if [ -z "$workspace_pattern" ]; then
@@ -48,17 +58,6 @@ ws() {
         # porque es donde el usuario entra al workspace y donde se ve el aviso
         management_migrate_on_start "$WORKSPACES_DIR/$workspace_name"
 
-        # Ahora ejecutar ws-switch con el nombre exacto y capturar output
-        local switch_output
-        switch_output=$(WS_ENV_NO_WARN=1 "$WS_TOOLS/bin/ws-switch" "$workspace_name" 2>&1)
-        local exit_code=$?
-
-        if [ $exit_code -ne 0 ]; then
-            echo "$switch_output"
-            return $exit_code
-        fi
-
-        # Extraer la ruta del workspace del output
         local workspace_path="$WORKSPACES_DIR/$workspace_name"
 
         if [ -d "$workspace_path" ]; then
@@ -70,8 +69,7 @@ ws() {
             echo "📁 $workspace_path"
             echo ""
 
-            # Aviso de repositorios de entorno desactualizados o sin comprobar: aquí,
-            # porque la salida de ws-switch se descarta cuando todo va bien
+            # Aviso de repositorios de entorno desactualizados o sin comprobar
             local env_warning
             env_warning=$("$WS_TOOLS/bin/ws-env" --warn 2>/dev/null)
             if [ -n "$env_warning" ]; then
@@ -79,7 +77,12 @@ ws() {
                 echo ""
             fi
 
-            # Mostrar lista de repos si los hay
+            # Con --status, el estado de cada repo; si no, solo la lista de repos
+            if $show_status; then
+                WS_ENV_NO_WARN=1 "$WS_TOOLS/bin/ws-switch" "$workspace_name"
+                return $?
+            fi
+
             local repos=$(find_repos_in_workspace "$workspace_path" 2>/dev/null)
             if [ -n "$repos" ]; then
                 echo "📦 Repos:"
