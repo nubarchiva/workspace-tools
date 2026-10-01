@@ -46,6 +46,24 @@ validate_workspace_name() {
     return 0
 }
 
+# Workspaces cuyo nombre contiene el patrón, sin distinguir mayúsculas, uno por línea
+# Uso: matching_workspaces <patron> <workspaces_dir>
+matching_workspaces() {
+    local pattern_lower=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+    local workspaces_dir=$2
+
+    [ -d "$workspaces_dir" ] || return 0
+
+    local workspace_dir workspace_name workspace_lower
+    while IFS= read -r workspace_dir; do
+        workspace_name=$(basename "$workspace_dir")
+        workspace_lower=$(echo "$workspace_name" | tr '[:upper:]' '[:lower:]')
+        if [[ "$workspace_lower" == *"$pattern_lower"* ]]; then
+            echo "$workspace_name"
+        fi
+    done < <(find "$workspaces_dir" -maxdepth 1 -type d -not -path "$workspaces_dir")
+}
+
 # Función para encontrar workspaces que coincidan con un patrón (búsqueda parcial)
 # Uso: find_matching_workspace <patron> <workspaces_dir>
 # Retorna: nombre exacto del workspace encontrado
@@ -68,17 +86,9 @@ find_matching_workspace() {
 
     # Buscar todos los workspaces que contengan el patrón
     local matches=()
-    while IFS= read -r workspace_dir; do
-        if [ -d "$workspace_dir" ]; then
-            local workspace_name=$(basename "$workspace_dir")
-            # Búsqueda case-insensitive (compatible con bash y zsh)
-            local workspace_lower=$(echo "$workspace_name" | tr '[:upper:]' '[:lower:]')
-            local pattern_lower=$(echo "$pattern" | tr '[:upper:]' '[:lower:]')
-            if [[ "$workspace_lower" == *"$pattern_lower"* ]]; then
-                matches+=("$workspace_name")
-            fi
-        fi
-    done < <(find "$workspaces_dir" -maxdepth 1 -type d -not -path "$workspaces_dir")
+    while IFS= read -r workspace_name; do
+        [ -n "$workspace_name" ] && matches+=("$workspace_name")
+    done < <(matching_workspaces "$pattern" "$workspaces_dir")
 
     # Analizar resultados
     local num_matches=${#matches[@]}

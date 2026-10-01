@@ -8,6 +8,11 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Añadido
+- **`wscd` fuera de un workspace** - Fuera de un workspace, `wscd <patrón>` respondía «No estás dentro de un workspace» sin decir cómo entrar en uno
+  - Si el patrón coincide con algún workspace, hace lo mismo que `ws cd <patrón>`: `wscd solr` desde el directorio personal entra en el workspace que contiene «solr»
+  - Si no coincide con ninguno, o no hay patrón, indica que se use `ws cd <nombre>` y lista los workspaces disponibles
+  - Dentro de un workspace, `wscd` sigue navegando entre sus repos
+  - Nuevo `matching_workspaces()` en `ws-common.sh`: el criterio de coincidencia de `find_matching_workspace()`, sin el menú, para compartirlo
 - **Pull requests en `ws status`** - El estado de un workspace no decía si sus ramas ya tenían pull request ni en qué situación estaba: había que ir al servidor repo a repo
   - Cada repo que esté en la rama del workspace muestra el pull request más reciente cuyo origen es esa rama, en cualquier estado: número, estado, rama destino y enlace
   - Servidor Bitbucket Server / Data Center declarado en `~/.wsrc` con `WS_BITBUCKET_URL` y `WS_BITBUCKET_TOKEN`. Sin ellos no se consulta nada. `WS_BITBUCKET_HOSTS` indica qué hosts de remoto git son de ese servidor (alias del mismo servidor) y `WS_BITBUCKET_TIMEOUT` el tiempo de espera (5 s)

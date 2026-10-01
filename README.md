@@ -174,6 +174,9 @@ ws new ticket-456 --template frontend
 wscd app          # ir a repo "app"
 wscd              # menú interactivo
 wscd .            # raíz del workspace
+
+# Fuera de un workspace, wscd entra en el que coincida (como ws cd)
+wscd solr         # entrar en el workspace que contiene "solr"
 ```
 
 ## Shortcuts

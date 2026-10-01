@@ -134,11 +134,18 @@ wstash() { ws stash "$@"; }
 wgrep() { ws grep "$@"; }
 
 # Navigation shortcuts para workspaces
-# wscd: Navega a un repo dentro del workspace actual con matching parcial
+# wscd: Navega a un repo dentro del workspace actual con matching parcial; fuera de
+# un workspace, entra en el workspace que coincida (como ws cd)
 wscd() {
     local repo_path
     repo_path=$("$WS_TOOLS/bin/ws-repo-path" "$@" 2>&1)
     local exit_code=$?
+
+    # Fuera de un workspace, un patrón que coincide con un workspace entra en él
+    if [ $exit_code -eq 3 ]; then
+        ws cd "$1"
+        return $?
+    fi
 
     if [ $exit_code -eq 0 ] && [ -n "$repo_path" ]; then
         cd "$repo_path" || return 1

@@ -4,15 +4,34 @@
 # Inicializacion centralizada
 source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
 
-# Detectar workspace actual
+# Código de salida con el que se pide a wscd que entre en el workspace con ws cd
+EXIT_ENTER_WORKSPACE=3
+
+PATTERN=$1
+
+# Fuera de un workspace, el patrón designa un workspace
 WORKSPACE_NAME=$(detect_current_workspace 2>/dev/null || true)
 if [ -z "$WORKSPACE_NAME" ]; then
+    if [ -n "$PATTERN" ] && [ "$PATTERN" != "." ] && [ "$PATTERN" != ".." ] \
+        && [ -n "$(matching_workspaces "$PATTERN" "$WORKSPACES_DIR")" ]; then
+        exit $EXIT_ENTER_WORKSPACE
+    fi
+
     echo "❌ No estás dentro de un workspace" >&2
+    if [ -n "$PATTERN" ] && [ "$PATTERN" != "." ] && [ "$PATTERN" != ".." ]; then
+        echo "   y '$PATTERN' no coincide con ningún workspace" >&2
+    fi
+    echo "" >&2
+    echo "💡 Para entrar en un workspace: ws cd <nombre>" >&2
+    echo "" >&2
+    echo "Workspaces disponibles:" >&2
+    for workspace_dir in "$WORKSPACES_DIR"/*; do
+        [ -d "$workspace_dir" ] && echo "  • ${COLOR_CYAN}$(basename "$workspace_dir")${COLOR_RESET}" >&2
+    done
     exit 1
 fi
 
 WORKSPACE_DIR="$WORKSPACES_DIR/$WORKSPACE_NAME"
-PATTERN=$1
 
 # Casos especiales: . y ..
 if [ "$PATTERN" = "." ]; then

@@ -878,17 +878,21 @@ ws mgmt-link --symlink                        # vuelta atrás
 
 ### wscd
 
-Navega entre repos del workspace actual.
+Navega entre repos del workspace actual. Fuera de un workspace, entra en el workspace que coincida.
 
 ```bash
 wscd [patrón]
 ```
 
-**Comportamiento:**
+**Comportamiento dentro de un workspace:**
 - Sin argumento: Menú interactivo
 - Con patrón: Busca repo que coincida (case-insensitive)
 - `.`: Raíz del workspace
 - `..`: Nivel arriba
+
+**Comportamiento fuera de un workspace:**
+- Con patrón que coincide con algún workspace: hace lo mismo que `ws cd <patrón>`
+- En otro caso: indica que se use `ws cd <nombre>` y lista los workspaces disponibles
 
 **Ejemplos:**
 ```bash
@@ -896,6 +900,7 @@ wscd                    # menú de repos
 wscd app                # ir a repo "app"
 wscd lib                # ir a repo que contiene "lib"
 wscd .                  # raíz del workspace
+wscd solr               # desde fuera: entrar en el workspace que contiene "solr"
 ```
 
 ---
