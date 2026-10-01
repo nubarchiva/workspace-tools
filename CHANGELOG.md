@@ -73,6 +73,9 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Aviso si el Maven instalado es < 3.9 (sin `maven.repo.local.tail` se re-descargan dependencias al head)
 
 ### Corregido
+- **`ws cd` buscaba los workspaces en otra carpeta que el resto de comandos** - Deducía la carpeta de workspaces de dónde está instalado workspace-tools, sin leer `WORKSPACE_ROOT` ni `WORKSPACES_DIR` del entorno o de `~/.wsrc`. Con los workspaces en otra carpeta, `ws status` los encontraba y `ws cd` no
+  - Resuelve ahora las carpetas igual que los demás comandos (`ws-init.sh`)
+  - Ya no sobrescribe `WORKSPACE_ROOT` ni `WORKSPACES_DIR` en la shell desde la que se invoca
 - **No se detectaba el workspace al entrar por un symlink** - Dentro de un workspace al que se había llegado por un symlink a la raíz (`~/wrkspc/workspaces/<nombre>` con `~/wrkspc` → `Documents/wrkspc.nubarchiva`), `ws status` respondía «No estás dentro de un workspace». Afectaba a todos los comandos que detectan el workspace por el directorio actual: `ws status`, `ws git`, `ws mvn`, `ws add`, `ws remove`, `ws switch`, `ws update`, `ws repo-path` y `mgmt`
   - Causa: `detect_current_workspace()` comparaba como texto la ruta del directorio actual, con el symlink, con `WORKSPACES_DIR`, que es la ruta física
   - Si la ruta tal como se ha escrito no coincide, se comparan las dos rutas físicas. Se sigue detectando un workspace que sea él mismo un symlink

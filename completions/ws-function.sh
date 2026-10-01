@@ -36,13 +36,13 @@ ws() {
         # Cargar funciones compartidas para resolver el workspace de forma interactiva
         source "$WS_TOOLS/bin/ws-common.sh"
 
-        # Detectar WORKSPACE_ROOT
-        if [ -n "$WS_TOOLS" ]; then
-            WORKSPACE_ROOT="${WS_TOOLS%/tools/workspace-tools}"
-        else
-            WORKSPACE_ROOT=~/projects
-        fi
-        WORKSPACES_DIR=$WORKSPACE_ROOT/workspaces
+        # Directorios resueltos como en el resto de comandos (ws-init.sh: entorno,
+        # ~/.wsrc, ubicación de workspace-tools). Son locales: la shell del usuario
+        # conserva los suyos
+        local ws_dirs
+        ws_dirs=$(bash -c 'source "$1/bin/ws-init.sh" >/dev/null 2>&1; printf "%s\n%s" "$WORKSPACE_ROOT" "$WORKSPACES_DIR"' _ "$WS_TOOLS")
+        local -x WORKSPACE_ROOT="${ws_dirs%%$'\n'*}"
+        local -x WORKSPACES_DIR="${ws_dirs#*$'\n'}"
 
         # Resolver el workspace (permite interacción si hay múltiples coincidencias)
         local workspace_name

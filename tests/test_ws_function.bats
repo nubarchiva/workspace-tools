@@ -1,9 +1,8 @@
 #!/usr/bin/env bats
 # Tests para la función ws() de completions/ws-function.sh: ws cd / ws switch
 #
-# ws() deriva el directorio de workspaces de WS_TOOLS, así que se monta una copia de
-# workspace-tools dentro del entorno de prueba con ws-switch sustituido por un doble
-# que deja constancia de su ejecución.
+# Se monta una copia de workspace-tools dentro del entorno de prueba con ws-switch
+# sustituido por un doble que deja constancia de su ejecución.
 
 load 'test_helper'
 
@@ -84,4 +83,55 @@ teardown() {
     [ "$status" -ne 0 ]
     [[ "$output" == *"No se encontró ningún workspace"* ]]
     [ "$(pwd)" = "$TEST_TEMP_DIR/home" ]
+}
+
+@test "ws cd: uses WORKSPACES_DIR from ~/.wsrc, not the WS_TOOLS location" {
+    mkdir -p "$TEST_TEMP_DIR/otros/otro-evolutivo"
+    echo "WORKSPACES_DIR=\"$TEST_TEMP_DIR/otros\"" > "$TEST_TEMP_DIR/wsrc"
+    export WS_CONFIG_FILE="$TEST_TEMP_DIR/wsrc"
+    unset WORKSPACES_DIR
+
+    local rc=0
+    ws cd otro > /dev/null || rc=$?
+
+    [ "$rc" -eq 0 ]
+    [ "$(pwd)" = "$TEST_TEMP_DIR/otros/otro-evolutivo" ]
+}
+
+@test "ws cd: uses WORKSPACES_DIR from the environment" {
+    mkdir -p "$TEST_TEMP_DIR/otros/otro-evolutivo"
+    export WORKSPACES_DIR="$TEST_TEMP_DIR/otros"
+
+    local rc=0
+    ws cd otro > /dev/null || rc=$?
+
+    [ "$rc" -eq 0 ]
+    [ "$(pwd)" = "$TEST_TEMP_DIR/otros/otro-evolutivo" ]
+}
+
+@test "ws cd: does not change WORKSPACE_ROOT or WORKSPACES_DIR in the shell" {
+    mkdir -p "$TEST_TEMP_DIR/raiz-propia"
+    export WORKSPACE_ROOT="$TEST_TEMP_DIR/raiz-propia"
+    local root_before="$WORKSPACE_ROOT"
+    local dir_before="$WORKSPACES_DIR"
+
+    local rc=0
+    ws cd solr > /dev/null || rc=$?
+
+    [ "$rc" -eq 0 ]
+    [ "$WORKSPACE_ROOT" = "$root_before" ]
+    [ "$WORKSPACES_DIR" = "$dir_before" ]
+}
+
+@test "ws cd: does not define WORKSPACE_ROOT or WORKSPACES_DIR in the shell" {
+    echo "WORKSPACES_DIR=\"$TEST_WORKSPACES_DIR\"" > "$TEST_TEMP_DIR/wsrc"
+    export WS_CONFIG_FILE="$TEST_TEMP_DIR/wsrc"
+    unset WORKSPACE_ROOT WORKSPACES_DIR
+
+    local rc=0
+    ws cd solr > /dev/null || rc=$?
+
+    [ "$rc" -eq 0 ]
+    [ -z "${WORKSPACE_ROOT+x}" ]
+    [ -z "${WORKSPACES_DIR+x}" ]
 }
