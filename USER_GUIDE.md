@@ -110,10 +110,13 @@ WS_BITBUCKET_BUILD_STALE_HOURS=6          # horas tras las que un build en curso
 
 ### Prioridad de Configuración
 
-1. Variables de entorno (para uso temporal)
-2. `~/.wsrc` (configuración permanente)
-3. Derivada de ubicación de scripts
-4. Fallback por defecto
+1. `~/.wsrc`: se carga después del entorno, así que lo que asigna manda sobre la misma variable exportada en la shell
+2. Variables de entorno: solo cuentan las que `~/.wsrc` no asigna
+3. `WORKSPACE_ROOT` sin definir: se deriva de la ubicación de workspace-tools si está en `<raíz>/tools/workspace-tools`; si no, `WS_DEFAULT_ROOT` y, en último término, `~/projects`
+4. `WORKSPACES_DIR` sin definir: `$WORKSPACE_ROOT/workspaces`
+
+Para que una variable exportada pueda sustituir a la de `~/.wsrc`, asígnala allí con un valor por defecto:
+`WORKSPACE_ROOT="${WORKSPACE_ROOT:-$HOME/mi-proyecto}"`.
 
 ### Archivo de Templates
 

@@ -73,6 +73,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Aviso si el Maven instalado es < 3.9 (sin `maven.repo.local.tail` se re-descargan dependencias al head)
 
 ### Corregido
+- **La guía invertía la prioridad entre el entorno y `~/.wsrc`** - Decía que una variable exportada manda sobre `~/.wsrc`, pero `~/.wsrc` se carga después y gana lo que asigna. `USER_GUIDE.md` describe ahora el orden real y cómo dejar que el entorno sustituya un valor (`VAR="${VAR:-valor}"`)
 - **`ws cd` buscaba los workspaces en otra carpeta que el resto de comandos** - Deducía la carpeta de workspaces de dónde está instalado workspace-tools, sin leer `WORKSPACE_ROOT` ni `WORKSPACES_DIR` del entorno o de `~/.wsrc`. Con los workspaces en otra carpeta, `ws status` los encontraba y `ws cd` no
   - Resuelve ahora las carpetas igual que los demás comandos (`ws-init.sh`)
   - Ya no sobrescribe `WORKSPACE_ROOT` ni `WORKSPACES_DIR` en la shell desde la que se invoca
