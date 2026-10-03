@@ -111,6 +111,7 @@ ws clean feature-123
 | `ws remove <nombre> <repos...>` | Quitar repos |
 | `ws rename <old> <new>` | Renombrar workspace |
 | `ws clean <nombre>` | Eliminar workspace |
+| `ws doctor [--fix] [--all]` | Diagnosticar y reparar workspaces |
 
 ### Operaciones Multi-Repo
 

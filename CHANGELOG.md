@@ -15,6 +15,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - El autocompletado de bash y zsh ofrece la opción
 
 ### Añadido
+- **`ws doctor`** - Diagnostica los problemas de un workspace y, con `--fix`, repara los que tienen arreglo seguro
+  - Aislamiento Maven: `.mvn/maven.config` ausente, apuntando a otro workspace o sin excluir de git (`--fix` lo regenera)
+  - Worktree desenlazado de su repo origen, como el que deja un workspace movido (`--fix` ejecuta `git worktree repair` con su ruta)
+  - Rama distinta de la del workspace o HEAD desacoplado, enlace roto a `nuba-management` y enlaces rotos de `AI.md`, `.ai` y `docs` (solo informa)
+  - `--all` revisa todos los workspaces y además los registros de worktree huérfanos de los repos origen (`--fix` los borra) y los repositorios Maven de `~/.m2/wt` sin workspace (solo informa)
+  - Termina con código 1 si queda algún problema
 - **`wscd` fuera de un workspace** - Fuera de un workspace, `wscd <patrón>` respondía «No estás dentro de un workspace» sin decir cómo entrar en uno
   - Si el patrón coincide con algún workspace, hace lo mismo que `ws cd <patrón>`: `wscd solr` desde el directorio personal entra en el workspace que contiene «solr»
   - Si no coincide con ninguno, o no hay patrón, indica que se use `ws cd <nombre>` y lista los workspaces disponibles

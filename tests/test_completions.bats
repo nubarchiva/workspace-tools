@@ -135,6 +135,11 @@ assert_offers() {
     assert_offers "$output" --help
 }
 
+@test "bash: ws doctor ofrece sus opciones" {
+    run bash_complete doctor ""
+    assert_offers "$output" --fix --all --help
+}
+
 # =============================================================================
 # zsh
 # =============================================================================
@@ -216,4 +221,10 @@ assert_offers() {
     require_zsh
     run zsh_complete mgmt-link ""
     assert_offers "$output" --help
+}
+
+@test "zsh: ws doctor ofrece sus opciones" {
+    require_zsh
+    run zsh_complete doctor ""
+    assert_offers "$output" --fix --all --help
 }

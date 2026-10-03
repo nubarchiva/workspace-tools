@@ -33,6 +33,7 @@ _ws() {
         'mode:Gestiona modo online/offline'
         'prune:Limpia ramas locales sin cambios'
         'mgmt-link:Régimen de acceso a nuba-management (worktree o symlink)'
+        'doctor:Diagnostica y repara problemas de los workspaces'
         'help:Muestra ayuda'
         'version:Muestra la versión instalada'
         # Aliases
@@ -200,6 +201,11 @@ _ws() {
                 mgmt-link)
                     _alternative \
                         'options:options:((--worktree\:"Migrar a árbol propio" --symlink\:"Vuelta atrás al árbol compartido" --force\:"No preguntar en la vuelta atrás" --help\:"Ayuda"))' \
+                        'workspaces:workspace:_get_workspaces'
+                    ;;
+                doctor)
+                    _alternative \
+                        'options:options:((--fix\:"Aplicar las reparaciones seguras" --all\:"Todos los workspaces y comprobaciones globales" --help\:"Ayuda"))' \
                         'workspaces:workspace:_get_workspaces'
                     ;;
             esac

@@ -187,6 +187,59 @@ find_repos_in_workspace() {
         sort
 }
 
+# Cargar lista de repos ignorados desde .wsignore
+# Formato: un repo por línea, comentarios con #, líneas vacías ignoradas
+load_wsignore() {
+    local wsignore_file="$WORKSPACE_ROOT/.wsignore"
+    WSIGNORE_PATTERNS=()
+
+    if [ -f "$wsignore_file" ]; then
+        while IFS= read -r line || [ -n "$line" ]; do
+            # Ignorar líneas vacías y comentarios
+            line=$(echo "$line" | sed 's/#.*//' | xargs)
+            if [ -n "$line" ]; then
+                WSIGNORE_PATTERNS+=("$line")
+            fi
+        done < "$wsignore_file"
+    fi
+}
+
+# Verificar si un repo está en la lista de ignorados
+is_repo_ignored() {
+    local repo_path="$1"
+
+    for pattern in "${WSIGNORE_PATTERNS[@]}"; do
+        # Coincidencia exacta o como prefijo
+        if [[ "$repo_path" == "$pattern" || "$repo_path" == "$pattern/"* ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Función para encontrar repos origen en WORKSPACE_ROOT
+# Excluye el directorio workspaces/ y repos en .wsignore
+find_origin_repos() {
+    local root_dir="$1"
+    local workspaces_dir="$2"
+
+    # Cargar .wsignore
+    load_wsignore
+
+    # Buscar .git hasta 3 niveles, excluyendo workspaces/
+    find "$root_dir" -maxdepth 4 -name ".git" -type d 2>/dev/null | \
+        grep -v "$workspaces_dir" | \
+        grep -v "/workspaces/" | \
+        sed "s|$root_dir/||" | \
+        sed 's|/.git||' | \
+        sort | \
+        while read -r repo; do
+            if ! is_repo_ignored "$repo"; then
+                echo "$repo"
+            fi
+        done
+}
+
 # Función para copiar configuraciones de IDE y AI assistants al workspace
 # Uso: copy_workspace_config <workspace_dir>
 # Directorio de referencia: usa CONFIG_REFERENCE_DIR si está definida, sino WORKSPACE_ROOT

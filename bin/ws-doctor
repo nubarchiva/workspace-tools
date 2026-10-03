@@ -1,0 +1,354 @@
+#!/bin/bash
+# Diagnostica, y con --fix repara, los problemas de los workspaces:
+# aislamiento Maven, enlace de cada worktree con su repo origen, rama,
+# acceso a nuba-management y enlaces de configuración
+
+# Inicializacion centralizada
+source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
+
+show_help() {
+    echo "Uso: ws doctor [--fix] [--all | workspace]"
+    echo ""
+    echo "Revisa un workspace y muestra sus problemas. Termina con código 1 si queda alguno."
+    echo ""
+    echo "Comprobaciones por workspace:"
+    echo "  • Cada repo con pom.xml tiene .mvn/maven.config apuntando al repositorio"
+    echo "    Maven de este workspace y excluido de git                      (--fix)"
+    echo "  • Cada worktree está enlazado con su repo origen en los dos sentidos (--fix)"
+    echo "  • Cada repo está en la rama del workspace (wt/<workspace> en nuba-management)"
+    echo "  • El acceso a nuba-management y los enlaces AI.md, .ai y docs no están rotos"
+    echo ""
+    echo "Comprobaciones globales (solo con --all):"
+    echo "  • Registros de worktree huérfanos en los repos origen              (--fix)"
+    echo "  • Repositorios Maven de workspace (~/.m2/wt) sin workspace"
+    echo ""
+    echo "Opciones:"
+    echo "  --fix        Aplica las reparaciones marcadas con (--fix); el resto solo se informa"
+    echo "  --all        Revisa todos los workspaces y añade las comprobaciones globales"
+    echo "  --help, -h   Muestra esta ayuda"
+    echo ""
+    echo "Sin workspace, usa el actual (auto-detecta)."
+    echo ""
+    echo "Ejemplos:"
+    echo "  ws doctor                  # revisa el workspace actual"
+    echo "  ws doctor --fix nuba-8926  # revisa y repara ese workspace"
+    echo "  ws doctor --all            # revisa todos los workspaces y el entorno"
+}
+
+FIX=false
+ALL=false
+WORKSPACE_PATTERN=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --fix)     FIX=true; shift ;;
+        --all)     ALL=true; shift ;;
+        --help|-h) show_help; exit 0 ;;
+        -*)        die "Opción desconocida: $1 (ver ws doctor --help)" ;;
+        *)         WORKSPACE_PATTERN="$1"; shift ;;
+    esac
+done
+
+if [ "$ALL" = true ] && [ -n "$WORKSPACE_PATTERN" ]; then
+    die "--all y un workspace concreto son incompatibles"
+fi
+
+PROBLEMS=0
+FIXED=0
+
+# Problema que queda sin reparar
+# Uso: report_problem <icono> <mensaje> [sugerencia]
+report_problem() {
+    PROBLEMS=$((PROBLEMS + 1))
+    if [ "$1" = "❌" ]; then
+        error "  ❌ $2"
+    else
+        warning "  ⚠️  $2"
+    fi
+    [ -n "$3" ] && echo "     ${COLOR_DIM}$3${COLOR_RESET}"
+}
+
+# Problema reparado con --fix
+report_fixed() {
+    FIXED=$((FIXED + 1))
+    success "  🔧 $1 (reparado)"
+}
+
+# Problema reparable: lo repara con --fix o lo informa
+# Uso: handle_fixable <mensaje> <comando de reparación...>
+handle_fixable() {
+    local message="$1"
+    shift
+
+    if [ "$FIX" = true ]; then
+        if "$@" >/dev/null 2>&1; then
+            report_fixed "$message"
+        else
+            report_problem "❌" "$message" "La reparación ha fallado"
+        fi
+    else
+        report_problem "❌" "$message" "Se repara con: ws doctor --fix"
+    fi
+}
+
+# Ruta absoluta de un gitdir que puede venir relativo a un directorio base
+# Uso: absolute_gitdir <ruta> <dir_base>
+absolute_gitdir() {
+    case "$1" in
+        /*) echo "$1" ;;
+        *)  echo "$2/$1" ;;
+    esac
+}
+
+# Directorio de administración (<origen>/.git/worktrees/<id>) al que apunta
+# el fichero .git de un worktree; vacío si no es un worktree
+worktree_admin_dir() {
+    local worktree="$1"
+    [ -f "$worktree/.git" ] || return 0
+
+    local gitdir
+    gitdir=$(sed -n 's/^gitdir: //p' "$worktree/.git")
+    [ -n "$gitdir" ] && absolute_gitdir "$gitdir" "$worktree"
+}
+
+# Indica si dos rutas designan el mismo fichero o directorio existente
+same_path() {
+    [ -e "$1" ] && [ -e "$2" ] || return 1
+    [ "$(_physical_path "$(dirname "$1")")/$(basename "$1")" = \
+      "$(_physical_path "$(dirname "$2")")/$(basename "$2")" ]
+}
+
+# Contenido esperado de .mvn/maven.config en un workspace
+expected_maven_config() {
+    printf '%s\n%s' "-Dmaven.repo.local=$(maven_head_repo "$1")" \
+        "-Dmaven.repo.local.tail=$(maven_tail_repo)"
+}
+
+# Comprueba el enlace del worktree con su repo origen en los dos sentidos
+check_worktree_link() {
+    local repo="$1"
+    local worktree="$2"
+
+    if [ -d "$worktree/.git" ]; then
+        report_problem "⚠️" "$repo: es un clon independiente, no un worktree del repo origen"
+        return
+    fi
+
+    local admin
+    admin=$(worktree_admin_dir "$worktree")
+    if [ -z "$admin" ] || [ ! -d "$admin" ]; then
+        report_problem "❌" "$repo: el registro del worktree no existe en el repo origen" \
+            "Aparta el directorio y vuelve a añadirlo con: ws add $WORKSPACE_NAME $repo"
+        return
+    fi
+
+    local backlink
+    backlink=$(absolute_gitdir "$(cat "$admin/gitdir" 2>/dev/null)" "$admin")
+    if ! same_path "$backlink" "$worktree/.git"; then
+        local origin
+        origin=$(dirname "$(dirname "$(dirname "$admin")")")
+        handle_fixable "$repo: worktree desenlazado (el repo origen lo registra en otra ruta)" \
+            git -C "$origin" worktree repair "$worktree"
+    fi
+}
+
+# Comprueba que el repo está en la rama que le corresponde al workspace
+check_branch() {
+    local repo="$1"
+    local worktree="$2"
+
+    local expected current
+    if [ "$repo" = "$MANAGEMENT_DIR_NAME" ]; then
+        expected=$(management_branch "$WORKSPACE_NAME")
+    else
+        expected=$(get_branch_name "$WORKSPACE_NAME")
+    fi
+
+    current=$(git -C "$worktree" branch --show-current 2>/dev/null)
+    if [ -z "$current" ]; then
+        report_problem "❌" "$repo: HEAD desacoplado (se esperaba la rama $expected)"
+    elif [ "$current" != "$expected" ]; then
+        report_problem "⚠️" "$repo: está en la rama $current (se esperaba $expected)"
+    fi
+}
+
+# Comprueba el aislamiento Maven de un repo
+check_maven() {
+    local repo="$1"
+    local worktree="$2"
+
+    maven_isolation_enabled || return 0
+    [ -f "$worktree/pom.xml" ] || return 0
+
+    local config="$worktree/.mvn/maven.config"
+    if [ ! -f "$config" ]; then
+        handle_fixable "$repo: falta .mvn/maven.config (escribe en el repositorio Maven compartido)" \
+            setup_maven_isolation "$worktree" "$WORKSPACE_NAME"
+        return
+    fi
+
+    if [ "$(cat "$config")" != "$(expected_maven_config "$WORKSPACE_NAME")" ]; then
+        handle_fixable "$repo: .mvn/maven.config no apunta al repositorio Maven de este workspace" \
+            setup_maven_isolation "$worktree" "$WORKSPACE_NAME"
+        return
+    fi
+
+    local exclude
+    exclude=$(cd "$worktree" && git rev-parse --git-path info/exclude 2>/dev/null)
+    if [ -n "$exclude" ] && ! (cd "$worktree" && grep -qxF '.mvn/maven.config' "$exclude" 2>/dev/null); then
+        handle_fixable "$repo: .mvn/maven.config no está en info/exclude (se puede commitear)" \
+            setup_maven_isolation "$worktree" "$WORKSPACE_NAME"
+    fi
+}
+
+# Comprueba el acceso a nuba-management y los enlaces de configuración
+check_workspace_links() {
+    local link="$WORKSPACE_DIR/$MANAGEMENT_DIR_NAME"
+    if [ "$(management_regime "$WORKSPACE_DIR")" = "compartido" ] && [ ! -e "$link" ]; then
+        report_problem "❌" "$MANAGEMENT_DIR_NAME: el enlace apunta a $(readlink "$link"), que no existe"
+    fi
+
+    local name
+    for name in AI.md .ai docs; do
+        if [ -L "$WORKSPACE_DIR/$name" ] && [ ! -e "$WORKSPACE_DIR/$name" ]; then
+            report_problem "⚠️" "$name: el enlace apunta a $(readlink "$WORKSPACE_DIR/$name"), que no existe"
+        fi
+    done
+}
+
+# Revisa un workspace (WORKSPACE_NAME y WORKSPACE_DIR definidos)
+check_workspace() {
+    local before=$((PROBLEMS + FIXED))
+
+    echo ""
+    echo "🩺 ${COLOR_BOLD}$WORKSPACE_NAME${COLOR_RESET}"
+
+    local repo worktree
+    while IFS= read -r repo; do
+        [ -z "$repo" ] && continue
+        worktree="$WORKSPACE_DIR/$repo"
+        check_worktree_link "$repo" "$worktree"
+        check_branch "$repo" "$worktree"
+        check_maven "$repo" "$worktree"
+    done <<< "$(find_repos_in_workspace "$WORKSPACE_DIR")"
+
+    check_workspace_links
+
+    if [ $((PROBLEMS + FIXED)) -eq "$before" ]; then
+        success "  ✅ Sin problemas"
+    fi
+}
+
+# Directorios de administración usados por los worktrees de todos los workspaces
+referenced_admin_dirs() {
+    local ws_dir repo admin
+    for ws_dir in "$WORKSPACES_DIR"/*/; do
+        while IFS= read -r repo; do
+            [ -z "$repo" ] && continue
+            admin=$(worktree_admin_dir "${ws_dir%/}/$repo")
+            [ -n "$admin" ] && [ -d "$admin" ] && _physical_path "$admin"
+        done <<< "$(find_repos_in_workspace "${ws_dir%/}")"
+    done
+}
+
+# Registros de worktree cuyo directorio ya no existe y que ningún workspace usa.
+# Un registro que sí usa un workspace (un worktree movido) se repara en la
+# revisión de ese workspace y nunca se borra.
+check_orphan_worktrees() {
+    local referenced="$1"
+    local origin admin backlink orphans blocked
+
+    echo ""
+    echo "🩺 ${COLOR_BOLD}Repos origen${COLOR_RESET}"
+
+    local before=$((PROBLEMS + FIXED))
+    while IFS= read -r origin; do
+        [ -z "$origin" ] && continue
+        orphans=0
+        blocked=false
+        for admin in "$WORKSPACE_ROOT/$origin/.git/worktrees"/*/; do
+            [ -d "$admin" ] || continue
+            admin="${admin%/}"
+            [ -f "$admin/locked" ] && continue
+            backlink=$(absolute_gitdir "$(cat "$admin/gitdir" 2>/dev/null)" "$admin")
+            [ -e "$backlink" ] && continue
+
+            if echo "$referenced" | grep -qxF "$(_physical_path "$admin")"; then
+                blocked=true
+            else
+                orphans=$((orphans + 1))
+            fi
+        done
+
+        [ "$orphans" -eq 0 ] && continue
+        local message="$origin: $orphans registro(s) de worktree huérfano(s)"
+        if [ "$blocked" = true ]; then
+            report_problem "⚠️" "$message" \
+                "No se borran: el repo tiene además worktrees movidos sin reparar (ws doctor --fix en su workspace)"
+        else
+            handle_fixable "$message" git -C "$WORKSPACE_ROOT/$origin" worktree prune
+        fi
+    done <<< "$(find_origin_repos "$WORKSPACE_ROOT" "$WORKSPACES_DIR")"
+
+    if [ $((PROBLEMS + FIXED)) -eq "$before" ]; then
+        success "  ✅ Sin problemas"
+    fi
+}
+
+# Repositorios Maven de workspace cuyo workspace ya no existe. No se borran:
+# pueden contener artefactos que alguien quiera conservar.
+check_orphan_maven_heads() {
+    local base="${WS_MAVEN_HEAD_BASE:-$HOME/.m2/wt}"
+    local head name
+
+    echo ""
+    echo "🩺 ${COLOR_BOLD}Repositorios Maven de workspace ($base)${COLOR_RESET}"
+
+    local before=$((PROBLEMS + FIXED))
+    for head in "$base"/*/; do
+        [ -d "$head" ] || continue
+        name=$(basename "$head")
+        if [ ! -d "$WORKSPACES_DIR/$name" ]; then
+            report_problem "⚠️" "$name: repositorio Maven sin workspace" \
+                "Si no lo necesitas: rm -rf $(maven_head_dir "$name")"
+        fi
+    done
+
+    if [ $((PROBLEMS + FIXED)) -eq "$before" ]; then
+        success "  ✅ Sin problemas"
+    fi
+}
+
+if [ "$ALL" = true ]; then
+    for WORKSPACE_DIR in "$WORKSPACES_DIR"/*/; do
+        [ -d "$WORKSPACE_DIR" ] || continue
+        WORKSPACE_DIR="${WORKSPACE_DIR%/}"
+        WORKSPACE_NAME=$(basename "$WORKSPACE_DIR")
+        check_workspace
+    done
+
+    # Tras las reparaciones de cada workspace: un worktree movido ya reparado
+    # deja de parecer huérfano
+    check_orphan_worktrees "$(referenced_admin_dirs)"
+    check_orphan_maven_heads
+else
+    resolve_workspace "$WORKSPACE_PATTERN" "ws doctor <workspace>"
+    check_workspace
+fi
+
+echo ""
+if [ "$PROBLEMS" -eq 0 ]; then
+    if [ "$FIXED" -gt 0 ]; then
+        success "✅ $FIXED problema(s) reparado(s); no queda ninguno"
+    else
+        success "✅ Sin problemas"
+    fi
+    exit 0
+fi
+
+if [ "$FIXED" -gt 0 ]; then
+    warning "⚠️  $FIXED problema(s) reparado(s); quedan $PROBLEMS"
+else
+    warning "⚠️  $PROBLEMS problema(s)"
+fi
+exit 1

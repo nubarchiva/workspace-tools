@@ -881,6 +881,47 @@ ws mgmt-link --symlink                        # vuelta atrás
 
 ---
 
+### ws doctor
+
+Revisa un workspace y muestra sus problemas. Termina con código 1 si queda alguno.
+
+```bash
+ws doctor [--fix] [--all | workspace]
+```
+
+Sin workspace, revisa el actual. Con `--fix` aplica las reparaciones seguras; el
+resto solo lo informa, con la sugerencia para resolverlo.
+
+| Comprobación | Con `--fix` |
+|---|---|
+| Cada repo con `pom.xml` tiene `.mvn/maven.config`, apunta al repositorio Maven de este workspace y está en `info/exclude` | Lo regenera |
+| El worktree y su repo origen se apuntan mutuamente | `git worktree repair <ruta>` |
+| El repo está en la rama del workspace (`wt/<workspace>` para `nuba-management`) | Solo informa |
+| HEAD desacoplado | Solo informa |
+| El enlace a `nuba-management` y los de `AI.md`, `.ai` y `docs` no están rotos | Solo informa |
+
+Con `--all` revisa todos los workspaces y añade dos comprobaciones globales:
+
+| Comprobación | Con `--fix` |
+|---|---|
+| Registros de worktree huérfanos en los repos origen | `git worktree prune` |
+| Repositorios Maven de `~/.m2/wt` (o `WS_MAVEN_HEAD_BASE`) sin workspace | Solo informa |
+
+Un worktree movido, por ejemplo al renombrar su workspace, sigue funcionando, pero
+su repo origen lo registra en la ruta antigua y lo trata como huérfano. Un
+`git worktree prune` borraría ese registro y dejaría el worktree inservible. Por
+eso `ws doctor --all --fix` repara primero cada workspace y solo después borra
+los registros huérfanos, y nunca borra uno que use algún workspace.
+
+**Ejemplos:**
+```bash
+ws doctor                                     # revisa el workspace actual
+ws doctor --fix nuba-8926                     # revisa y repara ese workspace
+ws doctor --all                               # revisa todos y el entorno
+```
+
+---
+
 ### wscd
 
 Navega entre repos del workspace actual. Fuera de un workspace, entra en el workspace que coincida.
@@ -950,6 +991,7 @@ Definidos en `setup.sh`:
 | `mv` | `rename` |
 | `.`, `here` | `status` |
 | `tpl` | `templates` |
+| `d` | `doctor` |
 | `h` | `help` |
 
 ### Expansión Automática

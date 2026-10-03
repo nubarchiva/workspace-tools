@@ -184,6 +184,16 @@ CONFIGURACIÓN:
         ws mgmt-link --worktree fea    # migra a árbol propio
         ws mgmt-link --symlink         # vuelta atrás
 
+  doctor [--fix] [--all | workspace]
+      Diagnostica los problemas de un workspace: aislamiento Maven, enlace
+      de los worktrees con su repo origen, rama y enlaces rotos. Con --all,
+      todos los workspaces más registros de worktree y repositorios Maven
+      huérfanos. --fix aplica solo las reparaciones seguras
+      Ejemplos:
+        ws doctor                      # revisa el workspace actual
+        ws doctor --fix fea            # revisa y repara ese workspace
+        ws doctor --all                # revisa todo
+
 CARACTERÍSTICAS:
 
   • Búsqueda parcial: usa parte del nombre (ej: ws cd fea)
@@ -220,7 +230,7 @@ fi
 # Función para expandir abreviaturas
 expand_abbreviation() {
     local abbrev=$1
-    local commands="new add remove switch list clean mvn git update stash grep templates status rename info origins env mode prune help"
+    local commands="new add remove switch list clean mvn git update stash grep templates status rename info origins env mode prune doctor help"
 
     # Aliases predefinidos
     case $abbrev in
@@ -266,7 +276,7 @@ fi
 
 # Mapear subcomandos a scripts
 case $SUBCOMMAND in
-    new|add|remove|switch|list|clean|mvn|git|update|stash|grep|templates|status|rename|info|origins|env|mode|prune|mgmt-link)
+    new|add|remove|switch|list|clean|mvn|git|update|stash|grep|templates|status|rename|info|origins|env|mode|prune|mgmt-link|doctor)
         SCRIPT_NAME="ws-$SUBCOMMAND"
         SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_NAME"
 
