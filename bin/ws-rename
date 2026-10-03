@@ -103,8 +103,8 @@ check_repos_status() {
         local status
         status=$(git_repo_status "$repo_path")
 
-        # Parsear resultado: "uncommitted:unpushed:has_upstream:branch:upstream"
-        IFS=':' read -r uncommitted unpushed repo_has_upstream branch upstream_branch <<< "$status"
+        # Parsear resultado: "uncommitted:unpushed:unpulled:has_upstream:branch:upstream"
+        IFS=':' read -r uncommitted unpushed unpulled repo_has_upstream branch upstream_branch <<< "$status"
 
         # Cambios sin commitear
         if [ "$uncommitted" -gt 0 ]; then

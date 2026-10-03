@@ -80,6 +80,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Aviso si el Maven instalado es < 3.9 (sin `maven.repo.local.tail` se re-descargan dependencias al head)
 
 ### Corregido
+- **`ws rename` avisaba de las ramas con seguimiento remoto según otro dato** - Leía cinco campos del estado de cada repo, que tiene seis: tomaba por «tiene upstream» el número de commits por traer del remoto y mostraba la rama local en lugar de la remota. Ahora avisa cuando la rama tiene upstream y lo nombra
 - **`ws mgmt-link` no admitía abreviatura** - Faltaba en la lista de expansión automática: `ws mg` respondía como comando desconocido. Ahora se expande a `mgmt-link`
 - **`ws remove` borraba la rama de integración** - En los workspaces `master`, `main` y `develop` eliminaba con `git branch -D` la rama local de ese nombre, con lo que tuviera sin publicar. Ahora solo borra la rama `feature/<workspace>`
 - **`ws add <workspace> nuba-management` lo montaba en la rama `feature/<workspace>`** - Lo trataba como un repo de código. Ahora recibe el mismo acceso que le da `ws new`: árbol propio en la rama `wt/<workspace>` o, si el clon no lo admite, symlink al clon compartido

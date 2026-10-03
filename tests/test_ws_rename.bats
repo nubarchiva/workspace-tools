@@ -106,3 +106,16 @@ add_management_worktree() {
         "$WS_TOOLS_ROOT/bin/ws-doctor" --all
     [ "$status" -eq 0 ]
 }
+
+@test "ws-rename: warns about a branch with remote tracking and names the remote branch" {
+    git init --quiet --bare "$TEST_TEMP_DIR/remote.git"
+    git -C "$TEST_WORKSPACES_DIR/viejo/repo-plain" remote add origin "$TEST_TEMP_DIR/remote.git"
+    git -C "$TEST_WORKSPACES_DIR/viejo/repo-plain" push --quiet -u origin feature/viejo
+
+    run bash -c "printf 'CONTINUAR\nRENOMBRAR\n' | env WORKSPACE_ROOT='$TEST_WORKSPACE_ROOT' \
+        WORKSPACES_DIR='$TEST_WORKSPACES_DIR' WS_TOOLS='$WS_TOOLS_ROOT' \
+        '$WS_TOOLS_ROOT/bin/ws-rename' viejo nuevo"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"repo-plain → origin/feature/viejo"* ]]
+    [ -d "$TEST_WORKSPACES_DIR/nuevo" ]
+}
