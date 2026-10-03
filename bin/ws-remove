@@ -24,7 +24,7 @@ show_help() {
     echo "  • Comprueba que no hay cambios sin commitear"
     echo "  • Comprueba que no hay commits sin pushear"
     echo "  • Pide confirmación antes de eliminar"
-    echo "  • Elimina el worktree y la branch local"
+    echo "  • Elimina el worktree y la branch local (master, main y develop se conservan)"
 }
 
 if [ -z "$1" ]; then
@@ -169,7 +169,11 @@ fi
 # Pedir confirmación
 echo "Esto eliminará:"
 echo "  • Los worktrees de estos repos"
-echo "  • Las branches locales ($BRANCH_NAME)"
+if is_branch_workspace "$WORKSPACE_NAME"; then
+    echo "  (la branch $BRANCH_NAME es de integración y se conserva)"
+else
+    echo "  • Las branches locales ($BRANCH_NAME)"
+fi
 echo ""
 read -p "¿Continuar? (s/N) " -n 1 -r
 echo
@@ -210,9 +214,13 @@ for repo_rel_path in "${repos_to_process[@]}"; do
             git worktree prune
         }
 
-        # Eliminar branch local
-        echo "  ${COLOR_DIM}🗑️  Eliminando branch local: $BRANCH_NAME${COLOR_RESET}"
-        git branch -D "$BRANCH_NAME" 2>/dev/null || echo "     ${COLOR_DIM}ℹ️  Branch ya eliminada o no existe${COLOR_RESET}"
+        # Eliminar branch local; la de integración se conserva
+        if is_branch_workspace "$WORKSPACE_NAME"; then
+            echo "  ${COLOR_DIM}ℹ️  Branch $BRANCH_NAME conservada (de integración)${COLOR_RESET}"
+        else
+            echo "  ${COLOR_DIM}🗑️  Eliminando branch local: $BRANCH_NAME${COLOR_RESET}"
+            git branch -D "$BRANCH_NAME" 2>/dev/null || echo "     ${COLOR_DIM}ℹ️  Branch ya eliminada o no existe${COLOR_RESET}"
+        fi
 
         success "  ✅ Eliminado"
     else

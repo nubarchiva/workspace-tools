@@ -239,6 +239,9 @@ Elimina repos de un workspace.
 ws remove <workspace> <repo1> [repo2...]
 ```
 
+Elimina el worktree de cada repo y su branch local `feature/<workspace>`. En los
+workspaces `master`, `main` y `develop` la branch es de integración y se conserva.
+
 **Verificaciones de seguridad:**
 - Advierte si hay cambios sin commitear
 - Advierte si hay commits sin pushear
