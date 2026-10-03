@@ -230,7 +230,7 @@ fi
 # Función para expandir abreviaturas
 expand_abbreviation() {
     local abbrev=$1
-    local commands="new add remove switch list clean mvn git update stash grep templates status rename info origins env mode prune doctor help"
+    local commands="new add remove switch list clean mvn git update stash grep templates status rename info origins env mode prune mgmt-link doctor help"
 
     # Aliases predefinidos
     case $abbrev in

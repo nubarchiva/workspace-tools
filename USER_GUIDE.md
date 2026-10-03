@@ -1001,6 +1001,7 @@ Definidos en `setup.sh`:
 | `.`, `here` | `status` |
 | `tpl` | `templates` |
 | `d` | `doctor` |
+| `mg` | `mgmt-link` |
 | `h` | `help` |
 
 ### Expansión Automática
