@@ -80,6 +80,11 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Aviso si el Maven instalado es < 3.9 (sin `maven.repo.local.tail` se re-descargan dependencias al head)
 
 ### Corregido
+- **`ws rename` dejaba el workspace renombrado a medias** - Tras renombrarlo, `ws doctor` encontraba varios problemas
+  - El repo origen seguía registrando cada worktree en la ruta antigua y lo daba por huérfano: `git worktree repair` se ejecutaba sin la ruta nueva, y así no repara un worktree movido. Un `git worktree prune` lo habría dejado inservible
+  - `.mvn/maven.config` seguía apuntando al repositorio Maven del nombre anterior. Ahora el repositorio Maven del workspace se mueve al nombre nuevo y se regenera la configuración de cada repo
+  - La rama `wt/<nombre>` de `nuba-management` no se renombraba
+  - `.claude/CLAUDE.md` conservaba el nombre y la ruta anteriores
 - **La guía invertía la prioridad entre el entorno y `~/.wsrc`** - Decía que una variable exportada manda sobre `~/.wsrc`, pero `~/.wsrc` se carga después y gana lo que asigna. `USER_GUIDE.md` describe ahora el orden real y cómo dejar que el entorno sustituya un valor (`VAR="${VAR:-valor}"`)
 - **`ws cd` buscaba los workspaces en otra carpeta que el resto de comandos** - Deducía la carpeta de workspaces de dónde está instalado workspace-tools, sin leer `WORKSPACE_ROOT` ni `WORKSPACES_DIR` del entorno o de `~/.wsrc`. Con los workspaces en otra carpeta, `ws status` los encontraba y `ws cd` no
   - Resuelve ahora las carpetas igual que los demás comandos (`ws-init.sh`)

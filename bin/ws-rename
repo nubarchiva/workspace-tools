@@ -1,5 +1,5 @@
 #!/bin/bash
-# Renombra un workspace (directorio + branches + worktrees)
+# Renombra un workspace (directorio, branches, worktrees, aislamiento Maven y .claude/CLAUDE.md)
 
 # Inicializacion centralizada
 source "$(dirname "${BASH_SOURCE[0]:-$0}")/ws-init.sh"
@@ -28,7 +28,8 @@ has_upstream=0
 show_help() {
     echo "Uso: ws rename <nombre-actual> <nombre-nuevo>"
     echo ""
-    echo "Renombra un workspace (directorio, branches locales, referencias de worktrees)."
+    echo "Renombra un workspace (directorio, branches locales, referencias de worktrees,"
+    echo "aislamiento Maven y .claude/CLAUDE.md)."
     echo ""
     echo "Verificaciones de seguridad:"
     echo "  • BLOQUEA si hay cambios sin commitear"
@@ -258,8 +259,10 @@ show_rename_summary() {
         [ -z "$repo_rel_path" ] && continue
         local current_branch
         current_branch=$(git_get_current_branch "$OLD_DIR/$repo_rel_path")
-        if [[ "$current_branch" == "feature/$OLD_NAME" ]] || [[ "$current_branch" == "$OLD_NAME" ]]; then
-            echo "  • ${COLOR_CYAN}$repo_rel_path${COLOR_RESET} (branch: $current_branch → feature/$NEW_NAME)"
+        local new_branch
+        new_branch=$(renamed_branch "$current_branch")
+        if [ -n "$new_branch" ]; then
+            echo "  • ${COLOR_CYAN}$repo_rel_path${COLOR_RESET} (branch: $current_branch → $new_branch)"
         else
             echo "  • ${COLOR_CYAN}$repo_rel_path${COLOR_RESET} (branch: $current_branch - sin cambios)"
         fi
@@ -274,6 +277,8 @@ show_rename_summary() {
     echo "  1. Renombrar directorio"
     echo "  2. Reparar referencias worktrees"
     echo "  3. Renombrar branches locales"
+    echo "  4. Actualizar el aislamiento Maven"
+    echo "  5. Regenerar .claude/CLAUDE.md"
     echo ""
 }
 
@@ -315,13 +320,23 @@ repair_worktrees() {
         local repo_main="$REPOS_DIR/$repo_rel_path"
 
         if [ -d "$repo_main/.git" ]; then
-            if (cd "$repo_main" && git worktree repair >/dev/null 2>&1); then
+            if git -C "$repo_main" worktree repair "$NEW_DIR/$repo_rel_path" >/dev/null 2>&1; then
                 success "   ✅ $repo_rel_path"
             else
                 warning "   ⚠️  $repo_rel_path (no se pudo reparar)"
             fi
         fi
     done
+}
+
+# Rama que corresponde tras el renombrado; vacío si la rama no es del workspace
+# Uso: renamed_branch <rama_actual>
+renamed_branch() {
+    case "$1" in
+        "feature/$OLD_NAME")              echo "feature/$NEW_NAME" ;;
+        "$(management_branch "$OLD_NAME")") management_branch "$NEW_NAME" ;;
+        "$OLD_NAME")                      echo "$NEW_NAME" ;;
+    esac
 }
 
 rename_branches() {
@@ -336,16 +351,10 @@ rename_branches() {
         local current_branch
         current_branch=$(git_get_current_branch "$repo_path")
 
-        if [[ "$current_branch" == "feature/$OLD_NAME" ]]; then
-            local new_branch="feature/$NEW_NAME"
-            if (cd "$repo_path" && git branch -m "$new_branch" >/dev/null 2>&1); then
-                success "   ✅ $repo_rel_path: $current_branch → $new_branch"
-            else
-                warning "   ⚠️  $repo_rel_path: no se pudo renombrar branch"
-            fi
-        elif [[ "$current_branch" == "$OLD_NAME" ]]; then
-            local new_branch="$NEW_NAME"
-            if (cd "$repo_path" && git branch -m "$new_branch" >/dev/null 2>&1); then
+        local new_branch
+        new_branch=$(renamed_branch "$current_branch")
+        if [ -n "$new_branch" ]; then
+            if git -C "$repo_path" branch -m "$new_branch" >/dev/null 2>&1; then
                 success "   ✅ $repo_rel_path: $current_branch → $new_branch"
             else
                 warning "   ⚠️  $repo_rel_path: no se pudo renombrar branch"
@@ -354,6 +363,47 @@ rename_branches() {
             info "   ℹ️  $repo_rel_path: branch '$current_branch' sin cambios"
         fi
     done
+}
+
+# Mueve el repositorio Maven del workspace al nombre nuevo y apunta a él el
+# .mvn/maven.config de cada repo. Si ya existe uno con el nombre nuevo, lo
+# conserva y deja el anterior donde estaba.
+update_maven_isolation() {
+    local repos="$1"
+
+    maven_isolation_enabled || return 0
+
+    echo ""
+    echo "4️⃣  Actualizando el aislamiento Maven..."
+
+    local old_head new_head
+    old_head=$(maven_head_dir "$OLD_NAME")
+    new_head=$(maven_head_dir "$NEW_NAME")
+    if [ -d "$old_head" ]; then
+        if [ -e "$new_head" ]; then
+            warning "   ⚠️  Ya existe $new_head: se usa ese y $old_head queda sin workspace"
+        elif mv "$old_head" "$new_head"; then
+            success "   ✅ Repositorio Maven: $old_head → $new_head"
+        else
+            warning "   ⚠️  No se pudo mover $old_head"
+        fi
+    fi
+
+    echo "$repos" | while IFS= read -r repo_rel_path; do
+        [ -z "$repo_rel_path" ] && continue
+        if setup_maven_isolation "$NEW_DIR/$repo_rel_path" "$NEW_NAME"; then
+            success "   ✅ $repo_rel_path: .mvn/maven.config"
+        fi
+    done
+}
+
+regenerate_claude_md() {
+    [ -f "$NEW_DIR/.claude/CLAUDE.md" ] || return 0
+
+    echo ""
+    echo "5️⃣  Regenerando .claude/CLAUDE.md..."
+    _generate_claude_md "$NEW_DIR" "$NEW_NAME" "${CONFIG_REFERENCE_DIR:-$WORKSPACE_ROOT}"
+    success "   ✅ .claude/CLAUDE.md"
 }
 
 show_post_rename_reminders() {
@@ -423,6 +473,8 @@ main() {
     rename_directory
     repair_worktrees "$repos"
     rename_branches "$repos"
+    update_maven_isolation "$repos"
+    regenerate_claude_md
 
     # Éxito
     echo ""

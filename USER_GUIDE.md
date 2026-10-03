@@ -385,8 +385,10 @@ ws mv <nombre-actual> <nombre-nuevo>
 
 **Acciones automáticas:**
 - Renombra directorio
-- Repara worktrees (`git worktree repair`)
-- Renombra branches locales
+- Repara worktrees (`git worktree repair <ruta nueva>`)
+- Renombra branches locales: `feature/<nombre>` y, en `nuba-management`, `wt/<nombre>`
+- Mueve el repositorio Maven del workspace (`~/.m2/wt/<nombre>`) y regenera el `.mvn/maven.config` de cada repo. Si ya existe uno con el nombre nuevo, lo usa y deja el anterior sin workspace
+- Regenera `.claude/CLAUDE.md` con el nombre y la ruta nuevos
 
 ---
 
@@ -907,7 +909,7 @@ Con `--all` revisa todos los workspaces y añade dos comprobaciones globales:
 | Registros de worktree huérfanos en los repos origen | `git worktree prune` |
 | Repositorios Maven de `~/.m2/wt` (o `WS_MAVEN_HEAD_BASE`) sin workspace | Solo informa |
 
-Un worktree movido, por ejemplo al renombrar su workspace, sigue funcionando, pero
+Un worktree movido sin `ws rename`, por ejemplo con `mv`, sigue funcionando, pero
 su repo origen lo registra en la ruta antigua y lo trata como huérfano. Un
 `git worktree prune` borraría ese registro y dejaría el worktree inservible. Por
 eso `ws doctor --all --fix` repara primero cada workspace y solo después borra
