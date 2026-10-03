@@ -80,6 +80,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Aviso si el Maven instalado es < 3.9 (sin `maven.repo.local.tail` se re-descargan dependencias al head)
 
 ### Corregido
+- **`ws add <workspace> nuba-management` lo montaba en la rama `feature/<workspace>`** - Lo trataba como un repo de código. Ahora recibe el mismo acceso que le da `ws new`: árbol propio en la rama `wt/<workspace>` o, si el clon no lo admite, symlink al clon compartido
 - **`ws rename` dejaba el workspace renombrado a medias** - Tras renombrarlo, `ws doctor` encontraba varios problemas
   - El repo origen seguía registrando cada worktree en la ruta antigua y lo daba por huérfano: `git worktree repair` se ejecutaba sin la ruta nueva, y así no repara un worktree movido. Un `git worktree prune` lo habría dejado inservible
   - `.mvn/maven.config` seguía apuntando al repositorio Maven del nombre anterior. Ahora el repositorio Maven del workspace se mueve al nombre nuevo y se regenera la configuración de cada repo

@@ -115,6 +115,14 @@ for REPO in "${REPOS[@]}"; do
         continue
     fi
 
+    # nuba-management no sigue la rama del workspace: tiene su propio régimen de acceso
+    if [ "$REPO" = "$MANAGEMENT_DIR_NAME" ]; then
+        info "➕ Añadiendo ${COLOR_CYAN}$REPO${COLOR_RESET} a workspace ${COLOR_BOLD}$WORKSPACE_NAME${COLOR_RESET}"
+        setup_management_access "$WORKSPACE_DIR" "${CONFIG_REFERENCE_DIR:-$WORKSPACE_ROOT}"
+        echo ""
+        continue
+    fi
+
     info "➕ Añadiendo ${COLOR_CYAN}$REPO${COLOR_RESET} a workspace ${COLOR_BOLD}$WORKSPACE_NAME${COLOR_RESET} (branch: ${COLOR_CYAN}$BRANCH_NAME${COLOR_RESET})"
 
     # Crear estructura de subdirectorios si es necesario

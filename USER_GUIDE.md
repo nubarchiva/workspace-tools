@@ -219,6 +219,10 @@ ws add <workspace> <repo1> [repo2...]
 (`ws mvn <workspace> install -DskipTests -DskipITs -nsu`) para que los GAV del repo
 añadido no se lean del tail compartido.
 
+**nuba-management:** no se añade en la rama del workspace. Recibe el mismo acceso
+que le da `ws new`: árbol propio en la rama `wt/<workspace>` o, si el clon no lo
+admite, symlink al clon compartido (ver [ws mgmt-link](#ws-mgmt-link)).
+
 **Ejemplos:**
 ```bash
 ws add feature-123 libs/utils

@@ -174,3 +174,29 @@ run_ws_add() {
     [ "$status" -eq 0 ]
     [ ! -e "$TEST_WORKSPACES_DIR/plain-add/repo-plain-add/.mvn" ]
 }
+
+# =============================================================================
+# nuba-management
+# =============================================================================
+
+@test "ws-add: nuba-management gets its own worktree on branch wt/<workspace>" {
+    mkdir -p "$TEST_WORKSPACES_DIR/mgmt-add"
+    create_test_repo "nuba-management" >/dev/null
+    git -C "$TEST_WORKSPACE_ROOT/nuba-management" update-ref refs/remotes/origin/main HEAD
+
+    run run_ws_add "mgmt-add" "nuba-management"
+    [ "$status" -eq 0 ]
+    [ ! -L "$TEST_WORKSPACES_DIR/mgmt-add/nuba-management" ]
+    [ "$(get_current_branch "$TEST_WORKSPACES_DIR/mgmt-add/nuba-management")" = "wt/mgmt-add" ]
+    run git -C "$TEST_WORKSPACE_ROOT/nuba-management" branch --list "feature/mgmt-add"
+    [ -z "$output" ]
+}
+
+@test "ws-add: nuba-management without origin/main falls back to the shared symlink" {
+    mkdir -p "$TEST_WORKSPACES_DIR/mgmt-add"
+    create_test_repo "nuba-management" >/dev/null
+
+    run run_ws_add "mgmt-add" "nuba-management"
+    [ "$status" -eq 0 ]
+    [ -L "$TEST_WORKSPACES_DIR/mgmt-add/nuba-management" ]
+}
