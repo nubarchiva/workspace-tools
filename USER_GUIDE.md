@@ -163,7 +163,7 @@ Para evitarlo, `ws new` y `ws add` crean `.mvn/maven.config` en cada repo con
 
 **Importante**: hasta poblar el head, los GAV propios se leen del tail
 compartido (donde otras sesiones siguen escribiendo). Puebla el head una vez
-con `ws mvn <workspace> install -DskipTests -nsu` (respeta `.ws-build-order`)
+con `ws mvn <workspace> install -DskipTests -DskipITs -nsu` (respeta `.ws-build-order`)
 o crea el workspace con `ws new --bootstrap`.
 
 `ws clean` elimina el head del workspace para liberar disco. Configurable con
@@ -185,7 +185,7 @@ ws new <nombre> --template <template> [repos...]
 **Opciones:**
 - `--template, -t <nombre>`: Usar repos de un template predefinido
 - `--bootstrap, -b`: Poblar el repositorio Maven del workspace tras crearlo
-  (ejecuta `ws mvn install -DskipTests -nsu`; puede tardar minutos)
+  (ejecuta `ws mvn install -DskipTests -DskipITs -nsu`; puede tardar minutos)
 
 **Comportamiento de branches:**
 - `master` o `develop`: Usa esas branches existentes
@@ -216,7 +216,7 @@ ws add <workspace> <repo1> [repo2...]
 
 **Aislamiento Maven:** los repos añadidos con `pom.xml` reciben su
 `.mvn/maven.config` apuntando al head del workspace. Recuerda poblar el head
-(`ws mvn <workspace> install -DskipTests -nsu`) para que los GAV del repo
+(`ws mvn <workspace> install -DskipTests -DskipITs -nsu`) para que los GAV del repo
 añadido no se lean del tail compartido.
 
 **Ejemplos:**
@@ -453,7 +453,7 @@ ws mvn <workspace> <args...>
 ```bash
 ws mvn feature-123 clean install
 ws mvn feature-123 test
-ws mvn feature-123 clean install -DskipTests
+ws mvn feature-123 clean install -DskipTests -DskipITs
 ```
 
 ---
@@ -918,8 +918,8 @@ Definidos en `setup.sh`:
 
 | Shortcut | Comando |
 |----------|---------|
-| `wmcis [ws]` | `ws mvn clean install -DskipTests -Denforcer.skip` |
-| `wmis [ws]` | `ws mvn install -DskipTests -Denforcer.skip` |
+| `wmcis [ws]` | `ws mvn clean install -DskipTests -DskipITs -Denforcer.skip` |
+| `wmis [ws]` | `ws mvn install -DskipTests -DskipITs -Denforcer.skip` |
 | `wmci [ws]` | `ws mvn clean install` |
 | `wmcl [ws]` | `ws mvn clean` |
 

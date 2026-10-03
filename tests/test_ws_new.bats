@@ -264,5 +264,5 @@ run_ws_new() {
 
     run run_ws_new "hint-ws" "repo-mvn"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"ws mvn hint-ws install -DskipTests -nsu"* ]]
+    [[ "$output" == *"ws mvn hint-ws install -DskipTests -DskipITs -nsu"* ]]
 }

@@ -156,5 +156,5 @@ done
 if [ "$MAVEN_ISOLATED" -gt 0 ]; then
     maven_warn_if_no_tail_support
     info "💡 Hasta poblar el head Maven, los GAV de los repos añadidos se leen del tail compartido"
-    echo "   Puebla el head con: ${COLOR_CYAN}ws mvn $WORKSPACE_NAME install -DskipTests -nsu${COLOR_RESET}"
+    echo "   Puebla el head con: ${COLOR_CYAN}ws mvn $WORKSPACE_NAME install -DskipTests -DskipITs -nsu${COLOR_RESET}"
 fi

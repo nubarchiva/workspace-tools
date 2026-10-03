@@ -8,6 +8,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Cambiado
+- **Los comandos que omiten los tests omiten también los de integración** - `-DskipITs` acompaña a `-DskipTests` en `wmcis`, `wmis`, el bootstrap de `ws new` y los comandos que sugieren `ws new` y `ws add`
 - **`ws cd` ya no consulta el estado de los repos** - Tardaba varios segundos porque calculaba el estado de cada repo, con fetch incluido, y después descartaba esa salida
   - `ws cd <workspace>` y `ws switch <workspace>` solo cambian de directorio, avisan de los repositorios de entorno y listan los repos
   - `--status` / `-s` muestra además el estado de cada repo, que antes no llegaba a verse

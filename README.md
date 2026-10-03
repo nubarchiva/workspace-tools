@@ -183,7 +183,7 @@ wscd solr         # entrar en el workspace que contiene "solr"
 
 | Shortcut | Equivalente |
 |----------|-------------|
-| `wmcis` | `ws mvn clean install -DskipTests` |
+| `wmcis` | `ws mvn clean install -DskipTests -DskipITs` |
 | `wmci` | `ws mvn clean install` |
 | `wgt` | `ws git status` |
 | `wstash` | `ws stash` |

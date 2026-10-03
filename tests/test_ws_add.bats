@@ -163,7 +163,7 @@ run_ws_add() {
 
     run run_ws_add "hint-add" "repo-mvn-hint"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"ws mvn hint-add install -DskipTests -nsu"* ]]
+    [[ "$output" == *"ws mvn hint-add install -DskipTests -DskipITs -nsu"* ]]
 }
 
 @test "ws-add: repo without pom.xml does not get maven.config" {

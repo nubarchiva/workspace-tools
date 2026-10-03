@@ -46,7 +46,7 @@ show_help() {
     echo "Opciones:"
     echo "  --template, -t <nombre>  Usar template predefinido de repos"
     echo "  --bootstrap, -b          Poblar el repositorio Maven del workspace tras crearlo"
-    echo "                           (ejecuta: ws mvn install -DskipTests -nsu; puede tardar minutos)"
+    echo "                           (ejecuta: ws mvn install -DskipTests -DskipITs -nsu; puede tardar minutos)"
     echo "  --help, -h               Mostrar esta ayuda"
     echo ""
     echo "Nombres especiales (usan esa branch, no crean una de feature):"
@@ -219,14 +219,14 @@ if [ "$MAVEN_ISOLATED" -gt 0 ]; then
     if [ "$BOOTSTRAP" = true ]; then
         echo ""
         info "📦 Poblando el repositorio Maven del workspace (head)..."
-        if ! "$SCRIPT_DIR/ws-mvn" "$WORKSPACE_NAME" install -DskipTests -nsu; then
+        if ! "$SCRIPT_DIR/ws-mvn" "$WORKSPACE_NAME" install -DskipTests -DskipITs -nsu; then
             warning "⚠️  El poblado del head falló; hasta completarlo, los GAV propios se leen del tail compartido"
-            echo "   Reintenta con: ${COLOR_CYAN}ws mvn $WORKSPACE_NAME install -DskipTests -nsu${COLOR_RESET}"
+            echo "   Reintenta con: ${COLOR_CYAN}ws mvn $WORKSPACE_NAME install -DskipTests -DskipITs -nsu${COLOR_RESET}"
         fi
     else
         echo ""
         info "💡 Aislamiento Maven activo, pero el head está vacío: hasta poblarlo, los GAV propios se leen del tail compartido"
-        echo "   Puebla el head con: ${COLOR_CYAN}ws mvn $WORKSPACE_NAME install -DskipTests -nsu${COLOR_RESET}"
+        echo "   Puebla el head con: ${COLOR_CYAN}ws mvn $WORKSPACE_NAME install -DskipTests -DskipITs -nsu${COLOR_RESET}"
         echo "   ${COLOR_DIM}(o usa 'ws new --bootstrap' para hacerlo automáticamente al crear)${COLOR_RESET}"
     fi
 fi
