@@ -489,11 +489,14 @@ _management_add_worktree() {
 
 # Lista los PID con directorio de trabajo dentro de un workspace, excluyendo el
 # proceso que pregunta, sus antepasados y sus descendientes: un filtro que no se
-# excluya a sí mismo se encuentra siempre, porque el propio comando corre ahí.
-# Uso: workspace_live_pids <workspace_dir>
+# excluya a sí mismo se encuentra siempre, porque el propio comando trabaja ahí.
+# Con --with-ancestors cuenta también los antepasados, para quien va a borrar el
+# workspace y no puede dejar dentro a la sesión que lo ha lanzado.
+# Uso: workspace_live_pids <workspace_dir> [--with-ancestors]
 # Retorna: 0 con los PID por stdout (vacío si no hay ninguno); 2 si no se puede medir
 workspace_live_pids() {
     local dir
+    local scope="$2"
     dir=$(_physical_path "${1%/}") || return 2
     [ -n "$dir" ] || return 2
 
@@ -514,18 +517,22 @@ workspace_live_pids() {
         '
         echo "@@@"
         ps -eo pid=,ppid=
-    } | exclude_own_process_tree
+    } | exclude_own_process_tree $scope
 }
 
 # Filtra una lista de PID candidatos: deja los que siguen vivos y no son el
-# proceso que pregunta, ni sus antepasados, ni sus descendientes.
+# proceso que pregunta, ni sus antepasados, ni sus descendientes. Con
+# --with-ancestors deja también los antepasados.
 # Entrada por stdin: un PID por línea, una línea "@@@" y la tabla `ps -eo pid=,ppid=`
 # tomada DESPUÉS de obtener los candidatos
-# Uso: { candidatos; echo "@@@"; ps -eo pid=,ppid=; } | exclude_own_process_tree
+# Uso: { candidatos; echo "@@@"; ps -eo pid=,ppid=; } | exclude_own_process_tree [--with-ancestors]
 exclude_own_process_tree() {
-    awk -v self="$$" '
+    local keep_ancestors=0
+    [ "$1" = "--with-ancestors" ] && keep_ancestors=1
+
+    awk -v self="$$" -v keep_ancestors="$keep_ancestors" '
         function is_mine(pid,   p, hops) {
-            if (pid in ancestors) return 1
+            if (!keep_ancestors && (pid in ancestors)) return 1
             for (p = pid; p != "" && p != "0" && hops++ < 200; p = parent[p]) {
                 if (p == self) return 1
             }
@@ -542,6 +549,51 @@ exclude_own_process_tree() {
             }
         }
     '
+}
+
+# Describe los procesos que trabajan dentro de un workspace, uno por línea: PID,
+# directorio de trabajo relativo al workspace, orden y, si está en tmux, el panel
+# (sesión:ventana.panel) o «servidor tmux».
+# Uso: describe_workspace_pids <workspace_dir> <pid>...
+describe_workspace_pids() {
+    local dir
+    dir=$(_physical_path "${1%/}") || return 1
+    shift
+
+    local tmux_server="" tmux_panes=""
+    if command -v tmux >/dev/null 2>&1; then
+        tmux_server=$(tmux display-message -p '#{pid}' 2>/dev/null)
+        tmux_panes=$(tmux list-panes -a -F '#{pane_pid} #{session_name}:#{window_index}.#{pane_index}' 2>/dev/null)
+    fi
+    local process_table
+    process_table=$(ps -eo pid=,ppid=)
+
+    local pid cwd rel cmd where
+    for pid in "$@"; do
+        cwd=$(lsof -a -d cwd -p "$pid" -Fn 2>/dev/null | sed -n 's/^n//p' | head -1)
+        rel="${cwd#"$dir"}"
+        rel="${rel#/}"
+        cmd=$(ps -o command= -p "$pid" 2>/dev/null | cut -c1-70)
+        [ -n "$cmd" ] || continue
+
+        # El panel es el del primer antepasado que sea la shell de un panel
+        if [ -n "$tmux_server" ] && [ "$pid" = "$tmux_server" ]; then
+            where="servidor tmux"
+        else
+            where=$(printf '%s\n@@@\n%s\n' "$tmux_panes" "$process_table" | awk -v pid="$pid" '
+                $1 == "@@@" { table = 1; next }
+                !table { if ($1 != "") pane[$1] = $2; next }
+                { parent[$1] = $2 }
+                END {
+                    for (p = pid; p != "" && p != "0" && hops++ < 200; p = parent[p]) {
+                        if (p in pane) { print "tmux " pane[p]; exit }
+                    }
+                }
+            ')
+        fi
+
+        echo "PID $pid  en ${rel:-.}  ${cmd}${where:+  [$where]}"
+    done
 }
 
 # Da acceso a nuba-management a un workspace recién montado: worktree si se

@@ -11,6 +11,7 @@ setup() {
 }
 
 teardown() {
+    stop_foreign_workers
     teardown_test_environment
 }
 
@@ -138,4 +139,73 @@ run_ws_clean() {
     run run_ws_clean "--force" "sin-head"
     [ "$status" -eq 0 ]
     [ ! -d "$TEST_WORKSPACES_DIR/sin-head" ]
+}
+
+# =============================================================================
+# Tests de procesos vivos dentro del workspace
+# =============================================================================
+
+# Arranca un proceso AJENO —reparentado a init, no descendiente de este test— con
+# su directorio de trabajo dentro de una ruta
+# Uso: start_foreign_worker <dir>
+# Retorna: el PID por stdout
+start_foreign_worker() {
+    local dir="$1"
+    local pidfile="$TEST_TEMP_DIR/foreign.$$.$RANDOM.pid"
+
+    ( ( cd "$dir" && exec nohup sh -c 'echo $$ > "$0"; exec sleep 30' "$pidfile" >/dev/null 2>&1 ) & ) &
+
+    local waited=0
+    while [ ! -s "$pidfile" ] && [ $waited -lt 50 ]; do
+        sleep 0.1
+        waited=$((waited + 1))
+    done
+
+    cat "$pidfile" 2>/dev/null
+}
+
+stop_foreign_workers() {
+    local pidfile pid
+    for pidfile in "$TEST_TEMP_DIR"/foreign.*.pid; do
+        [ -f "$pidfile" ] || continue
+        pid=$(cat "$pidfile" 2>/dev/null)
+        [ -n "$pid" ] && kill "$pid" 2>/dev/null
+    done
+    return 0
+}
+
+@test "ws-clean: no elimina un workspace con un proceso trabajando dentro" {
+    mkdir -p "$TEST_WORKSPACES_DIR/ocupado"
+    local intruso=$(start_foreign_worker "$TEST_WORKSPACES_DIR/ocupado")
+    [ -n "$intruso" ]
+
+    run run_ws_clean "--force" "ocupado"
+    stop_foreign_workers
+
+    [ "$status" -ne 0 ]
+    [ -d "$TEST_WORKSPACES_DIR/ocupado" ]
+    [[ "$output" == *"PID $intruso"* ]]
+}
+
+@test "ws-clean: detecta los procesos de un subdirectorio del workspace" {
+    mkdir -p "$TEST_WORKSPACES_DIR/ocupado-dentro/ks-nuba/src"
+    local intruso=$(start_foreign_worker "$TEST_WORKSPACES_DIR/ocupado-dentro/ks-nuba/src")
+    [ -n "$intruso" ]
+
+    run run_ws_clean "--force" "ocupado-dentro"
+    stop_foreign_workers
+
+    [ "$status" -ne 0 ]
+    [ -d "$TEST_WORKSPACES_DIR/ocupado-dentro/ks-nuba/src" ]
+    [[ "$output" == *"PID $intruso  en ks-nuba/src"* ]]
+}
+
+@test "ws-clean: no elimina el workspace desde el que se lanza" {
+    mkdir -p "$TEST_WORKSPACES_DIR/propio/ks-nuba"
+
+    run bash -c 'cd "$1" && "$WS_TOOLS_ROOT/bin/ws-clean" --force propio' _ "$TEST_WORKSPACES_DIR/propio/ks-nuba"
+
+    [ "$status" -ne 0 ]
+    [ -d "$TEST_WORKSPACES_DIR/propio" ]
+    [[ "$output" == *"Estás dentro del workspace"* ]]
 }

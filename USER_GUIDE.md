@@ -416,9 +416,15 @@ ws del <workspace>
 ```
 
 **Verificaciones:**
+- No elimina nada si algún proceso tiene su directorio de trabajo dentro del workspace, en la raíz o en cualquier subdirectorio: una shell, un servidor Java, una sesión de Claude o el propio servidor tmux. Lista cada uno con su PID, su directorio, su orden y, si está en tmux, su panel (`sesión:ventana.panel`). `--force` no lo omite
+- No elimina el workspace desde el que se lanza: hay que salir de él antes
 - Advierte si hay cambios sin commitear
 - Advierte si hay commits sin pushear
 - Requiere confirmación
+
+Un proceso que se queda con su directorio de trabajo borrado puede entrar en un bucle: el prompt de zsh con
+oh-my-zsh y powerlevel10k relanza sin parar sus procesos auxiliares. El servidor tmux solo se libera con
+`tmux kill-server` cuando no le quedan sesiones vivas.
 
 **Aislamiento Maven:** elimina también el repositorio head del workspace
 (`~/.m2/wt/<workspace>/`) para liberar disco.

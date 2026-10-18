@@ -40,6 +40,7 @@ show_help() {
     echo "  ws rm --force test               # alias con force"
     echo ""
     echo "⚠️  Este comando:"
+    echo "  • No elimina nada si algún proceso tiene su directorio de trabajo dentro del workspace (ni con --force)"
     echo "  • Elimina los directorios de worktree"
     echo "  • Elimina el repositorio Maven aislado del workspace (~/.m2/wt/<nombre>/)"
     echo "  • Mantiene las branches en los repos principales"
@@ -63,6 +64,27 @@ BRANCH_NAME="$(get_branch_name "$WORKSPACE_NAME")"
 
 if [ ! -d "$WORKSPACE_DIR" ]; then
     die "Workspace no existe: $WORKSPACE_NAME"
+fi
+
+# Ningún proceso puede quedarse con el directorio de trabajo dentro del
+# workspace borrado, tampoco la sesión que lanza la limpieza. --force no lo omite
+case "$(_physical_path "$PWD")/" in
+    "$(_physical_path "$WORKSPACE_DIR")"/*)
+        die "Estás dentro del workspace $WORKSPACE_NAME: sal de él (cd \$WORKSPACE_ROOT) y repítelo"
+        ;;
+esac
+
+live=$(workspace_live_pids "$WORKSPACE_DIR" --with-ancestors)
+if [ $? -ne 0 ]; then
+    die "No se puede comprobar si hay procesos trabajando en $WORKSPACE_NAME (falta lsof): no se elimina"
+fi
+if [ -n "$live" ]; then
+    error "❌ Hay procesos con su directorio de trabajo dentro de $WORKSPACE_NAME:"
+    describe_workspace_pids "$WORKSPACE_DIR" $live | sed 's/^/   • /'
+    echo ""
+    echo "Ciérralos (o sácalos del workspace) y repite ws clean."
+    echo "Si uno es el servidor tmux, solo lo libera 'tmux kill-server' cuando no queden sesiones vivas."
+    exit 1
 fi
 
 # Mostrar qué se va a eliminar

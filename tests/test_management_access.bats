@@ -338,6 +338,39 @@ create_workspace_dir() {
     assert_contains "$output" "$intruso"
 }
 
+@test "workspace_live_pids: con --with-ancestors cuenta la sesión que lo lanza desde dentro" {
+    local ws_dir=$(create_workspace_dir "con-sesion")
+    mkdir -p "$ws_dir/ks-nuba"
+    cat > "$TEST_TEMP_DIR/measure.sh" <<'EOS'
+source "$WS_TOOLS_ROOT/bin/ws-common.sh"
+workspace_live_pids "$@"
+EOS
+
+    # La shell intermedia trabaja en el workspace y es antepasada de la que mide;
+    # el `true` final evita que bash la sustituya con exec por la medición
+    run bash -c 'cd "$1" && bash "$TEST_TEMP_DIR/measure.sh" "$2"; true' _ "$ws_dir/ks-nuba" "$ws_dir"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+
+    run bash -c 'cd "$1" && bash "$TEST_TEMP_DIR/measure.sh" "$2" --with-ancestors; true' _ "$ws_dir/ks-nuba" "$ws_dir"
+    [ "$status" -eq 0 ]
+    [ -n "$output" ]
+}
+
+@test "describe_workspace_pids: indica el subdirectorio y la orden de cada proceso" {
+    local ws_dir=$(create_workspace_dir "descrito")
+    mkdir -p "$ws_dir/ks-nuba/src"
+
+    local intruso=$(start_foreign_worker "$ws_dir/ks-nuba/src")
+    assert_foreign "$intruso"
+
+    run describe_workspace_pids "$ws_dir" "$intruso"
+
+    assert_contains "$output" "PID $intruso"
+    assert_contains "$output" "en ks-nuba/src"
+    assert_contains "$output" "sleep 30"
+}
+
 @test "workspace_live_pids: no confunde un workspace con otro de nombre parecido" {
     local ws_dir=$(create_workspace_dir "feature")
     local vecino=$(create_workspace_dir "feature-2")

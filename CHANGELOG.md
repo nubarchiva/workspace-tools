@@ -16,6 +16,11 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - El autocompletado de bash y zsh ofrece la opción
 
 ### Añadido
+- **`ws clean` no elimina un workspace con procesos trabajando dentro** - Un proceso con su directorio de trabajo dentro de un workspace borrado puede entrar en un bucle, como el prompt de zsh con powerlevel10k, que relanza sin parar sus procesos auxiliares y satura la CPU
+  - Detecta cualquier proceso, no solo los de tmux, con su directorio de trabajo en la raíz del workspace o en un subdirectorio, y no elimina nada aunque se use `--force`
+  - Lista cada proceso con su PID, su directorio relativo al workspace, su orden y su panel de tmux o «servidor tmux»
+  - Rechaza también la limpieza lanzada desde dentro del propio workspace
+  - `workspace_live_pids --with-ancestors` cuenta también los antepasados del proceso que mide; nuevo `describe_workspace_pids()` en `ws-common.sh`
 - **`ws doctor`** - Diagnostica los problemas de un workspace y, con `--fix`, repara los que tienen arreglo seguro
   - Aislamiento Maven: `.mvn/maven.config` ausente, apuntando a otro workspace o sin excluir de git (`--fix` lo regenera)
   - Worktree desenlazado de su repo origen, como el que deja un workspace movido (`--fix` ejecuta `git worktree repair` con su ruta)
