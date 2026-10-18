@@ -155,6 +155,20 @@ run_ws_add() {
     [ -f "$config" ]
     grep -qxF -- "-Dmaven.repo.local=$WS_MAVEN_HEAD_BASE/iso-add/repository" "$config"
     grep -qxF -- "-Dmaven.repo.local.tail=$WS_MAVEN_TAIL" "$config"
+    grep -qxF -- "-nsu" "$config"
+}
+
+@test "ws-add: WS_MAVEN_NO_SNAPSHOT_UPDATES=false leaves -nsu out of maven.config" {
+    mkdir -p "$TEST_WORKSPACES_DIR/nsu-off"
+    create_maven_repo "repo-mvn-nsu"
+
+    WS_MAVEN_NO_SNAPSHOT_UPDATES=false run run_ws_add "nsu-off" "repo-mvn-nsu"
+    [ "$status" -eq 0 ]
+
+    config="$TEST_WORKSPACES_DIR/nsu-off/repo-mvn-nsu/.mvn/maven.config"
+    grep -qxF -- "-Dmaven.repo.local.tail=$WS_MAVEN_TAIL" "$config"
+    run grep -qxF -- "-nsu" "$config"
+    [ "$status" -ne 0 ]
 }
 
 @test "ws-add: prints hint to populate the maven head" {

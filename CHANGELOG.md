@@ -8,6 +8,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [Unreleased]
 
 ### Cambiado
+- **`.mvn/maven.config` lleva `-nsu`** - Un `SNAPSHOT` publicado desde `develop` sustituía, en la comprobación diaria de Maven, al que la rama del workspace había instalado, y la rama compilaba contra código ajeno sin aviso. `WS_MAVEN_NO_SNAPSHOT_UPDATES=false` lo desactiva; `ws doctor --fix` regenera los existentes
 - **Los comandos que omiten los tests omiten también los de integración** - `-DskipITs` acompaña a `-DskipTests` en `wmcis`, `wmis`, el bootstrap de `ws new` y los comandos que sugieren `ws new` y `ws add`
 - **`ws cd` ya no consulta el estado de los repos** - Tardaba varios segundos porque calculaba el estado de cada repo, con fetch incluido, y después descartaba esa salida
   - `ws cd <workspace>` y `ws switch <workspace>` solo cambian de directorio, avisan de los repositorios de entorno y listan los repos

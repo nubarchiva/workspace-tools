@@ -17,6 +17,8 @@
 #   WS_MAVEN_ISOLATION  - "false" desactiva el aislamiento (por defecto activo)
 #   WS_MAVEN_HEAD_BASE  - Base de los heads (por defecto $HOME/.m2/wt)
 #   WS_MAVEN_TAIL       - Repositorio compartido (por defecto $HOME/.m2/repository)
+#   WS_MAVEN_NO_SNAPSHOT_UPDATES - "false" deja que Maven sustituya los SNAPSHOT
+#                         del head por los del servidor (por defecto no: -nsu)
 #
 # =============================================================================
 
@@ -43,6 +45,15 @@ maven_tail_repo() {
     echo "${WS_MAVEN_TAIL:-$HOME/.m2/repository}"
 }
 
+# Contenido de .mvn/maven.config de un workspace: head, tail y, salvo que se
+# desactive, -nsu para que un SNAPSHOT publicado no sustituya al de la rama
+# Uso: maven_config_content <workspace_name>
+maven_config_content() {
+    printf '%s\n' "-Dmaven.repo.local=$(maven_head_repo "$1")" \
+        "-Dmaven.repo.local.tail=$(maven_tail_repo)"
+    [[ "${WS_MAVEN_NO_SNAPSHOT_UPDATES:-true}" == "false" ]] || printf '%s\n' "-nsu"
+}
+
 # Configura el aislamiento Maven en un worktree:
 #   1. Crea .mvn/maven.config con head del workspace + tail compartido
 #   2. Excluye el fichero de git (info/exclude del gitdir común: lleva rutas
@@ -59,10 +70,7 @@ setup_maven_isolation() {
     [[ -f "$worktree_path/pom.xml" ]] || return 1
 
     mkdir -p "$worktree_path/.mvn"
-    cat > "$worktree_path/.mvn/maven.config" << EOF
--Dmaven.repo.local=$(maven_head_repo "$workspace_name")
--Dmaven.repo.local.tail=$(maven_tail_repo)
-EOF
+    maven_config_content "$workspace_name" > "$worktree_path/.mvn/maven.config"
 
     (
         cd "$worktree_path" 2>/dev/null || exit 0

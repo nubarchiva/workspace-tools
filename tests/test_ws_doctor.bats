@@ -106,6 +106,20 @@ maven_config() {
     grep -qxF -- "-Dmaven.repo.local=$WS_MAVEN_HEAD_BASE/doc/repository" "$(maven_config doc)"
 }
 
+@test "ws-doctor: maven.config without -nsu is reported and fixed" {
+    create_healthy_workspace
+    printf '%s\n' "-Dmaven.repo.local=$WS_MAVEN_HEAD_BASE/doc/repository" \
+        "-Dmaven.repo.local.tail=$WS_MAVEN_TAIL" > "$(maven_config doc)"
+
+    run run_ws_doctor doc
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"maven.config"* ]]
+
+    run run_ws_doctor --fix doc
+    [ "$status" -eq 0 ]
+    grep -qxF -- "-nsu" "$(maven_config doc)"
+}
+
 @test "ws-doctor: maven.config not excluded from git is reported and fixed" {
     create_healthy_workspace
     exclude="$TEST_WORKSPACE_ROOT/repo-mvn/.git/info/exclude"

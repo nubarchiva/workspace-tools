@@ -76,6 +76,10 @@
 #
 # Repositorio compartido usado como tail (por defecto $HOME/.m2/repository):
 # WS_MAVEN_TAIL="$HOME/.m2/repository"
+#
+# Dejar que Maven sustituya los SNAPSHOT del workspace por los publicados en el
+# servidor (por defecto no: maven.config lleva -nsu; ws doctor --fix lo aplica):
+# WS_MAVEN_NO_SNAPSHOT_UPDATES=false
 
 # -----------------------------------------------------------------------------
 # Repositorios de entorno (ws env)

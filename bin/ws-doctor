@@ -120,8 +120,7 @@ same_path() {
 
 # Contenido esperado de .mvn/maven.config en un workspace
 expected_maven_config() {
-    printf '%s\n%s' "-Dmaven.repo.local=$(maven_head_repo "$1")" \
-        "-Dmaven.repo.local.tail=$(maven_tail_repo)"
+    maven_config_content "$1"
 }
 
 # Comprueba el enlace del worktree con su repo origen en los dos sentidos

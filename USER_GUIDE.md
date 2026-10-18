@@ -152,7 +152,13 @@ Para evitarlo, `ws new` y `ws add` crean `.mvn/maven.config` en cada repo con
 ```
 -Dmaven.repo.local=$HOME/.m2/wt/<workspace>/repository
 -Dmaven.repo.local.tail=$HOME/.m2/repository
+-nsu
 ```
+
+`-nsu` impide que un `SNAPSHOT` publicado en el servidor sustituya al que la rama
+instaló en el head; lo que falta se sigue descargando. Para traer los publicados,
+`mvn -U` una vez. Se desactiva con `WS_MAVEN_NO_SNAPSHOT_UPDATES=false` en
+`~/.wsrc` y `ws doctor --fix`.
 
 - **Escrituras** (`mvn install`, descargas nuevas) van solo al *head* del
   workspace: ningún workspace puede pisar a otro.
