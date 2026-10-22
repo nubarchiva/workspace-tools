@@ -337,18 +337,18 @@ _generate_claude_md() {
 **IMPORTANTE**: Este es un worktree independiente.
 - Ruta: \`$workspace_dir\`
 - Buscar código SOLO dentro de este directorio
-- NO buscar en la raíz del workspace (\`$config_source\`)
+- NO buscar código en la raíz del workspace (\`$config_source\`)
+- \`AI.md\`, \`.ai/\` y \`docs/\` sí se leen en la raíz, por su ruta real \`\$WORKSPACE_ROOT/…\`: eso no es buscar código en ella
 
 ## Documentación Compartida
 
-La documentación AI está disponible via symlinks (SSOT - Single Source of Truth):
-- \`AI.md\` → Guidelines principales del proyecto
-- \`.ai/\` → Documentación técnica detallada
-- \`docs/\` → Documentación general
+\`AI.md\`, \`.ai/\` y \`docs/\` existen en este worktree como enlaces simbólicos a la raíz del workspace, pero se
+leen y se ejecutan por su ruta real, nunca a través del enlace, y así se escriben en el encargo de un subagente.
+Regla y motivo: sección «\`.ai/\`, \`AI.md\` y \`docs/\` desde un worktree» de \`\$WORKSPACE_ROOT/AI.md\`.
 
 Para contexto completo del proyecto, consultar:
-- \`.ai/context.md\` - Contexto global del ecosistema
-- \`.ai/coding-standards.md\` - DDD, Clean Architecture, convenciones
+- \`\$WORKSPACE_ROOT/.ai/context.md\` - Contexto global del ecosistema
+- \`\$WORKSPACE_ROOT/.ai/coding-standards.md\` - DDD, Clean Architecture, convenciones
 
 ## Repos en este Worktree
 
