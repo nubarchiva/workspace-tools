@@ -92,13 +92,17 @@ OPERACIONES MULTI-REPO:
       Ejecuta Git en todos los repos del workspace
       Ejemplo: ws git feature-123 status
 
-  update [workspace] [--rebase|-r]
+  update [workspace] [--rebase|-r] [--keep-conflicts] [--summary] [--push]
       Actualiza la branch de trabajo con lo último de develop
       Opciones: --rebase (usar rebase en lugar de merge)
+                --keep-conflicts (dejar abierto el merge con conflictos)
+                --summary (desatendido: una línea por repo)
+                --push (desatendido: publicar la rama del workspace)
       Ejemplos:
         ws update                      # merge develop en workspace actual
         ws update --rebase             # rebase sobre develop
         ws update NUBA-1234            # actualizar workspace específico
+        ws update --summary            # merge desatendido con resumen
 
   stash [acción] [workspace]
       Gestiona stash coordinado en todos los repos

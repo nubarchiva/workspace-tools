@@ -18,6 +18,9 @@ show_help() {
     echo "  --dry, -d          Modo simulación: muestra qué haría sin ejecutar"
     echo "  --rebase, -r       Usar rebase en lugar de merge"
     echo "  --from, -f BRANCH  Especificar branch base (default: develop o master)"
+    echo "  --keep-conflicts   Dejar abierto el merge con conflictos y seguir con el resto"
+    echo "  --summary          Uso desatendido: solo merge, una línea por repo"
+    echo "  --push             Uso desatendido: publicar la rama del workspace"
     echo ""
     echo "Ejemplos:"
     echo "  ws update                    # merge develop en workspace actual"
@@ -26,6 +29,8 @@ show_help() {
     echo "  ws update -r --from main     # rebase sobre main"
     echo "  ws update --all              # actualizar todos los workspaces"
     echo "  ws update --all --dry        # ver qué actualizaría sin hacerlo"
+    echo "  ws update --summary --keep-conflicts   # merge desatendido, conflictos abiertos"
+    echo "  ws update --push             # publicar tras compilar"
     echo ""
     echo "Comportamiento:"
     echo "  • Hace fetch del remoto primero"
@@ -33,6 +38,23 @@ show_help() {
     echo "  • Fallback a master si no existe develop"
     echo "  • Salta repos con cambios sin commitear"
     echo "  • En modo --all: continúa con siguiente workspace si hay conflictos"
+    echo ""
+    echo "Uso desatendido (--summary, --push):"
+    echo "  • Trata todos los repos en la rama del workspace, salvo nuba-management"
+    echo "  • Una línea por repo, sin la salida de git: <estado> <repo> <detalle>"
+    echo "      up-to-date <repo> <base>"
+    echo "      fast-forward <repo> <base> <antes>..<después>"
+    echo "      merged <repo> <base> <commit>"
+    echo "      conflict <repo> <base> open|aborted <fichero>..."
+    echo "      pushed <repo> <rama> <antes>..<después>   (<antes> = new si la rama no existía)"
+    echo "      up-to-date <repo> <rama>                  (--push: nada que publicar)"
+    echo "      skipped <repo> merge-in-progress | uncommitted-changes | no-base-branch"
+    echo "      skipped <repo> not-on-workspace-branch <rama>"
+    echo "      error <repo> remote-unreachable | fetch-failed <causa> | merge-failed <mensaje>"
+    echo "      error <repo> offline | diverged | behind-remote | push-failed <causa>"
+    echo "  • Código de salida: 0 todo integrado o publicado, 1 quedan conflictos,"
+    echo "    2 error o algún repo saltado"
+    echo "  • --push nunca fuerza: no publica una rama que va por detrás o ha divergido"
 }
 
 # Opciones
@@ -41,6 +63,14 @@ UPDATE_ALL=false
 DRY_RUN=false
 WORKSPACE_PATTERN=""
 BASE_BRANCH=""
+KEEP_CONFLICTS=false
+SUMMARY=false
+PUSH=false
+
+# Códigos de salida del uso desatendido: el de cada repo, y el peor manda
+EXIT_INTEGRATED=0
+EXIT_CONFLICTS=1
+EXIT_ERROR=2
 
 # Parsear argumentos
 while [[ $# -gt 0 ]]; do
@@ -61,6 +91,18 @@ while [[ $# -gt 0 ]]; do
             BASE_BRANCH="$2"
             shift 2
             ;;
+        --keep-conflicts)
+            KEEP_CONFLICTS=true
+            shift
+            ;;
+        --summary)
+            SUMMARY=true
+            shift
+            ;;
+        --push)
+            PUSH=true
+            shift
+            ;;
         --help|-h)
             show_help
             exit 0
@@ -73,6 +115,23 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Termina el uso desatendido con un error: mensaje a stderr y código EXIT_ERROR
+fail_unattended() {
+    error "❌ $*" >&2
+    exit "$EXIT_ERROR"
+}
+
+# Las opciones del uso desatendido solo hacen merge, sobre un único workspace
+if [ "$USE_REBASE" = true ] && { [ "$KEEP_CONFLICTS" = true ] || [ "$SUMMARY" = true ] || [ "$PUSH" = true ]; }; then
+    fail_unattended "--rebase no se combina con --keep-conflicts, --summary ni --push"
+fi
+if { [ "$SUMMARY" = true ] || [ "$PUSH" = true ]; } && { [ "$UPDATE_ALL" = true ] || [ "$DRY_RUN" = true ]; }; then
+    fail_unattended "--summary y --push no se combinan con --all ni con --dry"
+fi
+if [ "$PUSH" = true ] && { [ "$KEEP_CONFLICTS" = true ] || [ -n "$BASE_BRANCH" ]; }; then
+    fail_unattended "--push solo publica: no se combina con --keep-conflicts ni con --from"
+fi
 
 # Determinar operación
 if [ "$USE_REBASE" = true ]; then
@@ -302,7 +361,11 @@ update_single_workspace() {
                     echo "   ${COLOR_DIM}# resolver conflictos${COLOR_RESET}"
                     echo "   ${COLOR_DIM}git add . && git commit${COLOR_RESET}"
                     echo ""
-                    git merge --abort 2>/dev/null || true
+                    if [ "$KEEP_CONFLICTS" = true ]; then
+                        warning "   Merge abierto con conflictos (--keep-conflicts)"
+                    else
+                        git merge --abort 2>/dev/null || true
+                    fi
                     ((conflicts++))
 
                     if [ "$stop_on_conflict" = true ]; then
@@ -326,6 +389,225 @@ update_single_workspace() {
         return 0
     fi
 }
+
+
+# =============================================================================
+# Uso desatendido (--summary y --push)
+#
+# Cada repo imprime una línea, <estado> <repo> <detalle>, y retorna
+# EXIT_INTEGRATED, EXIT_CONFLICTS o EXIT_ERROR. La salida de git no se muestra.
+# =============================================================================
+
+# Determina el workspace sin preguntar: el nombre exacto o la única coincidencia
+# Define WORKSPACE_NAME y WORKSPACE_DIR; termina con EXIT_ERROR si no lo determina
+resolve_unattended_workspace() {
+    local pattern=$1
+    local matches
+
+    if [ -z "$pattern" ]; then
+        pattern=$(detect_current_workspace 2>/dev/null)
+        [ -n "$pattern" ] || fail_unattended "No se especificó workspace y no se pudo detectar automáticamente"
+    fi
+
+    if [ -d "$WORKSPACES_DIR/$pattern" ]; then
+        WORKSPACE_NAME=$pattern
+    else
+        matches=$(matching_workspaces "$pattern" "$WORKSPACES_DIR")
+        case $(printf '%s' "$matches" | grep -c .) in
+            0) fail_unattended "No se encontró ningún workspace que coincida con: '$pattern'" ;;
+            1) WORKSPACE_NAME=$matches ;;
+            *) fail_unattended "Varios workspaces coinciden con '$pattern':" $matches ;;
+        esac
+    fi
+
+    if is_branch_workspace "$WORKSPACE_NAME"; then
+        fail_unattended "No tiene sentido actualizar $WORKSPACE_NAME con sí mismo"
+    fi
+    WORKSPACE_DIR="$WORKSPACES_DIR/$WORKSPACE_NAME"
+}
+
+# Repos que siguen la rama del workspace: nuba-management va en su propia rama
+workspace_branch_repos() {
+    find_repos_in_workspace "$1" | grep -vxF "$MANAGEMENT_DIR_NAME"
+}
+
+# Trae origin antes de comparar; en modo offline se compara con lo local
+# Retorna 1 y deja el motivo en FETCH_FAILURE si no puede
+fetch_origin() {
+    local repo_path=$1
+    local output
+
+    FETCH_FAILURE=""
+    ws_is_offline_mode && return 0
+
+    if ! git_is_remote_reachable "$repo_path"; then
+        FETCH_FAILURE="remote-unreachable"
+        return 1
+    fi
+    if ! output=$(git -C "$repo_path" fetch origin --quiet 2>&1); then
+        FETCH_FAILURE="fetch-failed $(git_error_cause "$output")"
+        return 1
+    fi
+}
+
+# Comprobaciones comunes antes de tocar un repo: imprime su línea si lo salta
+# Uso: skip_repo_if_not_ready <repo> <repo_path> <branch>
+# Retorna: 0 si lo salta, 1 si se puede seguir
+skip_repo_if_not_ready() {
+    local repo=$1 repo_path=$2 branch=$3
+    local current
+
+    if git_has_merge_in_progress "$repo_path"; then
+        echo "skipped $repo merge-in-progress"
+        return 0
+    fi
+
+    current=$(git -C "$repo_path" branch --show-current)
+    if [ "$current" != "$branch" ]; then
+        echo "skipped $repo not-on-workspace-branch ${current:-HEAD}"
+        return 0
+    fi
+
+    return 1
+}
+
+# Mergea la rama base en un repo e imprime su línea del resumen
+# Uso: summarize_repo_update <repo> <repo_path> <branch>
+summarize_repo_update() {
+    local repo=$1 repo_path=$2 branch=$3
+    local base before output conflicted state
+
+    skip_repo_if_not_ready "$repo" "$repo_path" "$branch" && return "$EXIT_ERROR"
+
+    if git_has_uncommitted_changes "$repo_path"; then
+        echo "skipped $repo uncommitted-changes"
+        return "$EXIT_ERROR"
+    fi
+
+    if ! fetch_origin "$repo_path"; then
+        echo "error $repo $FETCH_FAILURE"
+        return "$EXIT_ERROR"
+    fi
+
+    base=$BASE_BRANCH
+    if [ -z "$base" ]; then
+        base=$(git_resolve_base_branch "$repo_path")
+    fi
+    if [ -z "$base" ] || ! git -C "$repo_path" rev-parse -q --verify "$base^{commit}" >/dev/null; then
+        echo "skipped $repo no-base-branch"
+        return "$EXIT_ERROR"
+    fi
+
+    if [ "$(git -C "$repo_path" rev-list --count "HEAD..$base")" -eq 0 ]; then
+        echo "up-to-date $repo $base"
+        return "$EXIT_INTEGRATED"
+    fi
+
+    before=$(git -C "$repo_path" rev-parse --short HEAD)
+    if output=$(git -C "$repo_path" merge --no-edit "$base" 2>&1); then
+        if [ "$(git -C "$repo_path" rev-parse HEAD)" = "$(git -C "$repo_path" rev-parse "$base^{commit}")" ]; then
+            echo "fast-forward $repo $base $before..$(git -C "$repo_path" rev-parse --short HEAD)"
+        else
+            echo "merged $repo $base $(git -C "$repo_path" rev-parse --short HEAD)"
+        fi
+        return "$EXIT_INTEGRATED"
+    fi
+
+    if ! git_has_merge_in_progress "$repo_path"; then
+        output=$(printf '%s\n' "$output" | grep -m 1 -E '^(error|fatal):' || printf '%s\n' "$output" | head -n 1)
+        echo "error $repo merge-failed $output"
+        return "$EXIT_ERROR"
+    fi
+
+    conflicted=$(git -C "$repo_path" diff --name-only --diff-filter=U | tr '\n' ' ')
+    conflicted=${conflicted% }
+    if [ "$KEEP_CONFLICTS" = true ]; then
+        state="open"
+    else
+        git -C "$repo_path" merge --abort >/dev/null 2>&1
+        state="aborted"
+    fi
+    echo "conflict $repo $base $state${conflicted:+ $conflicted}"
+    return "$EXIT_CONFLICTS"
+}
+
+# Publica la rama del workspace de un repo sin forzar e imprime su línea
+# Uso: publish_repo_branch <repo> <repo_path> <branch>
+publish_repo_branch() {
+    local repo=$1 repo_path=$2 branch=$3
+    local remote_sha head_sha from output
+
+    skip_repo_if_not_ready "$repo" "$repo_path" "$branch" && return "$EXIT_ERROR"
+
+    if ws_is_offline_mode; then
+        echo "error $repo offline"
+        return "$EXIT_ERROR"
+    fi
+    if ! fetch_origin "$repo_path"; then
+        echo "error $repo $FETCH_FAILURE"
+        return "$EXIT_ERROR"
+    fi
+
+    remote_sha=$(git -C "$repo_path" ls-remote --exit-code origin "refs/heads/$branch" 2>/dev/null)
+    case $? in
+        0) remote_sha=${remote_sha%%[[:space:]]*} ;;
+        2) remote_sha="" ;;
+        *) echo "error $repo remote-unreachable"; return "$EXIT_ERROR" ;;
+    esac
+
+    head_sha=$(git -C "$repo_path" rev-parse HEAD)
+    if [ "$remote_sha" = "$head_sha" ]; then
+        echo "up-to-date $repo $branch"
+        return "$EXIT_INTEGRATED"
+    fi
+
+    if [ -z "$remote_sha" ]; then
+        from="new"
+    elif git -C "$repo_path" merge-base --is-ancestor "$remote_sha" HEAD 2>/dev/null; then
+        from=$(git -C "$repo_path" rev-parse --short "$remote_sha")
+    elif git -C "$repo_path" merge-base --is-ancestor HEAD "$remote_sha" 2>/dev/null; then
+        echo "error $repo behind-remote"
+        return "$EXIT_ERROR"
+    else
+        echo "error $repo diverged"
+        return "$EXIT_ERROR"
+    fi
+
+    if ! output=$(git -C "$repo_path" push --quiet origin "HEAD:refs/heads/$branch" 2>&1); then
+        echo "error $repo push-failed $(git_error_cause "$output")"
+        return "$EXIT_ERROR"
+    fi
+    echo "pushed $repo $branch $from..$(git -C "$repo_path" rev-parse --short HEAD)"
+    return "$EXIT_INTEGRATED"
+}
+
+# Aplica una acción de repo a los repos de la rama del workspace
+# Uso: run_unattended <summarize_repo_update|publish_repo_branch> <ws_dir> <branch>
+# Retorna: el peor código de los repos
+run_unattended() {
+    local action=$1 ws_dir=$2 branch=$3
+    local worst=$EXIT_INTEGRATED result repo
+
+    # Los repos llegan por el descriptor 3 para que git no consuma su lista por stdin
+    while read -r repo <&3; do
+        [ -n "$repo" ] || continue
+        "$action" "$repo" "$ws_dir/$repo" "$branch"
+        result=$?
+        [ "$result" -gt "$worst" ] && worst=$result
+    done 3<<< "$(workspace_branch_repos "$ws_dir")"
+
+    return "$worst"
+}
+
+if [ "$SUMMARY" = true ] || [ "$PUSH" = true ]; then
+    resolve_unattended_workspace "$WORKSPACE_PATTERN"
+    if [ "$PUSH" = true ]; then
+        run_unattended publish_repo_branch "$WORKSPACE_DIR" "$(get_branch_name "$WORKSPACE_NAME")"
+    else
+        run_unattended summarize_repo_update "$WORKSPACE_DIR" "$(get_branch_name "$WORKSPACE_NAME")"
+    fi
+    exit $?
+fi
 
 # =============================================================================
 # MODO --all: Actualizar todos los workspaces
@@ -457,5 +739,9 @@ if [ "$DRY_RUN" = true ]; then
     exit 0
 fi
 
-# Ejecutar actualización
-update_single_workspace "$WORKSPACE_NAME" "$WORKSPACE_DIR" true
+# Ejecutar actualización; con --keep-conflicts sigue con el resto de repos
+if [ "$KEEP_CONFLICTS" = true ]; then
+    update_single_workspace "$WORKSPACE_NAME" "$WORKSPACE_DIR" false
+else
+    update_single_workspace "$WORKSPACE_NAME" "$WORKSPACE_DIR" true
+fi

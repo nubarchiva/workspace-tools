@@ -492,13 +492,16 @@ ws update [workspace] [opciones]
 - `--dry, -d`: Modo simulación, muestra qué haría sin ejecutar
 - `--rebase, -r`: Usar rebase en lugar de merge
 - `--from, -f <branch>`: Especificar branch base (default: develop o master)
+- `--keep-conflicts`: Deja abierto el merge con conflictos, sin `git merge --abort`, y sigue con el resto de repos
+- `--summary`: Uso desatendido; ver [Uso desatendido](#uso-desatendido-de-ws-update)
+- `--push`: Uso desatendido: publica la rama del workspace; ver [Uso desatendido](#uso-desatendido-de-ws-update)
 
 **Comportamiento:**
 - Hace fetch del remoto primero
 - Usa origin/develop si existe, sino develop local
 - Fallback a master si no existe develop
 - Salta repos con cambios sin commitear
-- Se detiene si hay conflictos (excepto en modo `--all`)
+- Se detiene si hay conflictos (excepto en modo `--all` o con `--keep-conflicts`)
 
 **Ejemplos:**
 ```bash
@@ -509,6 +512,62 @@ ws update --all --dry     # ver qué actualizaría sin hacerlo
 ws update feature-123     # workspace específico
 ws update -r --from main  # rebase sobre main
 ```
+
+#### Uso desatendido de ws update
+
+Para que una sesión automatizada traiga `develop` a la rama del workspace y sepa
+qué ha pasado en cada repo por un resumen corto y por el código de salida:
+
+```bash
+ws update <workspace> --summary --keep-conflicts   # merge; los conflictos quedan abiertos
+# ... compilar ...
+ws update <workspace> --push                       # publicar la rama
+```
+
+- Trata todos los repos que siguen la rama del workspace aunque alguno tenga
+  conflicto. `nuba-management` queda fuera, porque va en su propia rama
+- Siempre hace merge: `--rebase`, `--all` y `--dry` no se combinan con
+  `--summary` ni con `--push`
+- La salida de git no se muestra. Cada repo imprime una línea
+  `<estado> <repo> <detalle>`, separada por espacios:
+
+| Línea | Significado |
+|-------|-------------|
+| `up-to-date <repo> <base>` | Ya tenía todo lo de la base |
+| `fast-forward <repo> <base> <antes>..<después>` | Avance rápido |
+| `merged <repo> <base> <commit>` | Merge hecho, con su commit |
+| `conflict <repo> <base> open <fichero>...` | Conflicto; merge abierto (`--keep-conflicts`) |
+| `conflict <repo> <base> aborted <fichero>...` | Conflicto; merge abortado |
+| `skipped <repo> merge-in-progress` | Ya había un merge sin terminar |
+| `skipped <repo> uncommitted-changes` | Cambios sin commitear, incluidos ficheros sin seguimiento |
+| `skipped <repo> no-base-branch` | No hay rama base (o no existe la de `--from`) |
+| `skipped <repo> not-on-workspace-branch <rama>` | El repo está en otra rama (`HEAD` si está desacoplado) |
+| `error <repo> remote-unreachable` | No se llega a `origin` |
+| `error <repo> fetch-failed <causa>` | Falla el fetch; causa de `git_error_cause` |
+| `error <repo> merge-failed <mensaje>` | Git rechaza el merge sin dejar conflicto |
+
+- Con `--push`, cada repo en la rama del workspace publica sus commits en
+  `origin/<rama>` sin forzar nunca:
+
+| Línea | Significado |
+|-------|-------------|
+| `pushed <repo> <rama> <antes>..<después>` | Publicado; `<antes>` es `new` si la rama remota no existía |
+| `up-to-date <repo> <rama>` | Nada que publicar |
+| `skipped <repo> merge-in-progress` | No publica un merge sin terminar |
+| `skipped <repo> not-on-workspace-branch <rama>` | El repo está en otra rama |
+| `error <repo> offline` | Modo offline |
+| `error <repo> behind-remote` | La rama remota tiene commits que la local no tiene |
+| `error <repo> diverged` | Las dos ramas tienen commits propios |
+| `error <repo> remote-unreachable` / `fetch-failed <causa>` / `push-failed <causa>` | Falla el acceso al remoto |
+
+- Código de salida, el del peor repo:
+  - `0`: todo integrado (o publicado)
+  - `1`: quedan conflictos
+  - `2`: error, o algún repo saltado. También si el workspace no existe, si el
+    patrón coincide con varios o si las opciones no se combinan
+- El workspace se determina sin preguntar: el nombre exacto o la única
+  coincidencia parcial. Los errores de este tipo van a stderr
+- En modo offline no hay fetch: el merge compara con las referencias locales
 
 ---
 

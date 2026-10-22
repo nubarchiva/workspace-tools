@@ -119,7 +119,7 @@ ws clean feature-123
 |---------|-------------|
 | `ws git <nombre> <cmd>` | Git en todos los repos |
 | `ws mvn <nombre> <args>` | Maven en todos los repos |
-| `ws update [--rebase]` | Merge/rebase de develop |
+| `ws update [--rebase]` | Merge/rebase de develop (`--summary`, `--keep-conflicts` y `--push` para uso desatendido) |
 | `ws stash [push\|pop\|list]` | Stash coordinado |
 | `ws grep <patrón>` | Buscar en todos los repos |
 | `ws prune [--all]` | Limpiar ramas locales huérfanas |

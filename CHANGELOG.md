@@ -16,6 +16,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - El autocompletado de bash y zsh ofrece la opción
 
 ### Añadido
+- **Uso desatendido de `ws update`** - Una sesión automatizada no podía delegar en `ws update` la actualización de su rama: ante un conflicto abortaba el merge y dejaba sin procesar el resto de repos, y su salida era la de git
+  - `--summary` trata todos los repos en la rama del workspace aunque alguno tenga conflicto, siempre con merge, y no muestra la salida de git
+  - Imprime una línea por repo: `up-to-date`, `fast-forward` (con `<antes>..<después>`), `merged` (con su commit), `conflict` (`open` o `aborted`, con los ficheros), `skipped` o `error` (con su motivo)
+  - Código de salida: 0 todo integrado, 1 quedan conflictos, 2 error o algún repo saltado
+  - `--keep-conflicts` deja abierto el merge con conflictos y sigue con el resto de repos, también en el uso interactivo y con `--all`
+  - `--push` publica la rama del workspace de cada repo, sin forzar, con el mismo formato de resumen y los mismos códigos
+  - `nuba-management` queda fuera del uso desatendido
+  - Nuevo `git_has_merge_in_progress()` en `ws-git-utils.sh`
 - **`ws clean` no elimina un workspace con procesos trabajando dentro** - Un proceso con su directorio de trabajo dentro de un workspace borrado puede entrar en un bucle, como el prompt de zsh con powerlevel10k, que relanza sin parar sus procesos auxiliares y satura la CPU
   - Detecta cualquier proceso, no solo los de tmux, con su directorio de trabajo en la raíz del workspace o en un subdirectorio, y no elimina nada aunque se use `--force`
   - Lista cada proceso con su PID, su directorio relativo al workspace, su orden y su panel de tmux o «servidor tmux»

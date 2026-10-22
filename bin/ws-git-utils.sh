@@ -12,6 +12,7 @@
 # Funciones disponibles:
 #   - git_has_uncommitted_changes [path]
 #   - git_count_uncommitted_changes [path]
+#   - git_has_merge_in_progress [path]
 #   - git_has_unpushed_commits [path]
 #   - git_count_unpushed_commits [path]
 #   - git_has_unpulled_commits [path]
@@ -131,6 +132,13 @@ git_has_uncommitted_changes() {
     local status
     status=$(cd "$repo_path" && git status --porcelain 2>/dev/null)
     [[ -n "$status" ]]
+}
+
+# Verifica si hay un merge sin terminar, con o sin conflictos por resolver
+# Uso: git_has_merge_in_progress [path]
+# Retorna: 0 si hay merge en curso, 1 si no
+git_has_merge_in_progress() {
+    git -C "${1:-.}" rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1
 }
 
 # Cuenta los archivos con cambios sin commitear

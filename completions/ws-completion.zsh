@@ -141,7 +141,7 @@ _ws() {
                 update)
                     _alternative \
                         'workspaces:workspace:_get_workspaces' \
-                        'options:options:((--rebase\:"-r Usar rebase" -r\:"Usar rebase" --from\:"-f Branch base" -f\:"Branch base" --all\:"-a Todos los workspaces" -a\:"Todos los workspaces" --dry\:"-d Mostrar qué haría" -d\:"Mostrar qué haría"))'
+                        'options:options:((--rebase\:"-r Usar rebase" -r\:"Usar rebase" --from\:"-f Branch base" -f\:"Branch base" --all\:"-a Todos los workspaces" -a\:"Todos los workspaces" --dry\:"-d Mostrar qué haría" -d\:"Mostrar qué haría" --keep-conflicts\:"Dejar abierto el merge con conflictos" --summary\:"Una línea por repo (desatendido)" --push\:"Publicar la rama del workspace"))'
                     ;;
                 stash)
                     local -a stash_actions=(
@@ -259,6 +259,9 @@ _ws() {
                         '-a:Todos los workspaces'
                         '--dry:Mostrar qué haría'
                         '-d:Mostrar qué haría'
+                        '--keep-conflicts:Dejar abierto el merge con conflictos'
+                        '--summary:Una línea por repo (desatendido)'
+                        '--push:Publicar la rama del workspace'
                     )
                     _describe 'update options' update_opts
                     ;;

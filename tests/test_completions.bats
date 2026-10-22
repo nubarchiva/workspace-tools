@@ -107,6 +107,14 @@ assert_offers() {
     assert_offers "$output" --all -a --dry -d
 }
 
+@test "bash: ws update ofrece las opciones del uso desatendido" {
+    run bash_complete update ""
+    assert_offers "$output" --summary --keep-conflicts --push
+
+    run bash_complete update feat ""
+    assert_offers "$output" --summary --keep-conflicts --push
+}
+
 @test "bash: ws clean ofrece --force" {
     run bash_complete clean ""
     assert_offers "$output" --force -f feat
@@ -188,6 +196,15 @@ assert_offers() {
 
     run zsh_complete update feat ""
     assert_offers "$output" --all -a --dry -d
+}
+
+@test "zsh: ws update ofrece las opciones del uso desatendido" {
+    require_zsh
+    run zsh_complete update ""
+    assert_offers "$output" --summary --keep-conflicts --push
+
+    run zsh_complete update feat ""
+    assert_offers "$output" --summary --keep-conflicts --push
 }
 
 @test "zsh: ws clean ofrece --force" {

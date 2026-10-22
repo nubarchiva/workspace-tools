@@ -104,7 +104,7 @@ _ws_completion() {
                 update)
                     # Workspace o opciones
                     local workspaces=$(_get_workspaces)
-                    COMPREPLY=($(compgen -W "$workspaces --rebase -r --from -f --all -a --dry -d" -- "$cur"))
+                    COMPREPLY=($(compgen -W "$workspaces --rebase -r --from -f --all -a --dry -d --keep-conflicts --summary --push" -- "$cur"))
                     ;;
                 stash)
                     # Acciones de stash
@@ -185,7 +185,7 @@ _ws_completion() {
                     ;;
                 update)
                     # Opciones
-                    COMPREPLY=($(compgen -W "--rebase -r --from -f --all -a --dry -d" -- "$cur"))
+                    COMPREPLY=($(compgen -W "--rebase -r --from -f --all -a --dry -d --keep-conflicts --summary --push" -- "$cur"))
                     ;;
                 clean|rm|del)
                     # --force o workspace, en cualquier orden
