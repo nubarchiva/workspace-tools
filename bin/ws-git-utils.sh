@@ -95,8 +95,18 @@ git_is_remote_reachable() {
         return $?
     fi
 
-    # Comprobar conectividad con timeout de 2 segundos
-    if (cd "$repo_path" 2>/dev/null && timeout 2 git ls-remote --exit-code origin HEAD >/dev/null 2>&1); then
+    # Comprobar conectividad con 2 segundos de espera. macOS no trae timeout:
+    # sin él, la espera la acota la conexión ssh
+    local wait_seconds=2
+    local runner=()
+    if command -v timeout >/dev/null 2>&1; then
+        runner=(timeout "$wait_seconds")
+    fi
+
+    if (cd "$repo_path" 2>/dev/null && \
+        GIT_TERMINAL_PROMPT=0 \
+        GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=$wait_seconds" \
+        "${runner[@]}" git ls-remote --exit-code origin HEAD >/dev/null 2>&1); then
         _GIT_REMOTE_REACHABLE="yes"
         return 0
     else

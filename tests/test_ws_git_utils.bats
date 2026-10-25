@@ -402,3 +402,35 @@ git@github.com: Permission denied (publickey).')" = "agent" ]
     [ "$(git_error_cause 'sign_and_send_pubkey: signing failed for ECDSA "id" from agent: communication with agent failed
 git@github.com: Permission denied (publickey).')" = "agent" ]
 }
+
+# =============================================================================
+# git_is_remote_reachable
+# =============================================================================
+
+# Crea un directorio de PATH con solo git, sin timeout, como un macOS sin coreutils
+# Uso: create_bin_dir_without_timeout
+# Sets: BIN_WITHOUT_TIMEOUT
+create_bin_dir_without_timeout() {
+    BIN_WITHOUT_TIMEOUT="$TEST_TEMP_DIR/bin-without-timeout"
+    mkdir -p "$BIN_WITHOUT_TIMEOUT"
+    ln -s "$(command -v git)" "$BIN_WITHOUT_TIMEOUT/git"
+}
+
+@test "git_is_remote_reachable: detecta el remoto alcanzable sin el comando timeout" {
+    create_repo_with_remote
+    create_bin_dir_without_timeout
+
+    PATH="$BIN_WITHOUT_TIMEOUT" run git_is_remote_reachable "$LOCAL_REPO"
+
+    [ "$status" -eq 0 ]
+}
+
+@test "git_is_remote_reachable: detecta el remoto inalcanzable sin el comando timeout" {
+    create_repo_with_remote
+    git -C "$LOCAL_REPO" remote set-url origin "$TEST_TEMP_DIR/missing.git"
+    create_bin_dir_without_timeout
+
+    PATH="$BIN_WITHOUT_TIMEOUT" run git_is_remote_reachable "$LOCAL_REPO"
+
+    [ "$status" -eq 1 ]
+}
