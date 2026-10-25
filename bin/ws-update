@@ -48,13 +48,17 @@ show_help() {
     echo "      conflict <repo> <base> open|aborted <fichero>..."
     echo "      pushed <repo> <rama> <antes>..<después>   (<antes> = new si la rama no existía)"
     echo "      up-to-date <repo> <rama>                  (--push: nada que publicar)"
+    echo "      unpublished <repo> <rama> no-own-commits <base>   (--push: no crea en origin"
+    echo "                                                una rama sin commits propios)"
     echo "      skipped <repo> merge-in-progress | uncommitted-changes | no-base-branch"
     echo "      skipped <repo> not-on-workspace-branch <rama>"
     echo "      error <repo> remote-unreachable | fetch-failed <causa> | merge-failed <mensaje>"
     echo "      error <repo> offline | diverged | behind-remote | push-failed <causa>"
-    echo "  • Código de salida: 0 todo integrado o publicado, 1 quedan conflictos,"
-    echo "    2 error o algún repo saltado"
+    echo "  • Código de salida: 0 todo integrado o publicado (unpublished incluido),"
+    echo "    1 quedan conflictos, 2 error o algún repo saltado"
     echo "  • --push nunca fuerza: no publica una rama que va por detrás o ha divergido"
+    echo "  • --push solo crea la rama en origin si tiene commits que no están en la base;"
+    echo "    la rama ya publicada se publica siempre"
 }
 
 # Opciones
@@ -532,10 +536,11 @@ summarize_repo_update() {
 }
 
 # Publica la rama del workspace de un repo sin forzar e imprime su línea
+# No crea en origin una rama sin commits propios frente a la rama base
 # Uso: publish_repo_branch <repo> <repo_path> <branch>
 publish_repo_branch() {
     local repo=$1 repo_path=$2 branch=$3
-    local remote_sha head_sha from output
+    local remote_sha head_sha base from output
 
     skip_repo_if_not_ready "$repo" "$repo_path" "$branch" && return "$EXIT_ERROR"
 
@@ -562,6 +567,14 @@ publish_repo_branch() {
     fi
 
     if [ -z "$remote_sha" ]; then
+        if ! base=$(git_resolve_base_branch "$repo_path"); then
+            echo "skipped $repo no-base-branch"
+            return "$EXIT_ERROR"
+        fi
+        if [ "$(git -C "$repo_path" rev-list --count "$base..HEAD")" -eq 0 ]; then
+            echo "unpublished $repo $branch no-own-commits $base"
+            return "$EXIT_INTEGRATED"
+        fi
         from="new"
     elif git -C "$repo_path" merge-base --is-ancestor "$remote_sha" HEAD 2>/dev/null; then
         from=$(git -C "$repo_path" rev-parse --short "$remote_sha")

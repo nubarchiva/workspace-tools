@@ -341,6 +341,43 @@ merge_in_progress() {
     [ "$output" = "pushed repo-a feature/$WS new..$(short_head repo-a)" ]
 }
 
+@test "ws-update: --push does not create the remote branch without commits of its own" {
+    add_repo repo-a
+    publish_on_develop repo-a nuevo.txt "nuevo"
+    run_update "$WS" --summary
+
+    run run_update "$WS" --push
+
+    [ "$status" -eq 0 ]
+    [ "$output" = "unpublished repo-a feature/$WS no-own-commits origin/develop" ]
+    ! git -C "$TEST_TEMP_DIR/remotes/repo-a.git" rev-parse -q --verify "feature/$WS"
+}
+
+@test "ws-update: --push does not create the remote branch without a base branch to compare with" {
+    add_repo repo-a trunk
+    commit_on_branch repo-a propio.txt "propio"
+
+    run run_update "$WS" --push
+
+    [ "$status" -eq 2 ]
+    [ "$output" = "skipped repo-a no-base-branch" ]
+    ! git -C "$TEST_TEMP_DIR/remotes/repo-a.git" rev-parse -q --verify "feature/$WS"
+}
+
+@test "ws-update: --push keeps publishing a remote branch without commits of its own" {
+    add_repo repo-a
+    git -C "$(repo_dir repo-a)" push --quiet origin "feature/$WS"
+    local before
+    before=$(short_head repo-a)
+    publish_on_develop repo-a nuevo.txt "nuevo"
+    run_update "$WS" --summary
+
+    run run_update "$WS" --push
+
+    [ "$status" -eq 0 ]
+    [ "$output" = "pushed repo-a feature/$WS $before..$(short_head repo-a)" ]
+}
+
 @test "ws-update: --push reports up-to-date when there is nothing to publish" {
     add_repo repo-a
     git -C "$(repo_dir repo-a)" push --quiet origin "feature/$WS"
@@ -438,4 +475,5 @@ merge_in_progress() {
     [[ "$output" == *"--summary"* ]]
     [[ "$output" == *"--keep-conflicts"* ]]
     [[ "$output" == *"--push"* ]]
+    [[ "$output" == *"unpublished <repo> <rama> no-own-commits <base>"* ]]
 }

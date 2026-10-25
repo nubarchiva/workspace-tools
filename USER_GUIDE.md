@@ -547,13 +547,18 @@ ws update <workspace> --push                       # publicar la rama
 | `error <repo> merge-failed <mensaje>` | Git rechaza el merge sin dejar conflicto |
 
 - Con `--push`, cada repo en la rama del workspace publica sus commits en
-  `origin/<rama>` sin forzar nunca:
+  `origin/<rama>` sin forzar nunca. Si la rama no está en `origin`, solo la
+  crea cuando tiene commits que no están en la rama base: una rama sin commits
+  propios arrancaría un job y un build que nadie ha pedido. La rama ya
+  publicada se publica siempre:
 
 | Línea | Significado |
 |-------|-------------|
 | `pushed <repo> <rama> <antes>..<después>` | Publicado; `<antes>` es `new` si la rama remota no existía |
 | `up-to-date <repo> <rama>` | Nada que publicar |
+| `unpublished <repo> <rama> no-own-commits <base>` | La rama no está en `origin` y no tiene commits que no estén en la base: no se crea |
 | `skipped <repo> merge-in-progress` | No publica un merge sin terminar |
+| `skipped <repo> no-base-branch` | La rama no está en `origin` y no hay rama base con la que comparar |
 | `skipped <repo> not-on-workspace-branch <rama>` | El repo está en otra rama |
 | `error <repo> offline` | Modo offline |
 | `error <repo> behind-remote` | La rama remota tiene commits que la local no tiene |
@@ -561,7 +566,7 @@ ws update <workspace> --push                       # publicar la rama
 | `error <repo> remote-unreachable` / `fetch-failed <causa>` / `push-failed <causa>` | Falla el acceso al remoto |
 
 - Código de salida, el del peor repo:
-  - `0`: todo integrado (o publicado)
+  - `0`: todo integrado (o publicado, o `unpublished`)
   - `1`: quedan conflictos
   - `2`: error, o algún repo saltado. También si el workspace no existe, si el
     patrón coincide con varios o si las opciones no se combinan

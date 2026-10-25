@@ -22,6 +22,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Código de salida: 0 todo integrado, 1 quedan conflictos, 2 error o algún repo saltado
   - `--keep-conflicts` deja abierto el merge con conflictos y sigue con el resto de repos, también en el uso interactivo y con `--all`
   - `--push` publica la rama del workspace de cada repo, sin forzar, con el mismo formato de resumen y los mismos códigos
+  - `--push` no crea en `origin` una rama sin commits propios frente a la rama base, que arrancaría un job y un build que nadie ha pedido: imprime `unpublished <repo> <rama> no-own-commits <base>` y sale con 0. La rama ya publicada se publica siempre
   - `nuba-management` queda fuera del uso desatendido
   - Nuevo `git_has_merge_in_progress()` en `ws-git-utils.sh`
 - **`ws clean` no elimina un workspace con procesos trabajando dentro** - Un proceso con su directorio de trabajo dentro de un workspace borrado puede entrar en un bucle, como el prompt de zsh con powerlevel10k, que relanza sin parar sus procesos auxiliares y satura la CPU
