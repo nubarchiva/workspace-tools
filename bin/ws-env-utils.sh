@@ -109,17 +109,12 @@ _env_fetch_is_stale() {
 # Retorna: 0 si el fetch termina bien; 1 si no
 _env_fetch() {
     local wait_seconds="${WS_ENV_FETCH_TIMEOUT:-5}"
-    local runner=()
     local rc
-
-    if command -v timeout >/dev/null 2>&1; then
-        runner=(timeout "$wait_seconds")
-    fi
 
     local err
     err=$(GIT_TERMINAL_PROMPT=0 \
           GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=$wait_seconds" \
-          "${runner[@]}" git -C "$1" fetch --quiet 2>&1 >/dev/null)
+          ws_run_with_timeout "$wait_seconds" git -C "$1" fetch --quiet 2>&1 >/dev/null)
     rc=$?
 
     if [ $rc -eq 0 ]; then
@@ -127,7 +122,7 @@ _env_fetch() {
         return 0
     fi
 
-    if [ $rc -eq 124 ] && [ ${#runner[@]} -gt 0 ]; then
+    if [ $rc -eq 124 ]; then
         echo "sin respuesta del remoto en $wait_seconds s"
         return 1
     fi

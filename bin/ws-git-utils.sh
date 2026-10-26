@@ -24,6 +24,7 @@
 #   - git_repo_status [path] - Retorna estado completo en formato parseable
 #   - get_sync_status [path] - Retorna sincronización con develop/master
 #   - git_error_cause <error> - Clasifica un error de acceso a un remoto
+#   - ws_run_with_timeout <segundos> <orden> - Ejecuta con tiempo de espera máximo
 #
 # =============================================================================
 
@@ -55,6 +56,39 @@ git_resolve_base_branch() {
     done
 
     return 1
+}
+
+# Ejecuta una orden con un tiempo de espera máximo, sin depender de timeout,
+# que macOS no trae. Al agotarse el tiempo envía SIGTERM a la orden, no a sus
+# descendientes; git termina entonces también su conexión con el remoto.
+# Uso: ws_run_with_timeout <segundos> <orden> [argumentos...]
+# Retorna: el código de la orden, o 124 si agota el tiempo
+ws_run_with_timeout() {
+    local seconds="$1"
+    shift
+
+    "$@" &
+    local command_pid=$!
+
+    (
+        trap 'kill $(jobs -p) 2>/dev/null; exit 0' TERM
+        sleep "$seconds" &
+        wait $!
+        kill -TERM "$command_pid" 2>/dev/null
+    ) >/dev/null 2>&1 &
+    local watcher_pid=$!
+
+    wait "$command_pid" 2>/dev/null
+    local rc=$?
+
+    if kill -0 "$watcher_pid" 2>/dev/null; then
+        kill -TERM "$watcher_pid" 2>/dev/null
+        wait "$watcher_pid" 2>/dev/null
+    elif [ "$rc" -eq 143 ]; then
+        rc=124
+    fi
+
+    return "$rc"
 }
 
 # Verifica si estamos en modo offline forzado
@@ -95,18 +129,12 @@ git_is_remote_reachable() {
         return $?
     fi
 
-    # Comprobar conectividad con 2 segundos de espera. macOS no trae timeout:
-    # sin él, la espera la acota la conexión ssh
+    # Comprobar conectividad con 2 segundos de espera
     local wait_seconds=2
-    local runner=()
-    if command -v timeout >/dev/null 2>&1; then
-        runner=(timeout "$wait_seconds")
-    fi
-
     if (cd "$repo_path" 2>/dev/null && \
         GIT_TERMINAL_PROMPT=0 \
         GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=$wait_seconds" \
-        "${runner[@]}" git ls-remote --exit-code origin HEAD >/dev/null 2>&1); then
+        ws_run_with_timeout "$wait_seconds" git ls-remote --exit-code origin HEAD >/dev/null 2>&1); then
         _GIT_REMOTE_REACHABLE="yes"
         return 0
     else

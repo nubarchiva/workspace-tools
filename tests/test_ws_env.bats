@@ -318,7 +318,6 @@ git@github.com: Permission denied (publickey).'
 }
 
 @test "env_drift_warning: un fetch que agota el tiempo de espera lo dice" {
-    command -v timeout >/dev/null 2>&1 || skip "sin la orden timeout"
     create_env_repo skills
     local slow="$TEST_TEMP_DIR/git-lento"
     mkdir -p "$slow"

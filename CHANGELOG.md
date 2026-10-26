@@ -95,7 +95,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Aviso si el Maven instalado es < 3.9 (sin `maven.repo.local.tail` se re-descargan dependencias al head)
 
 ### Corregido
-- **En macOS sin coreutils el remoto se daba siempre por inalcanzable** - La comprobación de conectividad llamaba a `timeout`, que macOS no trae: `ws update` se saltaba el fetch sin avisar y `--summary` y `--push` respondían `remote-unreachable`. Ahora usa `timeout` solo si existe y acota la espera de ssh con `ConnectTimeout`
+- **En macOS sin coreutils el remoto se daba siempre por inalcanzable** - La comprobación de conectividad llamaba a `timeout`, que macOS no trae: `ws update` se saltaba el fetch sin avisar y `--summary` y `--push` respondían `remote-unreachable`. Ahora el tiempo de espera lo aplica `ws_run_with_timeout`, en bash y sin `timeout`, también al fetch de `ws env`, que en macOS se quedaba sin límite
 - **`ws rename` avisaba de las ramas con seguimiento remoto según otro dato** - Leía cinco campos del estado de cada repo, que tiene seis: tomaba por «tiene upstream» el número de commits por traer del remoto y mostraba la rama local en lugar de la remota. Ahora avisa cuando la rama tiene upstream y lo nombra
 - **`ws mgmt-link` no admitía abreviatura** - Faltaba en la lista de expansión automática: `ws mg` respondía como comando desconocido. Ahora se expande a `mgmt-link`
 - **`ws remove` borraba la rama de integración** - En los workspaces `master`, `main` y `develop` eliminaba con `git branch -D` la rama local de ese nombre, con lo que tuviera sin publicar. Ahora solo borra la rama `feature/<workspace>`

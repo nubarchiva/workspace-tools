@@ -407,13 +407,14 @@ git@github.com: Permission denied (publickey).')" = "agent" ]
 # git_is_remote_reachable
 # =============================================================================
 
-# Crea un directorio de PATH con solo git, sin timeout, como un macOS sin coreutils
+# Crea un directorio de PATH con git y sleep, sin timeout, como un macOS sin coreutils
 # Uso: create_bin_dir_without_timeout
 # Sets: BIN_WITHOUT_TIMEOUT
 create_bin_dir_without_timeout() {
     BIN_WITHOUT_TIMEOUT="$TEST_TEMP_DIR/bin-without-timeout"
     mkdir -p "$BIN_WITHOUT_TIMEOUT"
     ln -s "$(command -v git)" "$BIN_WITHOUT_TIMEOUT/git"
+    ln -s "$(command -v sleep)" "$BIN_WITHOUT_TIMEOUT/sleep"
 }
 
 @test "git_is_remote_reachable: detecta el remoto alcanzable sin el comando timeout" {
@@ -433,4 +434,53 @@ create_bin_dir_without_timeout() {
     PATH="$BIN_WITHOUT_TIMEOUT" run git_is_remote_reachable "$LOCAL_REPO"
 
     [ "$status" -eq 1 ]
+}
+
+@test "git_is_remote_reachable: da por inalcanzable el remoto que no responde a tiempo, sin el comando timeout" {
+    create_repo_with_remote
+    local slow="$TEST_TEMP_DIR/slow-upload-pack"
+    printf '#!/bin/sh\nsleep 6\n' > "$slow"
+    chmod +x "$slow"
+    git -C "$LOCAL_REPO" config remote.origin.uploadpack "$slow"
+    create_bin_dir_without_timeout
+    local start=$SECONDS
+
+    PATH="$BIN_WITHOUT_TIMEOUT" run git_is_remote_reachable "$LOCAL_REPO"
+
+    [ "$status" -eq 1 ]
+    [ $((SECONDS - start)) -lt 5 ]
+}
+
+# =============================================================================
+# ws_run_with_timeout
+# =============================================================================
+
+@test "ws_run_with_timeout: devuelve el código y la salida de la orden que termina a tiempo" {
+    run ws_run_with_timeout 5 sh -c 'echo salida; echo error >&2; exit 3'
+
+    [ "$status" -eq 3 ]
+    [ "$output" = "salida
+error" ]
+}
+
+@test "ws_run_with_timeout: detiene la orden que agota el tiempo y devuelve 124" {
+    local start=$SECONDS
+
+    run ws_run_with_timeout 1 sleep 6
+
+    [ "$status" -eq 124 ]
+    [ $((SECONDS - start)) -lt 4 ]
+}
+
+@test "ws_run_with_timeout: no deja procesos vivos cuando la orden termina a tiempo" {
+    run ws_run_with_timeout 47 true
+
+    [ "$status" -eq 0 ]
+    ! ps -axo command= | grep -q '^sleep 47$'
+}
+
+@test "ws_run_with_timeout: pasa a la orden las variables de entorno de la llamada" {
+    WS_TEST_VALUE=visible run ws_run_with_timeout 5 sh -c 'echo "$WS_TEST_VALUE"'
+
+    [ "$output" = "visible" ]
 }
