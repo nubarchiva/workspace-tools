@@ -163,13 +163,14 @@ git_is_remote_reachable() {
     fi
 }
 
-# Hace fetch si hay conectividad, sino lo salta silenciosamente
+# Hace fetch, con poda de las ramas retiradas de origin, si hay conectividad;
+# sino lo salta silenciosamente
 # Uso: git_fetch_if_reachable [repo_path]
 git_fetch_if_reachable() {
     local repo_path="${1:-.}"
 
     if git_is_remote_reachable "$repo_path"; then
-        (cd "$repo_path" && git fetch origin --quiet 2>/dev/null) || true
+        (cd "$repo_path" && git fetch --prune origin --quiet 2>/dev/null) || true
     fi
 }
 

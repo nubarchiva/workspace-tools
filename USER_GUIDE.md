@@ -497,7 +497,7 @@ ws update [workspace] [opciones]
 - `--push`: Uso desatendido: publica la rama del workspace; ver [Uso desatendido](#uso-desatendido-de-ws-update)
 
 **Comportamiento:**
-- Hace fetch del remoto primero
+- Hace fetch del remoto primero y poda las ramas retiradas de origin
 - Usa la rama base de origin: `develop`, o si no existe `main` o `master`
 - Solo si origin no tiene ninguna usa la local, y descarta la que se ha retirado del remoto
 - Salta repos con cambios sin commitear

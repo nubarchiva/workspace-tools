@@ -33,7 +33,7 @@ show_help() {
     echo "  ws update --push             # publicar tras compilar"
     echo ""
     echo "Comportamiento:"
-    echo "  • Hace fetch del remoto primero"
+    echo "  • Hace fetch del remoto primero y poda las ramas retiradas de origin"
     echo "  • Usa la rama base de origin (develop, main o master); sin ninguna, la local"
     echo "  • Salta repos con cambios sin commitear"
     echo "  • En modo --all: continúa con siguiente workspace si hay conflictos"
@@ -196,7 +196,7 @@ show_workspace_summary() {
         echo "$repos" | while read -r repo_rel_path; do
             if [ -n "$repo_rel_path" ]; then
                 local repo_path="$ws_dir/$repo_rel_path"
-                git -C "$repo_path" fetch origin --quiet 2>/dev/null || true
+                git -C "$repo_path" fetch --prune origin --quiet 2>/dev/null || true
             fi
         done
     fi
@@ -303,7 +303,7 @@ update_single_workspace() {
             # Hacer fetch si hay conectividad
             if git_is_remote_reachable "$repo_path"; then
                 echo "   ${COLOR_DIM}Fetching...${COLOR_RESET}"
-                git fetch origin --quiet 2>/dev/null || true
+                git fetch --prune origin --quiet 2>/dev/null || true
             fi
 
             # Determinar branch base para este repo
@@ -434,7 +434,8 @@ workspace_branch_repos() {
     find_repos_in_workspace "$1" | grep -vxF "$MANAGEMENT_DIR_NAME"
 }
 
-# Trae origin antes de comparar; en modo offline se compara con lo local
+# Trae origin, con poda de las ramas retiradas, antes de comparar; en modo
+# offline se compara con lo local
 # Retorna 1 y deja el motivo en FETCH_FAILURE si no puede
 fetch_origin() {
     local repo_path=$1
@@ -447,7 +448,7 @@ fetch_origin() {
         FETCH_FAILURE="remote-unreachable"
         return 1
     fi
-    if ! output=$(git -C "$repo_path" fetch origin --quiet 2>&1); then
+    if ! output=$(git -C "$repo_path" fetch --prune origin --quiet 2>&1); then
         FETCH_FAILURE="fetch-failed $(git_error_cause "$output")"
         return 1
     fi
