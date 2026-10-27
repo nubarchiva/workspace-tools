@@ -382,6 +382,36 @@ repo_with_branches() {
     [ "$output" = "origin/develop" ]
 }
 
+@test "git_resolve_base_branch: prefiere cualquier rama remota a una local de más prioridad" {
+    create_repo_with_remote
+    git -C "$LOCAL_REPO" branch develop
+    run git_resolve_base_branch "$LOCAL_REPO"
+    [ "$status" -eq 0 ]
+    [ "$output" = "origin/master" ]
+}
+
+@test "git_resolve_base_branch: descarta la rama local retirada del remoto" {
+    create_repo_with_remote
+    git -C "$LOCAL_REPO" push --quiet -u origin master:develop 2>/dev/null
+    git -C "$LOCAL_REPO" branch --quiet --track develop origin/develop
+    git -C "$LOCAL_REPO" push --quiet origin --delete develop 2>/dev/null
+    git -C "$LOCAL_REPO" fetch --quiet --prune 2>/dev/null
+    run git_resolve_base_branch "$LOCAL_REPO"
+    [ "$status" -eq 0 ]
+    [ "$output" = "origin/master" ]
+}
+
+@test "git_resolve_base_branch: sin rama remota descarta la local cuyo upstream ha desaparecido" {
+    local repo
+    repo=$(repo_with_branches "r6" master develop)
+    git -C "$repo" remote add origin "$TEST_TEMP_DIR/inexistente.git"
+    git -C "$repo" config branch.develop.remote origin
+    git -C "$repo" config branch.develop.merge refs/heads/develop
+    run git_resolve_base_branch "$repo"
+    [ "$status" -eq 0 ]
+    [ "$output" = "master" ]
+}
+
 # =============================================================================
 # git_error_cause
 # =============================================================================

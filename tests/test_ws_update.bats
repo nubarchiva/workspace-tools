@@ -353,6 +353,33 @@ merge_in_progress() {
     ! git -C "$TEST_TEMP_DIR/remotes/repo-a.git" rev-parse -q --verify "feature/$WS"
 }
 
+@test "ws-update: --summary and --push take the remote base, not a local develop retired from origin" {
+    add_repo repo-a master
+    local clone="$TEST_WORKSPACE_ROOT/repo-a"
+    local publisher="$TEST_TEMP_DIR/publishers/repo-a"
+    git -C "$clone" push --quiet -u origin master:develop
+    git -C "$clone" branch --quiet --track develop origin/develop
+    git -C "$clone" push --quiet origin --delete develop
+    git -C "$clone" fetch --quiet --prune
+    printf 'nuevo\n' > "$publisher/nuevo.txt"
+    git -C "$publisher" add nuevo.txt
+    git -C "$publisher" commit --quiet -m "master: nuevo.txt"
+    git -C "$publisher" push --quiet origin master
+    local before
+    before=$(short_head repo-a)
+
+    run run_update "$WS" --summary
+
+    [ "$status" -eq 0 ]
+    [ "$output" = "fast-forward repo-a origin/master $before..$(short_head repo-a)" ]
+
+    run run_update "$WS" --push
+
+    [ "$status" -eq 0 ]
+    [ "$output" = "unpublished repo-a feature/$WS no-own-commits origin/master" ]
+    ! git -C "$TEST_TEMP_DIR/remotes/repo-a.git" rev-parse -q --verify "feature/$WS"
+}
+
 @test "ws-update: --push does not create the remote branch without a base branch to compare with" {
     add_repo repo-a trunk
     commit_on_branch repo-a propio.txt "propio"

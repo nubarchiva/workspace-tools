@@ -498,8 +498,8 @@ ws update [workspace] [opciones]
 
 **Comportamiento:**
 - Hace fetch del remoto primero
-- Usa origin/develop si existe, sino develop local
-- Fallback a master si no existe develop
+- Usa la rama base de origin: `develop`, o si no existe `main` o `master`
+- Solo si origin no tiene ninguna usa la local, y descarta la que se ha retirado del remoto
 - Salta repos con cambios sin commitear
 - Se detiene si hay conflictos (excepto en modo `--all` o con `--keep-conflicts`)
 

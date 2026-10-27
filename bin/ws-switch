@@ -167,13 +167,13 @@ echo "$repos" | while read -r repo_rel_path; do
 
             # Estado de sincronización (solo si no es rama de integración)
             if ! is_branch_workspace "$WORKSPACE_NAME"; then
+                # Hacer fetch si hay conectividad
+                git_fetch_if_reachable "$worktree_path"
+
                 # Determinar branch base
                 base_branch=$(git_resolve_base_branch) || base_branch=""
 
                 if [ -n "$base_branch" ]; then
-                    # Hacer fetch si hay conectividad
-                    git_fetch_if_reachable "$worktree_path"
-
                     base_name="${base_branch#origin/}"
 
                     # Calcular los 3 indicadores:

@@ -40,22 +40,40 @@ _WS_GIT_UTILS_LOADED=1
 _GIT_REMOTE_REACHABLE=""
 
 # Resuelve la rama base con la que comparar una rama de trabajo.
-# Prefiere la referencia remota sobre la local, y develop sobre main y master:
-# en un repositorio con develop y main, develop sigue siendo la de integración.
+# Busca primero en origin y solo después en local, y en cada uno prefiere develop
+# sobre main y master: en un repositorio con develop y main, develop sigue siendo
+# la de integración. Una rama local cuyo upstream ha desaparecido no es candidata.
 # Uso: git_resolve_base_branch [repo_path]
 # Imprime el nombre de la rama base; retorna 1 si no encuentra ninguna
 git_resolve_base_branch() {
     local repo_path="${1:-.}"
     local candidate
 
-    for candidate in origin/develop develop origin/main main origin/master master; do
+    for candidate in origin/develop origin/main origin/master; do
         if git -C "$repo_path" rev-parse --verify "$candidate" >/dev/null 2>&1; then
             echo "$candidate"
             return 0
         fi
     done
 
+    for candidate in develop main master; do
+        if git -C "$repo_path" rev-parse --verify "refs/heads/$candidate" >/dev/null 2>&1 \
+            && ! _git_has_gone_upstream "$repo_path" "$candidate"; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+
     return 1
+}
+
+# Indica si una rama local tiene upstream configurado y este ya no existe
+# Uso interno: _git_has_gone_upstream <repo_path> <rama>
+_git_has_gone_upstream() {
+    local repo_path="$1" branch="$2"
+
+    git -C "$repo_path" config --get "branch.$branch.merge" >/dev/null 2>&1 \
+        && ! git -C "$repo_path" rev-parse --verify --quiet "$branch@{upstream}" >/dev/null 2>&1
 }
 
 # Ejecuta una orden con un tiempo de espera máximo, sin depender de timeout,
@@ -224,21 +242,11 @@ git_get_current_branch() {
     cd "$repo_path" && git branch --show-current 2>/dev/null
 }
 
-# Encuentra la branch base para comparar (origin/develop, origin/master, etc.)
+# Encuentra la branch base para comparar; ver git_resolve_base_branch
 # Uso: git_get_base_branch [path]
 # Retorna: nombre de la branch base encontrada o cadena vacía
 git_get_base_branch() {
-    local repo_path="${1:-.}"
-
-    local branch
-    for branch in origin/develop origin/master develop master; do
-        if (cd "$repo_path" && git rev-parse --verify "$branch" >/dev/null 2>&1); then
-            echo "$branch"
-            return 0
-        fi
-    done
-
-    return 1
+    git_resolve_base_branch "${1:-.}"
 }
 
 # Verifica si hay commits sin pushear
@@ -352,14 +360,8 @@ git_repo_status() {
         upstream_branch=""
         unpulled_count=0
         # Sin upstream: comparar con branch base
-        local base_branch=""
-        for branch in origin/develop origin/master develop master; do
-            if git rev-parse --verify "$branch" >/dev/null 2>&1; then
-                base_branch="$branch"
-                break
-            fi
-        done
-        if [[ -n "$base_branch" ]]; then
+        local base_branch
+        if base_branch=$(git_resolve_base_branch); then
             unpushed_count=$(git rev-list --first-parent "${base_branch}..HEAD" 2>/dev/null | wc -l | tr -d ' ')
         else
             unpushed_count=0
