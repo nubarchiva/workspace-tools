@@ -88,21 +88,23 @@ ws_run_with_timeout() {
     "$@" &
     local command_pid=$!
 
+    # El vigilante sale con 2 si ha detenido la orden y con 0 si se le detiene antes
     (
         trap 'kill $(jobs -p) 2>/dev/null; exit 0' TERM
         sleep "$seconds" &
         wait $!
+        trap '' TERM
         kill -TERM "$command_pid" 2>/dev/null
+        exit 2
     ) >/dev/null 2>&1 &
     local watcher_pid=$!
 
     wait "$command_pid" 2>/dev/null
     local rc=$?
 
-    if kill -0 "$watcher_pid" 2>/dev/null; then
-        kill -TERM "$watcher_pid" 2>/dev/null
-        wait "$watcher_pid" 2>/dev/null
-    elif [ "$rc" -eq 143 ]; then
+    kill -TERM "$watcher_pid" 2>/dev/null
+    wait "$watcher_pid" 2>/dev/null
+    if [ $? -eq 2 ] && [ "$rc" -eq 143 ]; then
         rc=124
     fi
 

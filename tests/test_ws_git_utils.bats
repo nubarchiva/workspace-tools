@@ -502,6 +502,14 @@ error" ]
     [ $((SECONDS - start)) -lt 4 ]
 }
 
+@test "ws_run_with_timeout: devuelve 124 aunque el vigilante tarde en terminar tras detener la orden" {
+    kill() { builtin kill "$@"; local rc=$?; sleep 0.5; return "$rc"; }
+
+    run ws_run_with_timeout 1 sleep 4
+
+    [ "$status" -eq 124 ]
+}
+
 @test "ws_run_with_timeout: no deja procesos vivos cuando la orden termina a tiempo" {
     run ws_run_with_timeout 47 true
 
